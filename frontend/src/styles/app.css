@@ -8123,6 +8123,19 @@ body {
   border-radius: 12px;
 }
 
+/* Mieliluotsi's proposal on the scale: the client keeps it or picks another number. */
+.vt .call-scale button.is-proposed {
+  border-color: #fff;
+  background: #fff;
+  color: var(--pro-deep, #0a2c34);
+}
+
+.vt .call-or {
+  margin: 2px 0 0;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 12px;
+}
+
 .vt .call-type {
   display: flex;
   gap: 6px;

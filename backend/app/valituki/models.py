@@ -355,7 +355,7 @@ class SafetyObservation(Provenance):
     aiHint: Optional[str] = None
     aiLevel: int = 0
     triggers: list[SafetyTrigger] = []
-    context: Literal['chat', 'checkin', 'intake', 'button', 'demo', 'activity', 'practice']
+    context: Literal['chat', 'checkin', 'intake', 'button', 'demo', 'activity', 'practice', 'call']
     requiredHumanAction: str = ''
     status: Literal['open', 'reviewed', 'closed', 'info'] = 'open'
     taskId: Optional[str] = None

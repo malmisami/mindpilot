@@ -7,6 +7,13 @@ export type Direction = 'worse' | 'better';
 
 export interface Mutation<T = unknown> { result: T; view: ValitukiView }
 
+/** A wellbeing call: where the client's own words fall on the 1–5 scale – a proposal they confirm or correct. Only
+    `safety` comes back when a safety rule stopped the call. */
+export interface FeelingProposal {
+  safety: { level: number };
+  scale?: 'mood' | 'anxiety'; value?: number | null; label?: string | null; reflection?: string; source?: string;
+}
+
 export interface SafetyContact { id: string; label: string; action: string; number: string; tel: string; when: string }
 
 export interface ApprovedActivity {

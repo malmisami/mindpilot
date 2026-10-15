@@ -16,6 +16,7 @@ Provider methods (spec name → Python):
   summariseCheckIn → summarise_checkin                     generateObservationExplanation → generate_observation_explanation
   generateMatchExplanation → generate_match_explanation    generateHandoverDraft → generate_handover_draft
   generateGuidedTurn → generate_guided_turn (one step of a guided CBT tool: reflection + the next question)
+  estimateFeeling → estimate_feeling (a wellbeing call: a 1–5 proposal from the client's own words, which they confirm)
 """
 from __future__ import annotations
 
@@ -138,6 +139,18 @@ def follow_up_schema(keys: list[str]) -> dict[str, Any]:
     }
 
 
+FEELING_SCHEMA: dict[str, Any] = {
+    'type': 'object',
+    'properties': {
+        'value': {'anyOf': [{'type': 'integer', 'enum': [1, 2, 3, 4, 5]}, {'type': 'null'}]},
+        'reflection': {'type': 'string'},
+        'safetyHint': {'type': 'string', 'enum': list(SAFETY_HINTS)},
+    },
+    'required': ['value', 'reflection', 'safetyHint'],
+    'additionalProperties': False,
+}
+
+
 def summary_schema() -> dict[str, Any]:
     topics = list(TOPICS)
     return {
@@ -228,6 +241,17 @@ class GuidedTurn:
     failure: Optional[str] = None
 
 
+@dataclass
+class FeelingEstimate:
+    """A proposal of where the client's own words fall on a 1–5 scale. The client confirms or corrects it."""
+    value: Optional[int]  # None when the words give no clear level
+    reflection: str
+    safetyHint: str = 'NONE'
+    source: str = 'demo'
+    violations: list[str] = field(default_factory=list)
+    failure: Optional[str] = None
+
+
 class AIProvider(ABC):
     mode: str
 
@@ -257,6 +281,9 @@ class AIProvider(ABC):
 
     @abstractmethod
     def generate_guided_turn(self, ctx: dict[str, Any]) -> GuidedTurn: ...
+
+    @abstractmethod
+    def estimate_feeling(self, ctx: dict[str, Any]) -> FeelingEstimate: ...
 
     def generate_match_explanations(self, items: list[dict[str, Any]]) -> list[AIText]:
         return [self.generate_match_explanation(item) for item in items]
@@ -383,6 +410,55 @@ def _touches_excluded_topic(message: str, do_not_address: str) -> bool:
     return any(w[:6] in text for w in words)
 
 
+# How the client describes their mood or anxiety in a call → a proposed 1–5 level. The first matching rule wins, so
+# negations ("not good", "not bad") and strong words come before the plain ones. A number they say themselves wins.
+_FEELING_RULES: dict[str, list[tuple[int, str]]] = {
+    'mood': [
+        (2, r"\b(not|isn't|isnt|wasn't|wasnt) (so |very |that |too |really |feeling )?(good|great|well)\b|\bei (kovin |niin |ole )?hyv"),
+        (3, r"\b(not|isn't|isnt|wasn't|wasnt) (so |too |that |really )?(bad|terrible|awful)\b|\bei (kovin |niin )?huono"),
+        (5, r'\b(great|excellent|wonderful|fantastic|amazing|brilliant|really good|very good|really well|very well|erinomai'
+            r'|loistava|mahtava|tosi hyv|todella hyv|erittain hyv)'),
+        (1, r"\b(terrible|awful|horrible|dreadful|miserable|really bad|very bad|really low|very low|the worst|can'?t cope|can t cope"
+            r'|falling apart|kamala|kauhea|surkea|todella huono|tosi huono|erittain huono)'),
+        (2, r'\b(bad|low|down|sad|tired|exhausted|drained|stressed|rough|heavy|hard|difficult|struggl|worn out|huono|vasyn'
+            r'|alakulo|raskas|maassa|stressaa)'),
+        (3, r'\b(okay|ok|fine|alright|all right|so so|meh|average|in between|in the middle|neutral|nothing special|mixed'
+            r'|up and down|menettelee|keskiverto|siina ja siina|kohtalai)'),
+        (4, r'\b(good|well|better|nice|positive|happy|rested|hyva|hyvin|parempi|kiva|iloinen|pirtea)'),
+    ],
+    'anxiety': [
+        (2, r"\b(not|isn't|isnt|wasn't|wasnt) (very|that|too|so|really) (anxious|nervous|worried|stressed|tense)"),
+        (1, r"\bnot at all\b|\b(not|isn't|isnt|wasn't|wasnt|don't|dont|didn't|didnt) (feel |been |felt )?(anxious|nervous|worried"
+            r'|stressed|tense)|\bno (anxiety|nerves|stress|worries)\b|\bei (ollenkaan|lainkaan|yhtaan)|\bei (jannita|ahdista)'),
+        (5, r"\b(extremely|overwhelm|unbearable|panic attack|terrified|can'?t breathe|can t breathe|through the roof|hirveasti"
+            r'|valtavasti|kauheasti|paniikki|sietamato|todella paljon)'),
+        (4, r'\b(a lot|quite a bit|(very|really|quite|so|pretty) (anxious|nervous|stressed|tense|worried|on edge)|panick|on edge'
+            r'|paljon|tosi (jannittaa|ahdistaa)|todella (jannit|ahdist)|kovasti)'),
+        (2, r'\b(a little|a bit|slightly|mild|vahan|hieman|lievasti)'),
+        (3, r'\b(somewhat|some|moderate|fairly|kind of|sort of|jonkin verran|jonkun verran|kohtalai|melko)'),
+        (1, r'\b(calm|relaxed|at ease|peaceful|rauhallinen|rento|levollinen)'),
+        (3, r'\b(anxious|nervous|worried|stressed|tense|anxiety|jannit|ahdist|stress|huoli)'),
+    ],
+}
+_SPOKEN_LEVEL = {'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 'yksi': 1, 'kaksi': 2, 'kolme': 3, 'nelja': 4, 'viisi': 5}
+_FEELING_REFLECTIONS = {
+    'mood': {1: 'That sounds like a really hard day.', 2: 'That sounds like a heavy day.', 3: 'So somewhere in the middle today.',
+             4: 'That sounds like a fairly good day.', 5: 'That sounds like a really good day.'},
+    'anxiety': {1: "So you've felt calm today.", 2: 'So a little nervousness, but not much.', 3: 'So some anxiety today.',
+                4: 'That sounds like quite a lot of anxiety to carry.', 5: 'That sounds like a great deal of anxiety today.'},
+}
+
+
+def demo_feeling_level(scale: str, text: str) -> Optional[int]:
+    """The level the client's words point to – a number they say themselves ("about a 3") first – or None."""
+    words = normalize(text)
+    said = re.search(r'\b([1-5])\b', words) or re.search(
+        r'\b(a|about|around|maybe|probably|like|noin|ehka) (one|two|three|four|five|yksi|kaksi|kolme|nelja|viisi)\b', words)
+    if said:
+        return int(said.group(1)) if said.group(1).isdigit() else _SPOKEN_LEVEL[said.group(2)]
+    return next((level for level, pattern in _FEELING_RULES[scale] if re.search(pattern, words)), None)
+
+
 class DemoAIProvider(AIProvider):
     mode = DEMO
 
@@ -476,6 +552,11 @@ class DemoAIProvider(AIProvider):
         return GuidedTurn(reflection=demo_reflection(ctx), question=ctx['question'],
                           suggestedTraps=list(ctx.get('suggestedTraps') or []), examples=list(ctx.get('examples') or []),
                           ladder=[dict(step) for step in ctx.get('ladder') or []], source='demo')
+
+    def estimate_feeling(self, ctx):
+        value = demo_feeling_level(ctx['scale'], ctx['text'])
+        reflection = _FEELING_REFLECTIONS[ctx['scale']][value] if value else 'Thank you for telling me.'
+        return FeelingEstimate(value=value, reflection=reflection)
 
 
 # --- LIVE_AI_MODE ------------------------------------------------------------------------------------------------------
@@ -795,6 +876,32 @@ class ClaudeAIProvider(AIProvider):
                 turn.ladder = sorted(steps, key=lambda s: s['expected'])
         _record('generateGuidedTurn', True, None)
         return turn
+
+    def estimate_feeling(self, ctx):
+        fallback = self.demo.estimate_feeling(ctx)
+        prompt = ('Task: estimateFeeling. In a wellbeing phone call the person was asked how they are (scale "mood") or how much '
+                  'anxiety or nervousness they have felt today (scale "anxiety"), and they answered in their own words. Write '
+                  '"value": where their words fall on the 1–5 scale described by scaleLabels, staying close to what they actually '
+                  'said – they will confirm or correct it, and a number they said themselves is their answer. Use null when the '
+                  'words give no clear sense of the level. Write "reflection": one short, warm sentence in English that reflects '
+                  'what they said, close to their own words – no question, no advice, no interpretation of their health and no '
+                  'number.\n\nInput (JSON):\n'
+                  + json.dumps({key: ctx.get(key) for key in ('scale', 'scaleLabels', 'text', 'firstName')}, ensure_ascii=False))
+        data, failure = _json('estimateFeeling', prompt, FEELING_SCHEMA)
+        if data is None:
+            fallback.source, fallback.failure = 'fallback', failure
+            return fallback
+        value = data.get('value')
+        reflection = (data.get('reflection') or '').strip()
+        hint = data.get('safetyHint') if data.get('safetyHint') in SAFETY_HINTS else 'NONE'
+        violations = guard.check(reflection, max_questions=0, max_length=240) if reflection else []
+        if value not in (None, 1, 2, 3, 4, 5) or violations:
+            _record('estimateFeeling', False, 'safety check: ' + ', '.join(violations) if violations else 'invalid value')
+            fallback.source, fallback.violations, fallback.safetyHint = 'fallback', violations, hint
+            fallback.failure = 'safety check' if violations else 'invalid value'
+            return fallback
+        _record('estimateFeeling', True, None)
+        return FeelingEstimate(value=value, reflection=reflection or fallback.reflection, safetyHint=hint, source='live')
 
     def generate_handover_draft(self, facts):
         fallback = self.demo.generate_handover_draft(facts)

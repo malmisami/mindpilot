@@ -1,5 +1,5 @@
 import { post, put, request } from '../lib/http';
-import type { AftercareInput, AICheck, AIStatus, ConsentScope, Mutation, PlanInput, ValitukiView } from './types';
+import type { AftercareInput, AICheck, AIStatus, ConsentScope, FeelingProposal, Mutation, PlanInput, ValitukiView } from './types';
 
 /** Which client / therapist the returned view should be built for. */
 export interface ViewScope { clientId: string | null; therapistId: string | null }
@@ -36,6 +36,9 @@ export const api = {
   /** "Miten voit tänään?" on the home screen right after the intake – the first point of the client's own baseline. */
   recordBaseline: (s: ViewScope, id: string, body: { mood: number; anxiety: number | null }) =>
     post<Mutation>(`${BASE}/clients/${id}/baseline${qs(s)}`, body),
+  /** A wellbeing call: the client's own words → a proposed 1–5 level that they confirm or correct. */
+  callFeeling: (s: ViewScope, id: string, scale: 'mood' | 'anxiety', text: string) =>
+    post<Mutation<FeelingProposal>>(`${BASE}/clients/${id}/call/feeling${qs(s)}`, { scale, text }),
 
   // client – support
   setConsent: (s: ViewScope, id: string, changes: Partial<ConsentScope>) => put<Mutation>(`${BASE}/clients/${id}/consent${qs(s)}`, changes),

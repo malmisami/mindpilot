@@ -83,6 +83,11 @@ class BaselineBody(BaseModel):
     anxiety: Optional[int] = Field(default=None, ge=1, le=5)
 
 
+class FeelingBody(BaseModel):
+    scale: Literal['mood', 'anxiety']
+    text: str = Field(max_length=1000)
+
+
 class CheckInBody(BaseModel):
     mood: int = Field(ge=1, le=5)
     anxiety: Optional[int] = Field(default=None, ge=1, le=5)
@@ -333,6 +338,12 @@ def post_baseline(client_id: str, body: BaselineBody, therapist_id: Optional[str
 def put_consent(client_id: str, body: ConsentBody, therapist_id: Optional[str] = TherapistQ):
     changes = {k: v for k, v in body.model_dump().items() if v is not None}
     return _run(lambda s: client_actions.set_consent(s, _client(s, client_id), changes), client_id, therapist_id)
+
+
+@router.post('/clients/{client_id}/call/feeling')
+def post_call_feeling(client_id: str, body: FeelingBody, therapist_id: Optional[str] = TherapistQ):
+    return _run(lambda s: client_actions.estimate_feeling(s, _client(s, client_id), body.scale, body.text, ai.get_provider()),
+                client_id, therapist_id)
 
 
 @router.post('/clients/{client_id}/checkins')

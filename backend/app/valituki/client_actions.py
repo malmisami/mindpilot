@@ -62,6 +62,43 @@ def set_consent(state: ValitukiState, client: ClientProfile, scope: dict[str, bo
 
 # --- check-ins -------------------------------------------------------------------------------------------------------
 
+def estimate_feeling(state: ValitukiState, client: ClientProfile, scale: str, text: str,
+                     provider: Optional[AIProvider] = None) -> dict[str, Any]:
+    """A wellbeing call: the client describes their mood or anxiety in their own words, and Mieliluotsi proposes a 1–5
+    level that the client confirms or corrects – the number they settle on is what is saved. The words are checked by
+    the safety rules first and are not stored."""
+    _require(client, ACTIVE_STATES, 'The call')
+    if support.locked(client):
+        raise ClientActionError('The safety instructions are showing – please acknowledge them first.')
+    text = text.strip()[:1000]
+    if not text:
+        raise ClientActionError('Tell me in a few words how you are.')
+    provider = provider or DemoAIProvider()
+    labels = MOOD_SCALE if scale == 'mood' else ANXIETY_SCALE
+    triggers = evaluate_text(text)
+    result = assess(triggers)
+    estimate = None
+    if result.final_level < 3:
+        # A deterministic level-3 trigger stops the call before any language model is called.
+        estimate = provider.estimate_feeling({'scale': scale, 'text': text, 'firstName': client.firstName,
+                                              'scaleLabels': {str(k): v for k, v in labels.items()}})
+        result = assess(triggers, ai_hint=estimate.safetyHint)
+    if result.final_level >= 1:
+        safety_agent.raise_safety(state, client, result, context='call', actor=actor(client))
+    if result.final_level >= 3:
+        _message(state, client, 'assistant', SAFETY_REPLY, safetyLevel=3, textSource='fixed')
+        records.audit(state, actor=records.agent_actor('SafetyAgent'), action='call_safety_interrupt', client_id=client.id,
+                      detail='A safety rule triggered level 3 during a wellbeing call – the call was stopped.')
+        return {'safety': {'level': 3, 'screen': SAFETY_SCREEN}}
+    value = estimate.value
+    records.audit(state, actor=records.agent_actor('CheckInAgent'), action='call_feeling_estimate', client_id=client.id,
+                  detail=f'Proposed {scale} {value}/5 from the client\'s own words ({estimate.source}); the client confirms or '
+                         'corrects it. The words are not stored.' if value else
+                         f'No clear {scale} level in the client\'s words ({estimate.source}); the client was asked for a number.')
+    return {'scale': scale, 'value': value, 'label': labels.get(value) if value else None, 'reflection': estimate.reflection,
+            'source': estimate.source, 'safety': {'level': result.final_level}}
+
+
 def submit_checkin(state: ValitukiState, client: ClientProfile, mood: int, changes: dict[str, str], note: str = '', *,
                    anxiety: Optional[int] = None, track_score: Optional[int] = None, no_change: bool = False,
                    provider: Optional[AIProvider] = None, who: Optional[str] = None, at: Optional[str] = None,

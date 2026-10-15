@@ -6,21 +6,28 @@ import { useValituki } from '../context';
 import { daysBetween } from '../format';
 import { LogoMark } from '../components/Logo';
 import { MicIcon, MicOffIcon, PhoneIcon, SendIcon, SpeakerIcon, SpeakerOffIcon } from '../icons';
-import type { ChatMessage, ClientView, GuidedView, Mutation, ValitukiView } from '../types';
+import type { ChatMessage, ClientView, FeelingProposal, GuidedView, Mutation, ValitukiView } from '../types';
 import { useClientUI } from './ClientApp';
 
 /* WELLBEING CALL – when the client chose calls (contactChannel 'phone'), Mieliluotsi calls on the check-in days: it asks
-   how they are and does a short thought exercise by speech. The call runs the same guided tools as the chat (check-in,
+   how they are and does a short thought exercise by speech. Mood and anxiety are a conversation, not a form: the client
+   describes them in their own words, Mieliluotsi proposes where that falls on the 1–5 scale and asks whether it matches,
+   and the number the client settles on is what is saved. The call runs the same guided tools as the chat (check-in,
    "Exploring a thought") through the same API, so the answers, the safety rules and the AI reflections are the same – only
    the medium is the voice. The browser speaks (speechSynthesis, the most natural English voice it has) and listens
    (SpeechRecognition, en-GB) where it can; the answer buttons and the text field work everywhere. */
 
 type Phase = 'ringing' | 'live' | 'ended';
+type Scale = 'mood' | 'anxiety';
 type Line = { id: number; who: 'luotsi' | 'me'; text: string };
 type Ask =
   | { kind: 'yesno' }
   | { kind: 'scale'; min: number; max: number; labels: string[] }
   | { kind: 'text'; skippable: boolean; placeholder: string }
+  // How they feel in their own words – or a number straight away.
+  | { kind: 'describe'; labels: string[] }
+  // Mieliluotsi's proposal: yes keeps it, a number corrects it.
+  | { kind: 'confirm'; value: number; labels: string[] }
   | { kind: 'choices'; options: { value: string; label: string }[]; skippable: boolean };
 type Answer = { yes: boolean } | { value: number | string } | { skip: true } | { hangup: true };
 
@@ -312,6 +319,15 @@ export default function PhoneCall({ onClose }: { onClose: () => void }) {
     } else if (spec.kind === 'scale') {
       const n = parseNumber(text, spec.min, spec.max);
       if (n !== null) return give({ value: n }, text);
+    } else if (spec.kind === 'describe' && text.split(/\s+/).length <= 3 && parseNumber(text, 1, 5) !== null) {
+      // Just a number ("three", "a four") is an answer already – no need to propose one.
+      return give({ value: parseNumber(text, 1, 5) as number }, text);
+    } else if (spec.kind === 'confirm') {
+      // "No, more like a two" corrects; "yes, that's right" keeps the proposal; a bare "no" asks for their own number.
+      const n = parseNumber(text, 1, 5);
+      if (n !== null) return give({ value: n }, text);
+      const yes = parseYesNo(text);
+      if (yes !== null) return give(yes ? { value: spec.value } : { yes: false }, text);
     } else if (spec.kind === 'choices') {
       const option = matchOption(text, spec.options);
       if (option) return give({ value: option.value }, option.label);
@@ -330,6 +346,47 @@ export default function PhoneCall({ onClose }: { onClose: () => void }) {
       return response;
     });
     return fresh;
+  }
+
+  async function mutateWith<T>(call: (s: ViewScope) => Promise<Mutation<T>>): Promise<Mutation<T> | null> {
+    let fresh: Mutation<T> | null = null;
+    await run(async (s) => {
+      fresh = await call(s);
+      return fresh;
+    });
+    return fresh;
+  }
+
+  const scaleRange = (labels: string[]) => `where one is ${labels[0].toLowerCase()} and five is ${labels[4].toLowerCase()}`;
+
+  async function ownNumber(lines: string[], labels: string[]): Promise<number | null> {
+    const picked = await question(lines, { kind: 'scale', min: 1, max: 5, labels });
+    return !ended.current && 'value' in picked ? Number(picked.value) : null;
+  }
+
+  /* Mood or anxiety as a conversation: the client says how it is, Mieliluotsi reflects it, proposes a level on the 1–5
+     scale and asks whether it matches. Their own words are checked by the safety rules and are not stored. */
+  async function feeling(scale: Scale, open: string[], labels: string[]): Promise<number | null> {
+    const described = await question(open, { kind: 'describe', labels });
+    if (ended.current || !('value' in described)) return null;
+    if (typeof described.value === 'number') return described.value;
+    const out = await mutateWith<FeelingProposal>((s) => api.callFeeling(s, id, scale, String(described.value)));
+    if (ended.current) return null;
+    if (!out) return ownNumber([`Where would you put it on a scale from one to five, ${scaleRange(labels)}?`], labels);
+    if (out.result.safety.level >= 3) {
+      await say(out.view.client ? spoken(unseen(out.view.client), null) : []);
+      finish('The call was stopped for safety reasons. In an emergency, call 112.');
+      return null;
+    }
+    const reflection = out.result.reflection ?? '';
+    const value = out.result.value;
+    if (!value) return ownNumber([reflection, `Where would you put it on a scale from one to five, ${scaleRange(labels)}?`], labels);
+    const proposal = await question([reflection, `On a scale from one to five, ${scaleRange(labels)}, I'd put that at about `
+      + `${value} – ${labels[value - 1].toLowerCase()}. Does that match how you see it?`], { kind: 'confirm', value, labels });
+    if (ended.current) return null;
+    if ('value' in proposal) return Number(proposal.value);
+    if ('yes' in proposal && !proposal.yes) return ownNumber(['What number would you give it yourself, from one to five?'], labels);
+    return null;
   }
 
   // Mieliluotsi's new messages in the chat since the call started – what it says now.
@@ -386,6 +443,10 @@ export default function PhoneCall({ onClose }: { onClose: () => void }) {
       let answer: Answer = { skip: true };
       if (skip) {
         await say(toSay);
+      } else if (tool === 'checkin' && (g.stepKey === 'mood' || g.stepKey === 'anxiety') && g.widget?.type === 'scale5') {
+        const value = await feeling(g.stepKey, toSay, g.widget.options.map((o) => o.label));
+        if (value === null) return 'stop';
+        answer = { value };
       } else {
         const spec = askFor(g);
         if (!spec) return 'done';
@@ -414,13 +475,12 @@ export default function PhoneCall({ onClose }: { onClose: () => void }) {
       const scale = latest.current.meta.labels;
       const moodLabels = MOOD_LABELS.map((word, i) => scale.moodScale[String(i + 1)] ?? word);
       const anxietyLabels = ANXIETY_LABELS.map((word, i) => scale.anxietyScale[String(i + 1)] ?? word);
-      const mood = await question("Let's start with how you're feeling. How are you today, on a scale from one to five? One is "
-        + `${moodLabels[0].toLowerCase()} and five is ${moodLabels[4].toLowerCase()}.`, { kind: 'scale', min: 1, max: 5, labels: moodLabels });
-      if (ended.current || !('value' in mood)) return;
-      const anxiety = await question('And how much anxiety or nervousness do you feel today, from one to five?',
-        { kind: 'scale', min: 1, max: 5, labels: anxietyLabels });
-      if (ended.current || !('value' in anxiety)) return;
-      const saved = await mutate((s) => api.recordBaseline(s, id, { mood: Number(mood.value), anxiety: Number(anxiety.value) }));
+      const mood = await feeling('mood', ["Let's start with how you're feeling. How are you today?"], moodLabels);
+      if (ended.current || mood === null) return;
+      const anxiety = await feeling('anxiety', ['And how about anxiety or nervousness – how much of it have you felt today?'],
+        anxietyLabels);
+      if (ended.current || anxiety === null) return;
+      const saved = await mutate((s) => api.recordBaseline(s, id, { mood, anxiety }));
       if (!saved) return finish("How you're feeling could not be saved.");
       unseen(saved.client as ClientView);
       await say('Thank you. This becomes your own baseline – from now on, how you feel is compared with it, not with other people.');
@@ -548,19 +608,45 @@ export default function PhoneCall({ onClose }: { onClose: () => void }) {
                   ))}
                 </div>
               )}
+              {asking.kind === 'confirm' && (
+                <>
+                  <div className="call-chips">
+                    <button type="button" onClick={() => give({ value: asking.value }, "Yes, that's right")}>Yes, that's right</button>
+                  </div>
+                  <p className="call-or">Or choose your own number:</p>
+                  <div className="call-scale">
+                    {asking.labels.map((label, i) => (
+                      <button key={label} type="button" title={label} className={i + 1 === asking.value ? 'is-proposed' : undefined}
+                        onClick={() => give({ value: i + 1 }, `${i + 1} – ${label}`)}>{i + 1}</button>
+                    ))}
+                  </div>
+                </>
+              )}
               {asking.kind === 'choices' && (
                 <div className="call-chips">
                   {asking.options.map((o) => <button key={o.value} type="button" onClick={() => give({ value: o.value }, o.label)}>{o.label}</button>)}
                   {asking.skippable && <button type="button" onClick={() => give({ skip: true }, "Let's skip this")}>Skip</button>}
                 </div>
               )}
-              {asking.kind === 'text' && (
+              {(asking.kind === 'text' || asking.kind === 'describe') && (
                 <form className="call-type" onSubmit={submitTyped}>
                   <input value={typed} onChange={(e) => setTyped(e.target.value)} aria-label="Write your answer"
-                    placeholder={RecognitionImpl && micOn ? 'Say or write your answer…' : 'Write your answer…'} />
+                    placeholder={asking.kind === 'describe' ? (RecognitionImpl && micOn ? 'Say or write it in your own words…'
+                      : 'Write it in your own words…') : RecognitionImpl && micOn ? 'Say or write your answer…' : 'Write your answer…'} />
                   <button type="submit" aria-label="Send" disabled={!typed.trim()}><SendIcon size={16} /></button>
-                  {asking.skippable && <button type="button" className="call-skip" onClick={() => give({ skip: true }, "Let's skip this")}>Skip</button>}
+                  {asking.kind === 'text' && asking.skippable
+                    && <button type="button" className="call-skip" onClick={() => give({ skip: true }, "Let's skip this")}>Skip</button>}
                 </form>
+              )}
+              {asking.kind === 'describe' && (
+                <>
+                  <p className="call-or">Or choose a number from 1 to 5:</p>
+                  <div className="call-scale">
+                    {asking.labels.map((label, i) => (
+                      <button key={label} type="button" title={label} onClick={() => give({ value: i + 1 }, `${i + 1} – ${label}`)}>{i + 1}</button>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
           )}
