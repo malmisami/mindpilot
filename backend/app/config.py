@@ -81,12 +81,19 @@ class Settings:
     VALITUKI_AI_MODE = _get_env_str('VALITUKI_AI_MODE', 'LIVE_AI_MODE')
     VALITUKI_AI_MODEL = _get_env_str('VALITUKI_AI_MODEL', 'claude-opus-5')
     VALITUKI_AI_TIMEOUT_SECONDS = _get_env_int('VALITUKI_AI_TIMEOUT_SECONDS', 30)
+    # Who answers in LIVE_AI_MODE: 'anthropic' = Claude (default), 'openai' = any OpenAI-compatible server such as vLLM on
+    # an AMD GPU. VALITUKI_OPENAI_MODEL may be left empty: the server's first model is used.
+    VALITUKI_AI_PROVIDER = _get_env_str('VALITUKI_AI_PROVIDER', 'anthropic')
+    VALITUKI_OPENAI_BASE_URL = _get_env_str('VALITUKI_OPENAI_BASE_URL', '')
+    VALITUKI_OPENAI_MODEL = _get_env_str('VALITUKI_OPENAI_MODEL', '')
+    VALITUKI_OPENAI_LABEL = _get_env_str('VALITUKI_OPENAI_LABEL', 'AMD GPU')
     # The earlier OmaGenomi features (DNA analysis, genetic-risk loop, care plans, Apple Health) are kept in the
     # repository but hidden from the product. 1 = mount their API routes again.
     LEGACY_FEATURES_ENABLED = _get_env_int('LEGACY_FEATURES_ENABLED', 0)
 
     def validate(self):
         assert self.VALITUKI_AI_MODE in {'DEMO_AI_MODE', 'LIVE_AI_MODE'}
+        assert self.VALITUKI_AI_PROVIDER in {'anthropic', 'openai'}
         assert self.OMAGENOMI_MODE in {'auto', 'demo', 'clinvar'}
         assert self.DEFAULT_RESOURCE_PROFILE in {'ultralight', 'light', 'normal'}
         assert self.MAX_UPLOAD_MB > 0

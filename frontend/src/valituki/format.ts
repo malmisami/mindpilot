@@ -77,7 +77,7 @@ export function capitalize(text: string): string {
 export const SOURCE_TEXT: Record<string, string> = {
   demo: 'Valmis tekstipohja (DEMO_AI_MODE)',
   fallback: 'Valmis tekstipohja – tekoälyn teksti hylättiin tai ei ollut saatavilla',
-  live: 'Tekoälyn muotoilema (Claude)',
+  live: 'Tekoälyn muotoilema',
   fixed: 'Kiinteä, ennalta hyväksytty teksti',
   client: 'Sinä',
 };

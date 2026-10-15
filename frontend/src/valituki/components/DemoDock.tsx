@@ -16,32 +16,35 @@ const seconds = (ms: number | null) => (ms === null ? '' : `${fmtNum(ms / 1000)}
 
 /** The toast after switching the AI mode or testing the connection. */
 function describeAI(result: AIStatus & { check: AICheck | null }): string {
-  if (result.configuredMode === 'DEMO_AI_MODE') return 'Tekoäly: demotila – ennalta hyväksytyt tekstit, ei kutsuja Claudeen.';
+  if (result.configuredMode === 'DEMO_AI_MODE') return 'Tekoäly: demotila – ennalta hyväksytyt tekstit, ei tekoälykutsuja.';
   const check = result.check;
-  if (check?.ok) return `Claude vastasi (${seconds(check.ms)}): "${check.reply ?? ''}" Keskustelu käyttää nyt Claudea.`;
+  const label = result.providerLabel;
+  if (check?.ok) return `${label} vastasi (${seconds(check.ms)}): "${check.reply ?? ''}" Keskustelu käyttää nyt tätä mallia.`;
   if (!result.keyPresent) {
-    return 'API-avain puuttuu: lisää se projektin .env-tiedoston riville ANTHROPIC_API_KEY= ja valitse Claude uudelleen. Siihen asti käytetään demotekstejä.';
+    const line = result.provider === 'openai' ? 'VALITUKI_OPENAI_BASE_URL=' : 'ANTHROPIC_API_KEY=';
+    return `${result.missing}: lisää se projektin .env-tiedoston riville ${line} ja valitse ${label} uudelleen. Siihen asti käytetään demotekstejä.`;
   }
-  return `Claude ei vastannut (${check?.failure ?? 'tuntematon virhe'}). Käytetään demotekstejä.`;
+  return `${label} ei vastannut (${check?.failure ?? 'tuntematon virhe'}). Käytetään demotekstejä.`;
 }
 
-/** Demo ↔ Claude, always in view in the demo control. The model only phrases: rules, safety levels and matching stay
+/** Demo ↔ the live model (Claude, or vLLM on an AMD GPU), always in view in the demo control. The model only phrases: rules, safety levels and matching stay
     deterministic in both modes. */
 export function AISwitch() {
   const { view, run, busy } = useValituki();
   const ai = view.meta.ai;
+  const label = ai.providerLabel;
   const wantsLive = ai.configuredMode === 'LIVE_AI_MODE';
   const live = ai.effectiveMode === 'LIVE_AI_MODE';
   const failed = live && ai.lastCall.ok === false;
   const tone = !wantsLive ? 'is-off' : live && !failed ? 'is-live' : 'is-warn';
   // Whether AI writes the replies right now – said in words beside the switch, not only by its colour.
   const legend = !wantsLive ? 'Tekoäly pois · valmiit tekstit'
-    : live && !failed ? 'Tekoäly päällä · Claude vastaa'
-      : 'Claude ei vastaa · valmiit tekstit';
+    : live && !failed ? `Tekoäly päällä · ${label} vastaa`
+      : `${label} ei vastaa · valmiit tekstit`;
   // On a phone, where the switch shares its row with the view switch.
   const short = !wantsLive ? 'AI pois' : live && !failed ? 'AI päällä' : 'AI ei vastaa';
-  // The details on hover: the model and its reply time, or why Claude is not answering.
-  const status = !wantsLive ? ai.note : !ai.keyPresent ? 'API-avain puuttuu'
+  // The details on hover: the model and its reply time, or why the model is not answering.
+  const status = !wantsLive ? ai.note : !ai.keyPresent ? ai.missing
     : failed ? (ai.lastCall.failure ?? 'virhe')
       : [ai.lastCall.model ?? ai.model, ai.lastCall.ok ? seconds(ai.lastCall.ms) : ''].filter(Boolean).join(' · ');
 
@@ -73,11 +76,11 @@ export function AISwitch() {
       <span className="dock-seg">
         <button type="button" aria-pressed={!wantsLive} disabled={busy} onClick={() => setMode('DEMO_AI_MODE')}>Demo</button>
         <button type="button" aria-pressed={wantsLive} disabled={busy}
-          onClick={() => { setNoteClosed(false); setMode('LIVE_AI_MODE'); }}>Claude</button>
+          onClick={() => { setNoteClosed(false); setMode('LIVE_AI_MODE'); }}>{label}</button>
       </span>
       {showNote && (
         <div className="dock-ai-note" role="note">
-          <p><strong>Claude API on päällä.</strong> Vastaukset tulevat oikealta tekoälyltä ja voivat viedä muutaman sekunnin.
+          <p><strong>{label} on päällä.</strong> Vastaukset tulevat oikealta tekoälyltä ja voivat viedä muutaman sekunnin.
             Jos haluat demota käyttöliittymää nopeasti, vaihda Demoon.</p>
           <div className="dock-ai-note-actions">
             <button type="button" className="dock-ai-note-demo" disabled={busy}

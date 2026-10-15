@@ -40,7 +40,7 @@ export function AgentTimeline({ items, fresh, showClient = false, compact = fals
                     <AgentBadge agent={item.agent} />
                     {item.ruleId && <span className="tl-rule">{item.ruleId}</span>}
                     {item.aiSource && (
-                      <span className="tl-ai"><SparkleIcon size={11} /> {item.aiSource === 'live' ? 'Claude muotoili' : 'tekstipohja'}</span>
+                      <span className="tl-ai"><SparkleIcon size={11} /> {item.aiSource === 'live' ? 'tekoäly muotoili' : 'tekstipohja'}</span>
                     )}
                   </p>
                 </div>

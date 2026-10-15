@@ -17,8 +17,12 @@ def isolated(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, 'VALITUKI_AI_MODE', 'DEMO_AI_MODE')
     monkeypatch.setattr(settings, 'VALITUKI_AI_MODEL', settings.VALITUKI_AI_MODEL)
     monkeypatch.setattr(ai, 'ENV_FILE', tmp_path / '.env')
-    for name in ai.KEY_VARS:
+    for name in ai.KEY_VARS + (ai.OPENAI_KEY_VAR,):
         monkeypatch.setenv(name, '')
+    monkeypatch.setattr(settings, 'VALITUKI_AI_PROVIDER', 'anthropic')
+    for name in ai.PROVIDER_VARS[1:]:
+        monkeypatch.setattr(settings, name, getattr(settings, name))
+    monkeypatch.setattr(ai, '_served_models', {})
 
 
 @pytest.fixture
