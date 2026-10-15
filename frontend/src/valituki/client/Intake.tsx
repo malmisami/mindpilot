@@ -40,8 +40,6 @@ function Welcome() {
         <p className="wait-hero-value">{client.waiting.estimatedWait}</p>
         <p className="wait-hero-meta">You sought help on {fmtShort(client.waiting.soughtHelpAt)} · {client.waiting.service}</p>
       </div>
-      <p className="iw-text">You already described your situation in your referral and at your assessment visit, so you won't be asked the same
-        things again. With your permission, Mieliluotsi uses this information. You can check and edit it on the My data page.</p>
       <div className="card consent-card iw-consent">
         <h3 className="card-title">How your information is used</h3>
         {(Object.keys(labels) as (keyof ConsentScope)[]).map((key) => (

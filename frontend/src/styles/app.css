@@ -2847,12 +2847,6 @@ body {
 
 
 
-.vt .iw-text {
-  color: var(--ink-2);
-  font-size: 14.5px;
-  line-height: 1.45;
-}
-
 .vt .iw-consent {
   gap: 0;
   padding: 14px 16px 12px;
