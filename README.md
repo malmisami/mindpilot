@@ -1,5 +1,7 @@
 # Mieliluotsi
 
+AMD Developer Hackathon: ACT III
+
 > **Tuki alkaa heti, vaikka terapia ei vielä ala.** – Support starts now, even if therapy does not start yet.
 
 Mieliluotsi turns the waiting time before psychotherapy into an active part of the care pathway. From the moment a person
