@@ -17,13 +17,11 @@ export interface ApprovedActivity {
 
 export interface AIStatus {
   configuredMode: 'DEMO_AI_MODE' | 'LIVE_AI_MODE'; effectiveMode: 'DEMO_AI_MODE' | 'LIVE_AI_MODE'; keyPresent: boolean;
-  /** Who answers in LIVE_AI_MODE: Claude, or an OpenAI-compatible server such as vLLM on an AMD GPU. */
-  provider: 'anthropic' | 'openai'; providerLabel: string; missing: string;
   model: string | null; note: string;
   lastCall: { task: string | null; ok: boolean | null; failure: string | null; ms: number | null; model: string | null };
 }
 
-/** A small call through the conversation's own path: did the model answer, and how fast. */
+/** A small call through the conversation's own path: did Claude answer, and how fast. */
 export interface AICheck { ok: boolean; failure: string | null; reply: string | null; ms: number | null; model: string | null }
 
 export interface Meta {

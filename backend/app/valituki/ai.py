@@ -3,10 +3,8 @@
 Two modes:
   DEMO_AI_MODE – deterministic, pre-approved texts and rule-based interpretation. Works without an API key.
   LIVE_AI_MODE – Claude via ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN (from the environment or the project's .env, never
-                 hard-coded) – the default. With VALITUKI_AI_PROVIDER=openai the same calls go to an OpenAI-compatible
-                 server instead (vLLM on an AMD GPU: VALITUKI_OPENAI_BASE_URL, optional VALITUKI_OPENAI_API_KEY).
-                 Every output is validated (JSON schema, allowed ids, the deterministic output guard); anything that
-                 fails falls back to the DEMO_AI_MODE result.
+                 hard-coded) – the default. Every output is validated (JSON schema, allowed ids, the deterministic output guard); anything
+                 that fails falls back to the DEMO_AI_MODE result.
 
 The model only phrases and proposes. It never decides a journey state, a safety level (its safetyHint can only raise the
 deterministic level, see safety.assess), clinical urgency, a match or a treatment. Its interpretations stay proposals
@@ -451,16 +449,11 @@ _STATUS_REASONS = {400: 'virheellinen pyyntö', 401: 'API-avain ei kelpaa', 403:
 
 def _status_failure(exc: Any) -> str:
     """A short reason for the presenter. The API's own message (never the key) helps with a wrong model name or access."""
-    return _status_reason(getattr(exc, 'status_code', None), getattr(exc, 'body', None))
-
-
-def _status_reason(status: Optional[int], body: Any) -> str:
+    status = getattr(exc, 'status_code', None)
     reason = f'{_STATUS_REASONS.get(status, "API-virhe")} ({status})'
+    body = getattr(exc, 'body', None)
     error = body.get('error') if isinstance(body, dict) else None
-    if isinstance(error, dict):
-        detail = str(error.get('message') or '')
-    else:  # vLLM: {"object": "error", "message": ...}
-        detail = str(body.get('message') or '') if isinstance(body, dict) else ''
+    detail = str(error.get('message') or '') if isinstance(error, dict) else ''
     return f'{reason}: {detail[:160]}' if detail and status in (400, 403, 404) else reason
 
 
@@ -508,81 +501,8 @@ def _claude(task_prompt: str, schema: Optional[dict[str, Any]] = None,
     return (text, None) if text else (None, 'tyhjä vastaus')
 
 
-_THINK = re.compile(r'<think>.*?</think>', re.S)
-_served_models: dict[str, str] = {}
-
-
-def _openai_model(client: Any, base_url: str) -> str:
-    """VALITUKI_OPENAI_MODEL, or the first model the server lists (vLLM serves one), asked once per address."""
-    if settings.VALITUKI_OPENAI_MODEL.strip():
-        return settings.VALITUKI_OPENAI_MODEL.strip()
-    if base_url not in _served_models:
-        response = client.get(f'{base_url}/models')
-        response.raise_for_status()
-        _served_models[base_url] = response.json()['data'][0]['id']
-    return _served_models[base_url]
-
-
-def _openai_compatible(task_prompt: str, schema: Optional[dict[str, Any]] = None,
-                       max_tokens: int = 8000) -> tuple[Optional[str], Optional[str]]:
-    """The same call as _claude for an OpenAI-compatible server (vLLM on an AMD GPU). The JSON schema becomes guided
-    decoding. Returns (text, failure reason). Never raises."""
-    import httpx
-
-    base_url = settings.VALITUKI_OPENAI_BASE_URL.strip().rstrip('/')
-    key = (os.environ.get(OPENAI_KEY_VAR) or '').strip()
-    headers = {'Authorization': f'Bearer {key}'} if key else {}
-    started = time.perf_counter()
-    data, failure = None, None
-    try:
-        with httpx.Client(timeout=float(settings.VALITUKI_AI_TIMEOUT_SECONDS), headers=headers) as client:
-            request: dict[str, Any] = {
-                'model': _openai_model(client, base_url),
-                'max_tokens': max_tokens,
-                'messages': [{'role': 'system', 'content': VALITUKI_SYSTEM_PROMPT},
-                             {'role': 'user', 'content': task_prompt}],
-            }
-            if schema:
-                request['response_format'] = {'type': 'json_schema',
-                                              'json_schema': {'name': 'response', 'schema': schema, 'strict': True}}
-            response = client.post(f'{base_url}/chat/completions', json=request)
-            response.raise_for_status()
-            data = response.json()
-    except httpx.TimeoutException:
-        failure = 'aikakatkaisu'
-    except httpx.HTTPStatusError as exc:
-        try:
-            body = exc.response.json()
-        except ValueError:
-            body = None
-        failure = _status_reason(exc.response.status_code, body)
-    except httpx.TransportError:
-        failure = 'yhteysvirhe'
-    except Exception:  # a malformed answer or a wrong address must never break the demo
-        logger.exception('Mieliluotsi: OpenAI-compatible call failed')
-        failure = 'odottamaton virhe'
-    _last_call['ms'] = round((time.perf_counter() - started) * 1000)
-    _last_call['model'] = (data or {}).get('model')
-    if data is None:
-        logger.warning('Mieliluotsi: OpenAI-compatible call failed: %s', failure)
-        return None, failure
-    choice = (data.get('choices') or [{}])[0]
-    if choice.get('finish_reason') == 'length':
-        return None, 'finish_reason=length'
-    text = _THINK.sub('', str((choice.get('message') or {}).get('content') or '')).strip()
-    return (text, None) if text else (None, 'tyhjä vastaus')
-
-
-def _llm(task_prompt: str, schema: Optional[dict[str, Any]] = None,
-         max_tokens: int = 8000) -> tuple[Optional[str], Optional[str]]:
-    """The model VALITUKI_AI_PROVIDER names."""
-    if settings.VALITUKI_AI_PROVIDER == 'openai':
-        return _openai_compatible(task_prompt, schema, max_tokens)
-    return _claude(task_prompt, schema, max_tokens)
-
-
 def _json(task: str, prompt: str, schema: dict[str, Any]) -> tuple[Optional[dict[str, Any]], Optional[str]]:
-    text, failure = _llm(prompt, schema)
+    text, failure = _claude(prompt, schema)
     if text is None:
         _record(task, False, failure)
         return None, failure
@@ -601,7 +521,7 @@ class ClaudeAIProvider(AIProvider):
 
     def _text(self, task: str, prompt: str, fallback: AIText, *, max_questions: int = 1, max_length: int = 700,
               review_exists: bool = False) -> AIText:
-        text, failure = _llm(prompt)
+        text, failure = _claude(prompt)
         if text is None:
             _record(task, False, failure)
             return AIText(fallback.text, 'fallback', failure=failure)
@@ -845,25 +765,10 @@ class ClaudeAIProvider(AIProvider):
 
 ENV_FILE = BASE_DIR / '.env'
 KEY_VARS = ('ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN')
-OPENAI_KEY_VAR = 'VALITUKI_OPENAI_API_KEY'
-PROVIDER_VARS = ('VALITUKI_AI_PROVIDER', 'VALITUKI_OPENAI_BASE_URL', 'VALITUKI_OPENAI_MODEL', 'VALITUKI_OPENAI_LABEL')
 
 
 def key_present() -> bool:
-    """Whether the chosen provider can be called: a Claude key, or the OpenAI-compatible server's address."""
-    if settings.VALITUKI_AI_PROVIDER == 'openai':
-        return bool(settings.VALITUKI_OPENAI_BASE_URL.strip())
     return any((os.environ.get(name) or '').strip() for name in KEY_VARS)
-
-
-def provider_label() -> str:
-    return (settings.VALITUKI_OPENAI_LABEL.strip() or 'vLLM') if settings.VALITUKI_AI_PROVIDER == 'openai' else 'Claude'
-
-
-def _missing_note() -> str:
-    if settings.VALITUKI_AI_PROVIDER == 'openai':
-        return 'VALITUKI_OPENAI_BASE_URL puuttuu'
-    return 'ANTHROPIC_API_KEY puuttuu'
 
 
 def reload_env() -> None:
@@ -872,14 +777,10 @@ def reload_env() -> None:
     if not ENV_FILE.is_file():
         return
     values = dotenv_values(ENV_FILE)
-    for name in (*KEY_VARS, OPENAI_KEY_VAR):
+    for name in KEY_VARS:
         value = (values.get(name) or '').strip()
         if value:
             os.environ[name] = value
-    for name in PROVIDER_VARS:
-        value = (values.get(name) or '').strip()
-        if value and (name != 'VALITUKI_AI_PROVIDER' or value in ('anthropic', 'openai')):
-            setattr(settings, name, value)
     model = (values.get('VALITUKI_AI_MODEL') or '').strip()
     if model:
         settings.VALITUKI_AI_MODEL = model
@@ -905,21 +806,16 @@ def get_provider(interactive: bool = True) -> AIProvider:
 def status() -> dict[str, Any]:
     configured = settings.VALITUKI_AI_MODE
     effective = effective_mode()
-    label = provider_label()
     if configured == LIVE and not key_present():
-        note = (f'LIVE_AI_MODE on valittu, mutta {_missing_note()}: lisää se projektin .env-tiedostoon. Siihen asti '
+        note = ('LIVE_AI_MODE on valittu, mutta ANTHROPIC_API_KEY puuttuu: lisää avain projektin .env-tiedostoon. Siihen asti '
                 'käytetään DEMO_AI_MODE-tekstejä.')
     elif effective == LIVE:
-        note = (f'{label} muotoilee keskustelun vastaukset ja ohjattujen harjoitusten kysymykset. Säännöt, turvallisuustaso '
-                'ja matching ovat aina deterministisiä.')
+        note = ('Claude muotoilee keskustelun vastaukset ja ohjattujen harjoitusten kysymykset. Säännöt, turvallisuustaso ja '
+                'matching ovat aina deterministisiä.')
     else:
         note = 'Deterministiset, ennalta hyväksytyt tekstit ja sääntöpohjaiset tulkinnat. Toimii ilman API-avainta.'
-    openai = settings.VALITUKI_AI_PROVIDER == 'openai'
-    model = (settings.VALITUKI_OPENAI_MODEL.strip() or _served_models.get(settings.VALITUKI_OPENAI_BASE_URL.strip().rstrip('/'))
-             if openai else settings.VALITUKI_AI_MODEL)
     return {'configuredMode': configured, 'effectiveMode': effective, 'keyPresent': key_present(),
-            'provider': settings.VALITUKI_AI_PROVIDER, 'providerLabel': label, 'missing': _missing_note(),
-            'model': model if effective == LIVE else None, 'note': note, 'lastCall': dict(_last_call)}
+            'model': settings.VALITUKI_AI_MODEL if effective == LIVE else None, 'note': note, 'lastCall': dict(_last_call)}
 
 
 CHECK_SCHEMA: dict[str, Any] = {'type': 'object', 'properties': {'reply': {'type': 'string'}}, 'required': ['reply'],
@@ -933,9 +829,8 @@ def check_connection() -> dict[str, Any]:
     presenter sees at once whether Claude answers and how fast. Re-reads .env first."""
     reload_env()
     if not key_present():
-        missing = 'API-avain puuttuu' if settings.VALITUKI_AI_PROVIDER == 'anthropic' else 'palvelimen osoite puuttuu'
-        _last_call.update({'task': 'connectionCheck', 'ok': False, 'failure': missing, 'ms': None, 'model': None})
-        return {'ok': False, 'failure': missing, 'reply': None, 'ms': None, 'model': None}
+        _last_call.update({'task': 'connectionCheck', 'ok': False, 'failure': 'API-avain puuttuu', 'ms': None, 'model': None})
+        return {'ok': False, 'failure': 'API-avain puuttuu', 'reply': None, 'ms': None, 'model': None}
     data, failure = _json('connectionCheck', CHECK_PROMPT, CHECK_SCHEMA)
     if data is not None:
         _record('connectionCheck', True, None)
