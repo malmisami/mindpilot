@@ -9,8 +9,8 @@ import { fmtDate, fmtNum, fmtShort } from '../format';
 export interface WellbeingPoint { date: string; mood: number | null; belowBaseline?: boolean; changes?: Record<string, string> }
 export interface ChartEvent { date: string; label: string }
 
-const MOOD_WORDS: Record<number, string> = { 1: 'Tosi huonosti', 2: 'Huonosti', 3: 'Kohtalaisesti', 4: 'Hyvin', 5: 'Tosi hyvin' };
-const DOMAIN_WORDS: Record<string, string> = { sleep: 'Uni', anxiety: 'Ahdistus', energy: 'Jaksaminen', work: 'Työkyky', social: 'Sosiaalinen elämä' };
+const MOOD_WORDS: Record<number, string> = { 1: 'Very bad', 2: 'Bad', 3: 'Okay', 4: 'Good', 5: 'Very good' };
+const DOMAIN_WORDS: Record<string, string> = { sleep: 'Sleep', anxiety: 'Anxiety', energy: 'Energy', work: 'Ability to work', social: 'Social life' };
 
 /** The rendered width of an element, so an SVG can be drawn 1:1 (10px text stays 10px on a wide screen). */
 function useElementWidth(fallback: number): [(node: HTMLElement | null) => void, number] {
@@ -41,7 +41,7 @@ export function WellbeingChart({ title, points, baseline, events = [], height = 
     return (
       <figure className="viz viz-empty">
         <figcaption className="viz-title">{title}</figcaption>
-        <p className="muted small">Kaavio piirtyy, kun check-inejä on vähintään kaksi.</p>
+        <p className="muted small">The chart appears once there are at least two check-ins.</p>
       </figure>
     );
   }
@@ -61,8 +61,8 @@ export function WellbeingChart({ title, points, baseline, events = [], height = 
   const last = data[data.length - 1];
   const active = hover !== null ? data[hover] : null;
   const belowLimit = baseline !== null ? baseline - 1 : null;
-  const summary = `${title}: ${data.length} itse raportoitua check-iniä ${fmtDate(data[0].date)}–${fmtDate(last.date)}, viimeisin ${last.mood}/5`
-    + (baseline !== null ? `, oma lähtötaso ${fmtNum(baseline)}.` : '.');
+  const summary = `${title}: ${data.length} self-reported check-ins ${fmtDate(data[0].date)}–${fmtDate(last.date)}, latest ${last.mood}/5`
+    + (baseline !== null ? `, own baseline ${fmtNum(baseline)}.` : '.');
 
   function onMove(event: PointerEvent<SVGSVGElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -109,7 +109,7 @@ export function WellbeingChart({ title, points, baseline, events = [], height = 
           {baseline !== null && (
             <g>
               <line className="viz-baseline" x1={pad.left} x2={W - pad.right} y1={y(baseline)} y2={y(baseline)} />
-              {!compact && <text className="viz-baseline-label" x={pad.left + 4} y={y(baseline) - 5}>Oma lähtötaso {fmtNum(baseline)}</text>}
+              {!compact && <text className="viz-baseline-label" x={pad.left + 4} y={y(baseline) - 5}>Own baseline {fmtNum(baseline)}</text>}
             </g>
           )}
           <path className="viz-line" d={path} />
@@ -134,24 +134,24 @@ export function WellbeingChart({ title, points, baseline, events = [], height = 
             <strong>{active.mood}/5 · {MOOD_WORDS[active.mood]}</strong>
             <span>{fmtDate(active.date)}</span>
             {active.changes && Object.keys(active.changes).length > 0 && (
-              <span>{Object.entries(active.changes).map(([k, v]) => `${DOMAIN_WORDS[k] ?? k} ${v === 'worse' ? 'heikompi' : 'parempi'}`).join(' · ')}</span>
+              <span>{Object.entries(active.changes).map(([k, v]) => `${DOMAIN_WORDS[k] ?? k} ${v === 'worse' ? 'worse' : 'better'}`).join(' · ')}</span>
             )}
-            {active.belowBaseline && <span className="viz-tip-flag">Oman lähtötason alapuolella</span>}
+            {active.belowBaseline && <span className="viz-tip-flag">Below own baseline</span>}
           </div>
         )}
       </div>
       {!compact && (
         <>
           <button type="button" className="link-btn viz-table-toggle" aria-expanded={showTable} aria-controls={tableId}
-            onClick={() => setShowTable(!showTable)}>{showTable ? 'Piilota taulukko' : 'Näytä taulukkona'}</button>
+            onClick={() => setShowTable(!showTable)}>{showTable ? 'Hide table' : 'Show as a table'}</button>
           <table id={tableId} className={showTable ? 'viz-table' : 'visually-hidden'}>
             <caption className="visually-hidden">{title}</caption>
-            <thead><tr><th scope="col">Päivä</th><th scope="col">Vointi (1–5)</th><th scope="col">Muuttunut</th></tr></thead>
+            <thead><tr><th scope="col">Date</th><th scope="col">Wellbeing (1–5)</th><th scope="col">Changed</th></tr></thead>
             <tbody>
               {data.map((p, i) => (
                 <tr key={`${p.date}-${i}`}>
                   <td>{fmtDate(p.date)}</td>
-                  <td>{p.mood}{p.belowBaseline ? ' (alle oman tason)' : ''}</td>
+                  <td>{p.mood}{p.belowBaseline ? ' (below own baseline)' : ''}</td>
                   <td>{Object.entries(p.changes ?? {}).map(([k, v]) => `${DOMAIN_WORDS[k] ?? k} ${v === 'worse' ? '↓' : '↑'}`).join(', ') || '–'}</td>
                 </tr>
               ))}
@@ -223,15 +223,15 @@ export function Meter({ label, value, max, detail }: { label: string; value: num
 
 export interface MoodAnxietyPoint { date: string; at: string | null; mood: number | null; anxiety: number | null }
 
-const ANXIETY_WORDS: Record<number, string> = { 1: 'ei lainkaan', 2: 'vähän', 3: 'jonkin verran', 4: 'paljon', 5: 'hyvin paljon' };
+const ANXIETY_WORDS: Record<number, string> = { 1: 'not at all', 2: 'a little', 3: 'somewhat', 4: 'a lot', 5: 'very much' };
 const SERIES = [
-  { key: 'mood' as const, label: 'Mieliala', className: 'ma-mood' },
-  { key: 'anxiety' as const, label: 'Ahdistus', className: 'ma-anx' },
+  { key: 'mood' as const, label: 'Mood', className: 'ma-mood' },
+  { key: 'anxiety' as const, label: 'Anxiety', className: 'ma-anx' },
 ];
 
 /** Mood and anxiety on the same 1–5 self-report scale (one axis): two lines, a legend, end labels, a crosshair tooltip and a
     table twin. Colours come from the validated categorical pair (blue = mood, orange = anxiety) – never colour alone. */
-export function MoodAnxietyChart({ points, height = 176, title = 'Mieliala ja ahdistus' }: {
+export function MoodAnxietyChart({ points, height = 176, title = 'Mood and anxiety' }: {
   points: MoodAnxietyPoint[]; height?: number; title?: string;
 }) {
   const [hover, setHover] = useState<number | null>(null);
@@ -243,7 +243,7 @@ export function MoodAnxietyChart({ points, height = 176, title = 'Mieliala ja ah
     return (
       <figure className="ma-chart ma-empty">
         <figcaption className="ma-head"><span className="ma-title">{title}</span></figcaption>
-        <p className="ma-empty-text">Kaavio piirtyy, kun check-inejä on vähintään kaksi.</p>
+        <p className="ma-empty-text">The chart appears once there are at least two check-ins.</p>
       </figure>
     );
   }
@@ -277,8 +277,8 @@ export function MoodAnxietyChart({ points, height = 176, title = 'Mieliala ja ah
   }
   const active = hover !== null ? data[hover] : null;
   const last = data[data.length - 1];
-  const summary = `${title}: ${data.length} check-iniä ${fmtDate(data[0].date)}–${fmtDate(last.date)}. Viimeisin mieliala `
-    + `${last.mood ?? '–'}/5 ja ahdistus ${last.anxiety ?? '–'}/5 (itse arvioitu, 1–5).`;
+  const summary = `${title}: ${data.length} check-ins ${fmtDate(data[0].date)}–${fmtDate(last.date)}. Latest mood `
+    + `${last.mood ?? '–'}/5 and anxiety ${last.anxiety ?? '–'}/5 (self-rated, 1–5).`;
 
   function onMove(event: PointerEvent<SVGSVGElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -328,19 +328,19 @@ export function MoodAnxietyChart({ points, height = 176, title = 'Mieliala ja ah
         {active && (
           <div className="ma-tooltip" role="status" style={{ left: `clamp(78px, ${(x(active) / W) * 100}%, calc(100% - 78px))` }}>
             <strong>{fmtDate(active.date)}</strong>
-            {active.mood !== null && <span><i className="ma-swatch ma-mood" />Mieliala {active.mood}/5 · {MOOD_WORDS[active.mood].toLowerCase()}</span>}
-            {active.anxiety !== null && <span><i className="ma-swatch ma-anx" />Ahdistus {active.anxiety}/5 · {ANXIETY_WORDS[active.anxiety]}</span>}
+            {active.mood !== null && <span><i className="ma-swatch ma-mood" />Mood {active.mood}/5 · {MOOD_WORDS[active.mood].toLowerCase()}</span>}
+            {active.anxiety !== null && <span><i className="ma-swatch ma-anx" />Anxiety {active.anxiety}/5 · {ANXIETY_WORDS[active.anxiety]}</span>}
           </div>
         )}
       </div>
       <div className="ma-foot">
-        <span>Itse arvioitu 1–5 · ei diagnoosi</span>
+        <span>Self-rated 1–5 · not a diagnosis</span>
         <button type="button" className="ma-table-toggle" aria-expanded={showTable} aria-controls={tableId}
-          onClick={() => setShowTable(!showTable)}>{showTable ? 'Piilota taulukko' : 'Näytä taulukkona'}</button>
+          onClick={() => setShowTable(!showTable)}>{showTable ? 'Hide table' : 'Show as a table'}</button>
       </div>
       <table id={tableId} className={showTable ? 'ma-table' : 'visually-hidden'}>
         <caption className="visually-hidden">{title}</caption>
-        <thead><tr><th scope="col">Päivä</th><th scope="col">Mieliala (1–5)</th><th scope="col">Ahdistus (1–5)</th></tr></thead>
+        <thead><tr><th scope="col">Date</th><th scope="col">Mood (1–5)</th><th scope="col">Anxiety (1–5)</th></tr></thead>
         <tbody>
           {data.map((p, i) => (
             <tr key={`${p.date}-${i}`}><td>{fmtDate(p.date)}</td><td>{p.mood ?? '–'}</td><td>{p.anxiety ?? '–'}</td></tr>

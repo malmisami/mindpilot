@@ -1,115 +1,115 @@
 {
-  "note": "Demon kuvitteelliset terapeutit. Kaikki nimet, profiilit, kapasiteetit ja ajat ovat synteettisiä. availableTimes on terapeutin toistuva viikkoaika (weekday 0 = maanantai); vapaat ajat muodostetaan niistä vain, kun asiakaspaikkoja on vapaana (leadTimeDays = lähin mahdollinen uusi aika).",
+  "note": "The demo's fictional therapists. All names, profiles, capacities and times are synthetic. availableTimes is the therapist's recurring weekly time (weekday 0 = Monday); free slots are created from them only when client places are free (leadTimeDays = the earliest possible new appointment).",
   "therapists": [
     {
-      "id": "th-anna", "name": "Anna Laine", "professionalRole": "Psykoterapeutti (KKT), laillistettu psykologi", "roleCategory": "psychotherapist",
+      "id": "th-anna", "name": "Anna Laine", "professionalRole": "Psychotherapist (CBT), licensed psychologist", "roleCategory": "psychotherapist",
       "gender": "female", "languages": ["fi", "en"], "specialties": ["anxiety", "work_stress", "sleep", "panic"], "ageGroups": ["18-29", "30-64"],
-      "serviceCategories": ["short_therapy", "psychotherapy"], "workingStyle": "Strukturoitu ja käytännönläheinen",
-      "therapeuticApproaches": ["Kognitiivinen käyttäytymisterapia (KKT)"], "structuredLevel": 5, "directiveLevel": 4, "exerciseLevel": 5, "homeworkLevel": 4,
+      "serviceCategories": ["short_therapy", "psychotherapy"], "workingStyle": "Structured and practical",
+      "therapeuticApproaches": ["Cognitive behavioural therapy (CBT)"], "structuredLevel": 5, "directiveLevel": 4, "exerciseLevel": 5, "homeworkLevel": 4,
       "remote": true, "inPerson": true, "locations": ["Helsinki"], "accessibility": ["captions"],
       "availableTimes": [{"weekday": 1, "time": "18:00", "formats": ["remote"]}], "leadTimeDays": 7, "weeklyContinuity": true,
       "currentCapacity": 12, "maxCapacity": 12, "active": true, "exclusionCriteria": ["acute_safety_concern"],
-      "bio": "Työskentelee erityisesti ahdistuksen, jännittämisen ja työhön liittyvän stressin kanssa. Selkeä rakenne, konkreettiset harjoitteet ja välitehtävät. Etävastaanotto tiistai-iltaisin."
+      "bio": "Works especially with anxiety, nervousness and work-related stress. A clear structure, concrete exercises and between-session tasks. Remote sessions on Tuesday evenings."
     },
     {
-      "id": "th-mikko", "name": "Mikko Niemi", "professionalRole": "Psykoterapeutti (integratiivinen)", "roleCategory": "psychotherapist",
+      "id": "th-mikko", "name": "Mikko Niemi", "professionalRole": "Psychotherapist (integrative)", "roleCategory": "psychotherapist",
       "gender": "male", "languages": ["fi", "sv"], "specialties": ["relationships", "life_transitions", "mood"], "ageGroups": ["18-29", "30-64", "65+"],
-      "serviceCategories": ["short_therapy", "psychotherapy"], "workingStyle": "Tutkiva ja keskusteleva",
-      "therapeuticApproaches": ["Integratiivinen psykoterapia"], "structuredLevel": 2, "directiveLevel": 2, "exerciseLevel": 2, "homeworkLevel": 1,
+      "serviceCategories": ["short_therapy", "psychotherapy"], "workingStyle": "Exploratory and conversational",
+      "therapeuticApproaches": ["Integrative psychotherapy"], "structuredLevel": 2, "directiveLevel": 2, "exerciseLevel": 2, "homeworkLevel": 1,
       "remote": false, "inPerson": true, "locations": ["Turku"], "accessibility": ["step_free"],
       "availableTimes": [{"weekday": 3, "time": "10:00", "formats": ["in_person"]}], "leadTimeDays": 5, "weeklyContinuity": true,
       "currentCapacity": 7, "maxCapacity": 10, "active": true, "exclusionCriteria": [],
-      "bio": "Tilaa pohtia elämänmuutoksia ja ihmissuhteita rauhassa. Vähemmän valmista rakennetta, enemmän yhteistä tutkimista. Lähivastaanotto Turussa."
+      "bio": "Room to reflect calmly on life changes and relationships. Less ready-made structure, more exploring together. In-person sessions in Turku."
     },
     {
-      "id": "th-laura", "name": "Laura Koski", "professionalRole": "Psykologi, lyhytterapeutti (ACT)", "roleCategory": "psychologist",
+      "id": "th-laura", "name": "Laura Koski", "professionalRole": "Psychologist, short-term therapist (ACT)", "roleCategory": "psychologist",
       "gender": "female", "languages": ["fi"], "specialties": ["anxiety", "burnout", "work_stress", "stress"], "ageGroups": ["18-29", "30-64"],
-      "serviceCategories": ["short_therapy"], "workingStyle": "Kohtalaisen jäsennelty – hyväksyntä ja arvot",
-      "therapeuticApproaches": ["Hyväksymis- ja omistautumisterapia (ACT)"], "structuredLevel": 3, "directiveLevel": 3, "exerciseLevel": 4, "homeworkLevel": 3,
+      "serviceCategories": ["short_therapy"], "workingStyle": "Moderately structured – acceptance and values",
+      "therapeuticApproaches": ["Acceptance and commitment therapy (ACT)"], "structuredLevel": 3, "directiveLevel": 3, "exerciseLevel": 4, "homeworkLevel": 3,
       "remote": true, "inPerson": true, "locations": ["Espoo"], "accessibility": ["step_free", "captions"],
       "availableTimes": [{"weekday": 2, "time": "17:00", "formats": ["remote", "in_person"]}], "leadTimeDays": 7, "weeklyContinuity": true,
       "currentCapacity": 11, "maxCapacity": 12, "active": true, "exclusionCriteria": [],
-      "bio": "Työuupumus, stressi ja ahdistus. Harjoituksia ja arvotyöskentelyä joustavalla rakenteella. Hybridi: etä- tai lähivastaanotto Espoossa."
+      "bio": "Burnout, stress and anxiety. Exercises and work on values with a flexible structure. Hybrid: remote or in-person sessions in Espoo."
     },
     {
-      "id": "th-olli", "name": "Olli Heikkinen", "professionalRole": "Psykiatrinen sairaanhoitaja, lyhytterapeutti (ratkaisukeskeinen)", "roleCategory": "short_therapist",
+      "id": "th-olli", "name": "Olli Heikkinen", "professionalRole": "Psychiatric nurse, short-term therapist (solution-focused)", "roleCategory": "short_therapist",
       "gender": "male", "languages": ["fi", "en"], "specialties": ["work_stress", "stress", "burnout", "sleep"], "ageGroups": ["18-29", "30-64", "65+"],
-      "serviceCategories": ["short_therapy"], "workingStyle": "Selkeä ja tavoitteellinen",
-      "therapeuticApproaches": ["Ratkaisukeskeinen lyhytterapia"], "structuredLevel": 4, "directiveLevel": 4, "exerciseLevel": 4, "homeworkLevel": 4,
+      "serviceCategories": ["short_therapy"], "workingStyle": "Clear and goal-oriented",
+      "therapeuticApproaches": ["Solution-focused short-term therapy"], "structuredLevel": 4, "directiveLevel": 4, "exerciseLevel": 4, "homeworkLevel": 4,
       "remote": true, "inPerson": false, "locations": ["Oulu"], "accessibility": ["plain_language"],
       "availableTimes": [{"weekday": 0, "time": "10:00", "formats": ["remote"]}, {"weekday": 2, "time": "10:00", "formats": ["remote"]}], "leadTimeDays": 7,
       "weeklyContinuity": false, "currentCapacity": 8, "maxCapacity": 10, "active": true, "exclusionCriteria": [],
-      "bio": "Selkeä ja tavoitteellinen lyhytterapia työuupumukseen, stressiin ja uneen. Etävastaanotto päiväsaikaan, tapaamiset joka toinen viikko."
+      "bio": "Clear, goal-oriented short-term therapy for burnout, stress and sleep. Remote sessions in the daytime, every other week."
     },
     {
-      "id": "th-farah", "name": "Hanna Virtanen", "professionalRole": "Psykologi (traumatietoinen KKT)", "roleCategory": "psychologist",
+      "id": "th-farah", "name": "Hanna Virtanen", "professionalRole": "Psychologist (trauma-informed CBT)", "roleCategory": "psychologist",
       "gender": "female", "languages": ["en", "fi"], "specialties": ["trauma", "anxiety", "panic"], "ageGroups": ["18-29", "30-64"],
-      "serviceCategories": ["short_therapy", "psychotherapy"], "workingStyle": "Joustava – rakennetta tarpeen mukaan",
-      "therapeuticApproaches": ["Traumatietoinen KKT"], "structuredLevel": 3, "directiveLevel": 3, "exerciseLevel": 3, "homeworkLevel": 3,
+      "serviceCategories": ["short_therapy", "psychotherapy"], "workingStyle": "Flexible – structure as needed",
+      "therapeuticApproaches": ["Trauma-informed CBT"], "structuredLevel": 3, "directiveLevel": 3, "exerciseLevel": 3, "homeworkLevel": 3,
       "remote": true, "inPerson": false, "locations": ["Espoo"], "accessibility": ["interpreter", "captions"],
       "availableTimes": [{"weekday": 3, "time": "14:00", "formats": ["remote"]}], "leadTimeDays": 7, "weeklyContinuity": true,
       "currentCapacity": 8, "maxCapacity": 10, "active": true, "exclusionCriteria": ["primary_substance_use"],
-      "bio": "Traumatietoinen kognitiivinen työote. Vaikeat kokemukset, pelot ja ahdistus. Työskentelee myös tulkin välityksellä. Etävastaanotto."
+      "bio": "A trauma-informed cognitive approach. Difficult experiences, fears and anxiety. Also works through an interpreter. Remote sessions."
     },
     {
-      "id": "th-katja", "name": "Katja Salmi", "professionalRole": "Psykologi, lyhytterapeutti (kognitiivinen)", "roleCategory": "psychologist",
+      "id": "th-katja", "name": "Katja Salmi", "professionalRole": "Psychologist, short-term therapist (cognitive)", "roleCategory": "psychologist",
       "gender": "female", "languages": ["fi"], "specialties": ["anxiety", "self_esteem", "relationships"], "ageGroups": ["18-29", "30-64"],
-      "serviceCategories": ["short_therapy"], "workingStyle": "Joustava – keskustelua ja harjoituksia",
-      "therapeuticApproaches": ["Kognitiivinen lyhytterapia"], "structuredLevel": 3, "directiveLevel": 3, "exerciseLevel": 3, "homeworkLevel": 3,
+      "serviceCategories": ["short_therapy"], "workingStyle": "Flexible – conversation and exercises",
+      "therapeuticApproaches": ["Cognitive short-term therapy"], "structuredLevel": 3, "directiveLevel": 3, "exerciseLevel": 3, "homeworkLevel": 3,
       "remote": true, "inPerson": true, "locations": ["Vantaa"], "accessibility": ["step_free"],
       "availableTimes": [{"weekday": 0, "time": "18:00", "formats": ["remote", "in_person"]}], "leadTimeDays": 7, "weeklyContinuity": true,
       "currentCapacity": 9, "maxCapacity": 12, "active": true, "exclusionCriteria": [],
-      "bio": "Ahdistus, itsetunto ja ihmissuhteet. Keskustelua ja harjoituksia joustavasti. Etä- tai lähivastaanotto Vantaalla maanantai-iltaisin."
+      "bio": "Anxiety, self-esteem and relationships. Conversation and exercises, flexibly. Remote or in-person sessions in Vantaa on Monday evenings."
     },
     {
-      "id": "th-helena", "name": "Helena Rinne", "professionalRole": "Psykoterapeutti (psykodynaaminen)", "roleCategory": "psychotherapist",
+      "id": "th-helena", "name": "Helena Rinne", "professionalRole": "Psychotherapist (psychodynamic)", "roleCategory": "psychotherapist",
       "gender": "female", "languages": ["fi"], "specialties": ["mood", "grief", "relationships", "self_esteem"], "ageGroups": ["30-64", "65+"],
-      "serviceCategories": ["short_therapy", "psychotherapy"], "workingStyle": "Tutkiva ja keskusteleva",
-      "therapeuticApproaches": ["Psykodynaaminen psykoterapia"], "structuredLevel": 1, "directiveLevel": 1, "exerciseLevel": 1, "homeworkLevel": 1,
+      "serviceCategories": ["short_therapy", "psychotherapy"], "workingStyle": "Exploratory and conversational",
+      "therapeuticApproaches": ["Psychodynamic psychotherapy"], "structuredLevel": 1, "directiveLevel": 1, "exerciseLevel": 1, "homeworkLevel": 1,
       "remote": false, "inPerson": true, "locations": ["Tampere"], "accessibility": ["step_free", "induction_loop"],
       "availableTimes": [{"weekday": 1, "time": "11:00", "formats": ["in_person"]}], "leadTimeDays": 5, "weeklyContinuity": true,
       "currentCapacity": 14, "maxCapacity": 14, "active": true, "exclusionCriteria": ["needs_interpreter"],
-      "bio": "Tutkiva ja keskusteleva työote. Pitkä kokemus surun, menetysten ja elämänmuutosten parissa. Lähivastaanotto Tampereella."
+      "bio": "An exploratory and conversational approach. Long experience of working with grief, loss and life changes. In-person sessions in Tampere."
     },
     {
-      "id": "th-sari", "name": "Sari Hakala", "professionalRole": "Psykoterapeutti (KKT)", "roleCategory": "psychotherapist",
+      "id": "th-sari", "name": "Sari Hakala", "professionalRole": "Psychotherapist (CBT)", "roleCategory": "psychotherapist",
       "gender": "female", "languages": ["fi", "sv"], "specialties": ["anxiety", "panic", "sleep", "work_stress"], "ageGroups": ["18-29", "30-64"],
-      "serviceCategories": ["short_therapy", "psychotherapy"], "workingStyle": "Strukturoitu ja tavoitteellinen",
-      "therapeuticApproaches": ["Kognitiivinen käyttäytymisterapia (KKT)"], "structuredLevel": 5, "directiveLevel": 4, "exerciseLevel": 5, "homeworkLevel": 5,
+      "serviceCategories": ["short_therapy", "psychotherapy"], "workingStyle": "Structured and goal-oriented",
+      "therapeuticApproaches": ["Cognitive behavioural therapy (CBT)"], "structuredLevel": 5, "directiveLevel": 4, "exerciseLevel": 5, "homeworkLevel": 5,
       "remote": true, "inPerson": true, "locations": ["Helsinki", "Espoo"], "accessibility": ["step_free"],
       "availableTimes": [{"weekday": 3, "time": "18:00", "formats": ["remote", "in_person"]}], "leadTimeDays": 7, "weeklyContinuity": true,
       "currentCapacity": 10, "maxCapacity": 10, "active": true, "exclusionCriteria": [],
-      "bio": "Kognitiivinen käyttäytymisterapia ahdistukseen, paniikkioireisiin ja uniongelmiin. Asiakaspaikat tällä hetkellä täynnä."
+      "bio": "Cognitive behavioural therapy for anxiety, panic symptoms and sleep problems. Client places are currently full."
     },
     {
-      "id": "th-elina", "name": "Elina Mäkelä", "professionalRole": "Psykoterapeutti (nuoret), perheterapeutti", "roleCategory": "psychotherapist",
+      "id": "th-elina", "name": "Elina Mäkelä", "professionalRole": "Psychotherapist (young people), family therapist", "roleCategory": "psychotherapist",
       "gender": "female", "languages": ["fi", "sv"], "specialties": ["anxiety", "mood", "young_people"], "ageGroups": ["13-17"],
-      "serviceCategories": ["short_therapy"], "workingStyle": "Joustava – perhe mukana tarpeen mukaan",
-      "therapeuticApproaches": ["Perheterapia", "KKT"], "structuredLevel": 3, "directiveLevel": 3, "exerciseLevel": 3, "homeworkLevel": 2,
+      "serviceCategories": ["short_therapy"], "workingStyle": "Flexible – family involved as needed",
+      "therapeuticApproaches": ["Family therapy", "CBT"], "structuredLevel": 3, "directiveLevel": 3, "exerciseLevel": 3, "homeworkLevel": 2,
       "remote": true, "inPerson": true, "locations": ["Turku"], "accessibility": ["step_free"],
       "availableTimes": [{"weekday": 1, "time": "15:00", "formats": ["remote", "in_person"]}], "leadTimeDays": 5, "weeklyContinuity": true,
       "currentCapacity": 5, "maxCapacity": 10, "active": true, "exclusionCriteria": [],
-      "bio": "Työskentelee 13–17-vuotiaiden nuorten ja heidän perheidensä kanssa."
+      "bio": "Works with young people aged 13–17 and their families."
     },
     {
-      "id": "th-tuomas", "name": "Tuomas Lehto", "professionalRole": "Psykoterapeutti (IPT)", "roleCategory": "psychotherapist",
+      "id": "th-tuomas", "name": "Tuomas Lehto", "professionalRole": "Psychotherapist (IPT)", "roleCategory": "psychotherapist",
       "gender": "male", "languages": ["fi", "en"], "specialties": ["mood", "relationships"], "ageGroups": ["18-29", "30-64"],
-      "serviceCategories": ["short_therapy", "psychotherapy"], "workingStyle": "Joustava – ihmissuhteet keskiössä",
-      "therapeuticApproaches": ["Interpersoonallinen terapia (IPT)"], "structuredLevel": 3, "directiveLevel": 2, "exerciseLevel": 2, "homeworkLevel": 2,
+      "serviceCategories": ["short_therapy", "psychotherapy"], "workingStyle": "Flexible – relationships at the centre",
+      "therapeuticApproaches": ["Interpersonal therapy (IPT)"], "structuredLevel": 3, "directiveLevel": 2, "exerciseLevel": 2, "homeworkLevel": 2,
       "remote": true, "inPerson": true, "locations": ["Jyväskylä"], "accessibility": [],
       "availableTimes": [], "leadTimeDays": 7, "weeklyContinuity": true,
-      "currentCapacity": 0, "maxCapacity": 12, "active": false, "inactiveReason": "virkavapaa", "exclusionCriteria": [],
-      "bio": "Interpersoonallinen terapia. Virkavapaalla – ei vastaanota uusia asiakkaita."
+      "currentCapacity": 0, "maxCapacity": 12, "active": false, "inactiveReason": "on leave", "exclusionCriteria": [],
+      "bio": "Interpersonal therapy. On leave – not taking new clients."
     },
     {
-      "id": "th-johanna", "name": "Johanna Kallio", "professionalRole": "Psykolog, korttidsterapeut (KBT)", "roleCategory": "psychologist",
+      "id": "th-johanna", "name": "Johanna Kallio", "professionalRole": "Psychologist, short-term therapist (CBT)", "roleCategory": "psychologist",
       "gender": "female", "languages": ["sv", "en"], "specialties": ["anxiety", "stress", "work_stress"], "ageGroups": ["18-29", "30-64"],
-      "serviceCategories": ["short_therapy"], "workingStyle": "Strukturerad och praktisk",
-      "therapeuticApproaches": ["Kognitiv beteendeterapi (KBT)"], "structuredLevel": 4, "directiveLevel": 3, "exerciseLevel": 4, "homeworkLevel": 4,
+      "serviceCategories": ["short_therapy"], "workingStyle": "Structured and practical",
+      "therapeuticApproaches": ["Cognitive behavioural therapy (CBT)"], "structuredLevel": 4, "directiveLevel": 3, "exerciseLevel": 4, "homeworkLevel": 4,
       "remote": true, "inPerson": true, "locations": ["Vaasa"], "accessibility": ["captions"],
       "availableTimes": [{"weekday": 3, "time": "17:30", "formats": ["remote"]}], "leadTimeDays": 7, "weeklyContinuity": true,
       "currentCapacity": 5, "maxCapacity": 8, "active": true, "exclusionCriteria": [],
-      "bio": "Ruotsin- ja englanninkielinen lyhytterapia: ahdistus ja työhön liittyvä stressi. Etävastaanotto koko Suomeen."
+      "bio": "Short-term therapy in Swedish and English: anxiety and work-related stress. Remote sessions anywhere in Finland."
     }
   ]
 }

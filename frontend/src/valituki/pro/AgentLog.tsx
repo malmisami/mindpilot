@@ -23,13 +23,13 @@ export default function AgentLog() {
           </button>
         ))}
       </section>
-      <p className="muted small"><NodesIcon size={14} /> Orkestroija päättää, mikä agentti käsittelee kunkin tapahtuman. SafetyAgent voi keskeyttää muut.
-        Agentit tekevät havaintoja ja tehtäviä – eivät diagnooseja, hoitopäätöksiä tai kiireellisyysmuutoksia.</p>
+      <p className="muted small"><NodesIcon size={14} /> The orchestrator decides which agent handles each event. SafetyAgent can interrupt the others.
+        The agents make observations and tasks – not diagnoses, treatment decisions or changes to urgency.</p>
       <section className="card">
         <div className="card-row">
-          <h2 className="card-title-lg">Mitä Mieliluotsi teki?</h2>
-          <Segmented label="Näkymä" value={mode} onChange={setMode}
-            options={[{ value: 'actions', label: 'Agenttien toimet' }, { value: 'audit', label: 'Audit-loki' }]} />
+          <h2 className="card-title-lg">What did Mieliluotsi do?</h2>
+          <Segmented label="View" value={mode} onChange={setMode}
+            options={[{ value: 'actions', label: 'Agent actions' }, { value: 'audit', label: 'Audit log' }]} />
         </div>
         {mode === 'actions' ? (
           <AgentTimeline showClient items={actions.map((a) => ({ id: a.id, at: a.createdAt, agent: a.agent, title: a.title, detail: a.detail,
@@ -37,7 +37,7 @@ export default function AgentLog() {
         ) : (
           <div className="table-wrap">
             <table className="table audit-table">
-              <thead><tr><th scope="col">Aika</th><th scope="col">Toimija</th><th scope="col">Toiminto</th><th scope="col">Asiakas</th><th scope="col">Kuvaus</th></tr></thead>
+              <thead><tr><th scope="col">Time</th><th scope="col">Actor</th><th scope="col">Action</th><th scope="col">Client</th><th scope="col">Description</th></tr></thead>
               <tbody>
                 {pro.audit.map((e) => (
                   <tr key={e.id}>
@@ -53,7 +53,7 @@ export default function AgentLog() {
           </div>
         )}
       </section>
-      <button type="button" className="link-btn" onClick={() => setProClientId('cl-aino')}>Avaa Samin tarkistusnäkymä →</button>
+      <button type="button" className="link-btn" onClick={() => setProClientId('cl-aino')}>Open Sami's review view →</button>
     </div>
   );
 }

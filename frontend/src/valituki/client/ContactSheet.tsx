@@ -13,22 +13,22 @@ export default function ContactSheet({ initialReason, onClose }: { initialReason
 
   async function send() {
     const result = await run((s) => api.requestHuman(s, client.id, reason, message),
-      () => 'Pyyntö välitettiin hoitotiimille heti. Demo: yhteydenotto kahden arkipäivän kuluessa.');
+      () => 'Your request went to the care team straight away. Demo: they will contact you within two working days.');
     if (result) onClose();
   }
 
   return (
-    <Sheet title="Haluan keskustella ammattilaisen kanssa" onClose={onClose}
-      footer={<button type="button" className="btn btn-primary btn-block" disabled={busy} onClick={send}>Lähetä pyyntö</button>}>
-      <p className="muted">Pyyntö menee hoitotiimille heti. Se ei ole päivystyspalvelu – jos tarvitset apua juuri nyt, käytä ”Apua nyt”.</p>
-      <div className="radio-list" role="radiogroup" aria-label="Aihe">
+    <Sheet title="I want to talk to a professional" onClose={onClose}
+      footer={<button type="button" className="btn btn-primary btn-block" disabled={busy} onClick={send}>Send request</button>}>
+      <p className="muted">Your request goes to the care team straight away. It is not an emergency service – if you need help right now, use “Help now”.</p>
+      <div className="radio-list" role="radiogroup" aria-label="Topic">
         {Object.entries(reasons).map(([key, label]) => (
           <label key={key} className="radio-row">
             <input type="radio" name="contact-reason" checked={reason === key} onChange={() => setReason(key)} /> {label}
           </label>
         ))}
       </div>
-      <label className="q" htmlFor="contact-msg">Viesti (vapaaehtoinen)</label>
+      <label className="q" htmlFor="contact-msg">Message (optional)</label>
       <textarea id="contact-msg" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} />
     </Sheet>
   );

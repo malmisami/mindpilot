@@ -1,24 +1,24 @@
 {
-  "note": "Kaikki demon henkilöt ja terveystiedot ovat täysin kuvitteellisia. Offsetit ovat päiviä suhteessa demon aloituspäivään (demoToday). Taustahistoria syntyy ajamalla Mieliluotsin oma moottori päivä kerrallaan (seed.py).",
+  "note": "All people and health information in the demo are entirely fictional. Offsets are days relative to the demo's start date (demoToday). The background history is created by running Mieliluotsi's own engine one day at a time (seed.py).",
   "demoToday": "2026-10-16",
   "seedStartOffset": -31,
   "slotOpenings": [
     {
       "offset": -20,
       "therapistId": "th-laura",
-      "reason": "Asiakkaan lyhytterapia päättyi – asiakaspaikka vapautui.",
+      "reason": "A client's short-term therapy ended – a client place became free.",
       "capacityChange": -1
     },
     {
       "offset": -16,
       "therapistId": "th-farah",
-      "reason": "Asiakkaan terapiajakso päättyi – asiakaspaikka vapautui.",
+      "reason": "A client's course of therapy ended – a client place became free.",
       "capacityChange": -1
     },
     {
       "offset": -5,
       "therapistId": "th-helena",
-      "reason": "Asiakkaan terapiajakso päättyi – asiakaspaikka vapautui.",
+      "reason": "A client's course of therapy ended – a client place became free.",
       "capacityChange": -1
     }
   ],
@@ -26,7 +26,7 @@
     {
       "id": "open-anna",
       "therapistId": "th-anna",
-      "reason": "Asiakkaan terapiajakso päättyi – Anna Lainen tiistai-illan asiakaspaikka vapautui.",
+      "reason": "A client's course of therapy ended – Anna Laine's Tuesday evening client place became free.",
       "capacityChange": -1
     }
   ],
@@ -37,7 +37,7 @@
       "firstName": "Sami",
       "age": 31,
       "municipality": "Espoo",
-      "persona": "Pääasiakas – jonossa, Mieliluotsi ei vielä käytössä",
+      "persona": "Main client – on the waiting list, Mieliluotsi not yet in use",
       "demoPrimary": true,
       "referral": {
         "soughtHelpOffset": -4,
@@ -47,11 +47,11 @@
           "anxiety"
         ],
         "flags": [],
-        "referrer": "Espoon terveysaseman mielenterveyspalvelut (synteettinen)",
-        "assessedBy": "Psykiatrinen sairaanhoitaja (synteettinen)",
-        "summary": "Työhön liittyvä ahdistus ja jännittäminen. Arvioitu lyhytterapian tarve.",
+        "referrer": "Espoo health centre mental health services (synthetic)",
+        "assessedBy": "Psychiatric nurse (synthetic)",
+        "summary": "Work-related anxiety and nervousness. Assessed need for short-term therapy.",
         "clinicalUrgency": "non_urgent",
-        "estimatedWait": "20–25 viikkoa"
+        "estimatedWait": "20–25 weeks"
       },
       "waitingListOffset": -2,
       "enrollOffset": -2,
@@ -65,13 +65,13 @@
           "sharePractice": true
         },
         "answers": {
-          "reason": "Olen hakenut apua, koska työhön liittyvä ahdistus on kasvanut viime kuukausina. Jännitän palavereja ja esityksiä niin paljon, että nukun huonosti jo edellisenä iltana.",
-          "change": "Haluaisin pystyä hallitsemaan työtilanteisiin liittyvää ahdistusta, niin että voisin osallistua palavereihin ja esittää asioita ilman, että se vie yöunet.",
-          "difficult_times": "Sunnuntai-illat ja muutenkin illat ennen toimistopäiviä. Silloin mietin seuraavaa päivää ja uni jää huonoksi.",
-          "helped_before": "Kävely auttaa vähän. Selkeät ohjeet ja listat auttavat minua enemmän kuin pelkkä puhuminen.",
-          "exercises": "Konkreettisia harjoituksia ja selkeää etenemistä. Välitehtävätkin sopivat minulle.",
-          "challenge": "Saa haastaa, kunhan ote on selkeä ja ystävällinen.",
-          "practical": "Etävastaanotto sopisi parhaiten, suomeksi. Tiistai- tai torstai-illat käyvät."
+          "reason": "I sought help because my work-related anxiety has grown over the last few months. I get so nervous about meetings and presentations that I already sleep badly the night before.",
+          "change": "I would like to be able to manage the anxiety about work situations, so that I could take part in meetings and present things without losing a night's sleep over it.",
+          "difficult_times": "Sunday evenings, and other evenings before office days too. That is when I think about the next day and sleep badly.",
+          "helped_before": "Walking helps a little. Clear instructions and lists help me more than just talking.",
+          "exercises": "Concrete exercises and clear progress. Between-session tasks suit me too.",
+          "challenge": "You can challenge me, as long as the approach is clear and friendly.",
+          "practical": "Remote sessions would suit me best, in Finnish. Tuesday or Thursday evenings are fine."
         },
         "rhythm": {
           "checkInDays": [
@@ -101,7 +101,7 @@
               "anxiety": "worse",
               "sleep": "worse"
             },
-            "note": "Huomenna iso palaveri, jännittää jo nyt.",
+            "note": "Big meeting tomorrow, I'm nervous already.",
             "time": "21:05",
             "anxiety": 4
           },
@@ -119,7 +119,7 @@
             "changes": {
               "social": "better"
             },
-            "note": "Mukava ilta ystävien kanssa.",
+            "note": "A nice evening with friends.",
             "time": "19:30",
             "anxiety": 2
           },
@@ -129,7 +129,7 @@
               "anxiety": "worse",
               "sleep": "worse"
             },
-            "note": "Tuttu jännitys ennen työviikkoa.",
+            "note": "The familiar nervousness before the working week.",
             "time": "21:15",
             "anxiety": 4
           },
@@ -162,7 +162,7 @@
             "activityId": "act-grounding",
             "rating": 4,
             "time": "20:30",
-            "note": "Auttoi rauhoittumaan ennen nukkumaanmenoa."
+            "note": "It helped me calm down before going to bed."
           }
         ],
         "deterioration": [
@@ -172,7 +172,7 @@
               "sleep": "worse",
               "anxiety": "worse"
             },
-            "note": "Viikonloppunakin mietin maanantain esitystä.",
+            "note": "Even at the weekend I kept thinking about Monday's presentation.",
             "time": "20:30",
             "anxiety": 4
           },
@@ -182,7 +182,7 @@
               "sleep": "worse",
               "energy": "worse"
             },
-            "note": "Unet jäivät taas lyhyiksi.",
+            "note": "Short sleep again.",
             "time": "21:10",
             "anxiety": 4
           },
@@ -195,7 +195,7 @@
               "sleep": "worse",
               "work": "worse"
             },
-            "note": "En saanut töissä keskityttyä ja jäin pois palaverista.",
+            "note": "I couldn't concentrate at work and skipped the meeting.",
             "time": "14:40",
             "anxiety": 5
           }
@@ -213,7 +213,7 @@
             "changes": {
               "sleep": "better"
             },
-            "note": "Nukuin paremmin.",
+            "note": "I slept better.",
             "time": "20:20",
             "anxiety": 2
           },
@@ -227,9 +227,9 @@
         ],
         "recovery": [
           {"mood": 3, "changes": {}, "note": "", "time": "20:10", "anxiety": 3},
-          {"mood": 4, "changes": {"sleep": "better"}, "note": "Nukuin paremmin kuin aikoihin.", "time": "20:20", "anxiety": 3},
+          {"mood": 4, "changes": {"sleep": "better"}, "note": "I slept better than I have for ages.", "time": "20:20", "anxiety": 3},
           {"mood": 4, "changes": {}, "note": "", "time": "20:05", "anxiety": 4},
-          {"mood": 4, "changes": {"work": "better"}, "note": "Palaveri meni hyvin, vaikka jännitti.", "time": "19:50", "anxiety": 3},
+          {"mood": 4, "changes": {"work": "better"}, "note": "The meeting went well, even though I was nervous.", "time": "19:50", "anxiety": 3},
           {"mood": 4, "changes": {}, "note": "", "time": "20:15", "anxiety": 4},
           {"mood": 4, "changes": {}, "note": "", "time": "20:10", "anxiety": 3},
           {"mood": 4, "changes": {"social": "better"}, "note": "", "time": "19:40", "anxiety": 4},
@@ -241,7 +241,7 @@
             "time": "20:40",
             "action": "ladder_if_missing",
             "answers": {
-              "goal": "Esityksen pitäminen tiimille",
+              "goal": "Giving a presentation to the team",
               "goalAnxiety": 8,
               "ladder": "template",
               "firstStep": "0",
@@ -256,7 +256,7 @@
               "before": 4,
               "peak": 5,
               "after": 2,
-              "note": "Ääneen harjoittelu tuntui ensin hölmöltä, mutta rauhoitti.",
+              "note": "Practising out loud felt silly at first, but it calmed me down.",
               "next": "next",
               "when": "+1"
             }
@@ -269,7 +269,7 @@
               "before": 5,
               "peak": 6,
               "after": 3,
-              "note": "Tallenteella jännitys ei näkynyt niin paljon kuin luulin.",
+              "note": "On the recording my nervousness didn't show as much as I thought.",
               "next": "next",
               "when": "+1"
             }
@@ -282,7 +282,7 @@
               "before": 6,
               "peak": 7,
               "after": 3,
-              "note": "Kollega sanoi, että alku oli selkeä.",
+              "note": "A colleague said the opening was clear.",
               "next": "next",
               "when": "+1"
             }
@@ -293,20 +293,20 @@
             "action": "tool",
             "tool": "thought_record",
             "answers": {
-              "situation": "Huomenna on iso palaveri, jossa esittelen projektin tilanteen.",
-              "thought": "Jäädyn kesken kaiken, ja kaikki ajattelevat, etten osaa työtäni.",
+              "situation": "Tomorrow there's a big meeting where I present the project status.",
+              "thought": "I'll freeze in the middle of it, and everyone will think I can't do my job.",
               "emotions": [
                 "ahdistus"
               ],
               "intensityBefore": 7,
-              "behaviour": "Mietin, voisinko sanoa olevani kipeä.",
+              "behaviour": "I wondered whether I could say I was ill.",
               "traps": [
                 "fortune_telling",
                 "mind_reading"
               ],
-              "evidenceFor": "Viimeksi takeltelin alussa.",
-              "evidenceAgainst": "Olen harjoitellut alun kolme kertaa, ja kollegan mielestä se oli selkeä.",
-              "alternative": "Voin jännittää ja silti pitää esityksen. Jos takeltelen, voin pysähtyä hetkeksi ja jatkaa.",
+              "evidenceFor": "Last time I stumbled over my words at the start.",
+              "evidenceAgainst": "I've practised the opening three times, and my colleague thought it was clear.",
+              "alternative": "I can feel nervous and still give the presentation. If I stumble, I can pause for a moment and carry on.",
               "intensityAfter": 4,
               "nextStep": "none"
             }
@@ -319,7 +319,7 @@
               "before": 7,
               "peak": 7,
               "after": 3,
-              "note": "Sanoin kommentin – ääni tärisi hetken, mutta kukaan ei kommentoinut.",
+              "note": "I made a comment – my voice shook for a moment, but nobody said anything.",
               "next": "next",
               "when": "+6"
             }
@@ -330,9 +330,9 @@
             "action": "tool",
             "tool": "experiment",
             "answers": {
-              "prediction": "Jos kysyn palaverissa tarkentavan kysymyksen, muut pitävät minua epäpätevänä.",
+              "prediction": "If I ask a clarifying question in the meeting, the others will think I'm incompetent.",
               "beliefBefore": 7,
-              "plan": "Kysyn perjantain palaverissa yhden tarkentavan kysymyksen ja katson, miten muut reagoivat.",
+              "plan": "I'll ask one clarifying question in Friday's meeting and see how the others react.",
               "when": "+1"
             }
           },
@@ -341,9 +341,9 @@
             "time": "17:00",
             "action": "experiment_review",
             "answers": {
-              "outcome": "Esihenkilö kiitti kysymyksestä, ja kaksi muutakin sanoi miettineensä samaa.",
+              "outcome": "My manager thanked me for the question, and two others said they had wondered the same.",
               "beliefAfter": 2,
-              "learned": "Kysymykset eivät tee minusta epäpätevää – ne auttavat muitakin."
+              "learned": "Asking questions doesn't make me incompetent – it helps the others too."
             }
           },
           {
@@ -354,7 +354,7 @@
               "before": 6,
               "peak": 7,
               "after": 3,
-              "note": "Dia meni hyvin, vaikka sydän hakkasi.",
+              "note": "The slide went well, even though my heart was pounding.",
               "next": "next",
               "when": "+4"
             }
@@ -365,21 +365,21 @@
             "action": "tool",
             "tool": "thought_record",
             "answers": {
-              "situation": "Esihenkilö pyysi minua pitämään koko esityksen ensi viikolla.",
-              "thought": "Mokaan kuitenkin koko esityksen, vaikka pienemmät askeleet menivät hyvin.",
+              "situation": "My manager asked me to give the whole presentation next week.",
+              "thought": "I'll mess up the whole presentation anyway, even though the smaller steps went well.",
               "emotions": [
                 "jannitys",
                 "pelko"
               ],
               "intensityBefore": 7,
-              "behaviour": "Aloin heti miettiä, miten voisin siirtää esitystä.",
+              "behaviour": "I immediately started thinking about how I could postpone the presentation.",
               "traps": [
                 "fortune_telling",
                 "discounting"
               ],
-              "evidenceFor": "Koko esitys on pidempi kuin mikään tähänastisista askelista.",
-              "evidenceAgainst": "Olen tehnyt jo neljä askelta, ja jännitys on joka kerta laskenut.",
-              "alternative": "Olen tehnyt jo monta askelta, ja jännitys on joka kerta laskenut. Koko esitys on seuraava askel, ei hyppy tuntemattomaan.",
+              "evidenceFor": "The whole presentation is longer than any of the steps so far.",
+              "evidenceAgainst": "I've already done four steps, and the nervousness has gone down every time.",
+              "alternative": "I've already done many steps, and the nervousness has gone down every time. The whole presentation is the next step, not a leap into the unknown.",
               "intensityAfter": 4,
               "nextStep": "none"
             }
@@ -388,36 +388,36 @@
       },
       "script": [],
       "practiceDemo": {
-        "message": "Tiistaina minun pitää esitellä projektin tilanne koko tiimille, ja jännittää jo nyt ihan hirveästi.",
+        "message": "On Tuesday I have to present the project status to the whole team, and I'm already terribly nervous about it.",
         "checkin": {
           "mood": 3,
           "anxiety": 4,
           "changes": [
             "sleep"
           ],
-          "note": "Tiistaina pitää esitellä projektin tilanne koko tiimille, ja jännittää jo nyt."
+          "note": "On Tuesday I have to present the project status to the whole team, and I'm nervous already."
         },
         "thought_record": {
-          "situation": "Tiistaina minun pitää esitellä projektin tilanne koko tiimille.",
-          "thought": "Mokaan varmasti, ja kaikki huomaavat, että jännitän.",
+          "situation": "On Tuesday I have to present the project status to the whole team.",
+          "thought": "I'll definitely mess up, and everyone will notice that I'm nervous.",
           "emotions": [
             "ahdistus",
             "jannitys"
           ],
           "intensityBefore": 8,
-          "behaviour": "Siirrän valmistelua ja mietin, voisinko pyytää kollegaa esittämään puolestani.",
+          "behaviour": "I keep putting off the preparation and wonder whether I could ask a colleague to present for me.",
           "traps": [
             "fortune_telling",
             "mind_reading"
           ],
-          "evidenceFor": "Viime kerralla ääneni tärisi alussa.",
-          "evidenceAgainst": "Sanoisin ystävälle, että hän on valmistautunut hyvin ja että jännitys näkyy muille paljon vähemmän kuin miltä se tuntuu.",
-          "alternative": "En voi tietää etukäteen, miten käy. Olen valmistautunut, ja voin onnistua riittävän hyvin, vaikka jännittäisin.",
+          "evidenceFor": "Last time my voice shook at the start.",
+          "evidenceAgainst": "I would tell a friend that they have prepared well and that nervousness shows to others much less than it feels.",
+          "alternative": "I can't know in advance how it will go. I have prepared, and I can do well enough even if I feel nervous.",
           "intensityAfter": 5,
           "nextStep": "exposure"
         },
         "exposure": {
-          "goal": "Esityksen pitäminen tiimille",
+          "goal": "Giving a presentation to the team",
           "goalAnxiety": 8,
           "ladder": "template",
           "firstStep": "0",
@@ -427,20 +427,20 @@
           "before": 4,
           "peak": 5,
           "after": 2,
-          "note": "Ääneen harjoittelu tuntui ensin hölmöltä, mutta rauhoitti.",
+          "note": "Practising out loud felt silly at first, but it calmed me down.",
           "next": "next",
           "when": "+1"
         },
         "experiment": {
-          "prediction": "Jos puhun palaverissa, ääneni tärisee ja kaikki huomaavat.",
+          "prediction": "If I speak in the meeting, my voice will shake and everyone will notice.",
           "beliefBefore": 7,
-          "plan": "Sanon yhden kommentin seuraavassa palaverissa ja katson, huomaako kukaan jännitystäni.",
+          "plan": "I'll make one comment in the next meeting and see whether anyone notices my nervousness.",
           "when": "+1"
         },
         "experiment_review": {
-          "outcome": "Ääni tärisi hetken, mutta kukaan ei kommentoinut sitä.",
+          "outcome": "My voice shook for a moment, but nobody commented on it.",
           "beliefAfter": 3,
-          "learned": "Jännitys näkyy muille paljon vähemmän kuin luulen."
+          "learned": "My nervousness shows to others much less than I think."
         }
       }
     },
@@ -450,7 +450,7 @@
       "firstName": "Mikko",
       "age": 44,
       "municipality": "Turku",
-      "persona": "Vakaa jonottaja – matching mahdollista",
+      "persona": "Stable on the waiting list – matching possible",
       "referral": {
         "soughtHelpOffset": -25,
         "offset": -24,
@@ -459,11 +459,11 @@
           "relationships"
         ],
         "flags": [],
-        "referrer": "Turun terveysasema (synteettinen)",
-        "assessedBy": "Psykologi (synteettinen)",
-        "summary": "Elämänmuutos eron jälkeen, kuormittava arki.",
+        "referrer": "Turku health centre (synthetic)",
+        "assessedBy": "Psychologist (synthetic)",
+        "summary": "A life change after a separation, everyday life feels heavy.",
         "clinicalUrgency": "non_urgent",
-        "estimatedWait": "20–25 viikkoa"
+        "estimatedWait": "20–25 weeks"
       },
       "waitingListOffset": -23,
       "enrollOffset": -23,
@@ -478,13 +478,13 @@
           "sharePractice": true
         },
         "answers": {
-          "reason": "Erosin keväällä, ja sen jälkeen arki on tuntunut raskaalta ja yksinäiseltä.",
-          "change": "Haluaisin löytää suunnan eron jälkeen ja saada arjen taas tuntumaan omalta.",
-          "difficult_times": "Viikonloput, kun lapset ovat toisella vanhemmalla.",
-          "helped_before": "Puhuminen ystävän kanssa ja liikunta.",
-          "exercises": "Enemmän keskustelua ja pohtimista kuin harjoituksia.",
-          "challenge": "Mieluummin auttaa pohtimaan kuin haastaa.",
-          "practical": "Lähivastaanotto Turussa olisi paras, suomeksi tai ruotsiksi. Aamupäivät sopivat."
+          "reason": "I separated from my partner in the spring, and since then everyday life has felt heavy and lonely.",
+          "change": "I would like to find a direction after the separation and make everyday life feel like my own again.",
+          "difficult_times": "Weekends, when the children are with their other parent.",
+          "helped_before": "Talking with a friend, and physical activity.",
+          "exercises": "More conversation and reflection than exercises.",
+          "challenge": "I'd rather the therapist helped me reflect than challenged me.",
+          "practical": "In-person sessions in Turku would be best, in Finnish or Swedish. Mornings suit me."
         },
         "rhythm": {
           "checkInDays": [
@@ -507,7 +507,7 @@
       "firstName": "Sara",
       "age": 27,
       "municipality": "Tampere",
-      "persona": "Check-init jääneet toistuvasti väliin",
+      "persona": "Check-ins repeatedly missed",
       "referral": {
         "soughtHelpOffset": -22,
         "offset": -21,
@@ -516,11 +516,11 @@
           "stress"
         ],
         "flags": [],
-        "referrer": "Opiskeluterveydenhuolto, Tampere (synteettinen)",
-        "assessedBy": "Terveydenhoitaja (synteettinen)",
-        "summary": "Kuormitus opintojen ja työn yhdistämisessä, univaikeudet.",
+        "referrer": "Student health services, Tampere (synthetic)",
+        "assessedBy": "Public health nurse (synthetic)",
+        "summary": "Strain from combining studies and work, sleep difficulties.",
         "clinicalUrgency": "non_urgent",
-        "estimatedWait": "8–12 viikkoa"
+        "estimatedWait": "8–12 weeks"
       },
       "waitingListOffset": -20,
       "enrollOffset": -20,
@@ -534,13 +534,13 @@
           "professionalMonitoring": true
         },
         "answers": {
-          "reason": "Stressi ja kuormitus opintojen ja osa-aikatyön kanssa. Välillä en jaksa mitään.",
-          "change": "Haluaisin saada stressin hallintaan ja nukkua paremmin.",
-          "difficult_times": "Aamut ovat vaikeimpia.",
-          "helped_before": "Lyhyet lenkit ja se, että teen yhden asian kerrallaan.",
-          "exercises": "Konkreettisia vinkkejä.",
-          "challenge": "En osaa sanoa.",
-          "practical": "Etänä käy hyvin, suomeksi. Iltapäivät ovat parhaita."
+          "reason": "Stress and strain from my studies and my part-time job. Sometimes I don't have the energy for anything.",
+          "change": "I would like to get my stress under control and sleep better.",
+          "difficult_times": "Mornings are the hardest.",
+          "helped_before": "Short runs, and doing one thing at a time.",
+          "exercises": "Concrete tips.",
+          "challenge": "I can't say.",
+          "practical": "Remote works well, in Finnish. Afternoons are best."
         },
         "rhythm": {
           "checkInDays": [
@@ -561,11 +561,11 @@
     },
     {
       "id": "cl-crisis",
-      "displayName": "Demo-kriisikäyttäjä",
+      "displayName": "Demo crisis user",
       "firstName": "Demo",
       "age": 24,
       "municipality": "Vantaa",
-      "persona": "Vain turvallisuuspolun esittelyyn",
+      "persona": "Only for showing the safety pathway",
       "referral": {
         "soughtHelpOffset": -16,
         "offset": -15,
@@ -574,11 +574,11 @@
           "anxiety"
         ],
         "flags": [],
-        "referrer": "Vantaan terveysasema (synteettinen)",
-        "assessedBy": "Psykiatrinen sairaanhoitaja (synteettinen)",
-        "summary": "Ahdistus ja yksinäisyys muuton jälkeen.",
+        "referrer": "Vantaa health centre (synthetic)",
+        "assessedBy": "Psychiatric nurse (synthetic)",
+        "summary": "Anxiety and loneliness after moving to a new place.",
         "clinicalUrgency": "non_urgent",
-        "estimatedWait": "20–25 viikkoa"
+        "estimatedWait": "20–25 weeks"
       },
       "waitingListOffset": -14,
       "enrollOffset": -14,
@@ -592,13 +592,13 @@
           "professionalMonitoring": true
         },
         "answers": {
-          "reason": "Ahdistus ja yksinäisyys ovat lisääntyneet muuton jälkeen.",
-          "change": "Haluaisin, että ahdistus ei rajoittaisi arkea niin paljon.",
-          "difficult_times": "Illat yksin kotona.",
-          "helped_before": "Musiikki ja puhelut kotiin.",
-          "exercises": "Molemmat sopivat.",
-          "challenge": "Mieluummin rauhallinen ote.",
-          "practical": "Etänä, suomeksi. Iltaisin."
+          "reason": "My anxiety and loneliness have grown since the move.",
+          "change": "I would like anxiety not to limit my everyday life so much.",
+          "difficult_times": "Evenings alone at home.",
+          "helped_before": "Music, and phone calls home.",
+          "exercises": "Both suit me.",
+          "challenge": "Preferably a calm approach.",
+          "practical": "Remote, in Finnish. In the evenings."
         },
         "rhythm": {
           "checkInDays": [
@@ -613,7 +613,7 @@
         "profile": "stable",
         "answerTime": "21:30"
       },
-      "safetyDemoMessage": "En jaksa enää. Olen alkanut ajatella, että haluaisin kuolla.",
+      "safetyDemoMessage": "I can't cope any more. I've started to think that I'd like to die.",
       "script": []
     },
     {
@@ -622,7 +622,7 @@
       "firstName": "Juha",
       "age": 48,
       "municipality": "Espoo",
-      "persona": "Terapia käynnissä – terapeutin ohjaama välituki",
+      "persona": "Therapy in progress – between-session support guided by the therapist",
       "referral": {
         "soughtHelpOffset": -33,
         "offset": -31,
@@ -631,11 +631,11 @@
           "burnout"
         ],
         "flags": [],
-        "referrer": "Työterveyshuolto → Espoon mielenterveyspalvelut (synteettinen)",
-        "assessedBy": "Psykologi (synteettinen)",
-        "summary": "Työuupumus, palautumisen vaikeus.",
+        "referrer": "Occupational health care → Espoo mental health services (synthetic)",
+        "assessedBy": "Psychologist (synthetic)",
+        "summary": "Burnout, difficulty recovering.",
         "clinicalUrgency": "non_urgent",
-        "estimatedWait": "20–25 viikkoa"
+        "estimatedWait": "20–25 weeks"
       },
       "waitingListOffset": -30,
       "enrollOffset": -30,
@@ -650,13 +650,13 @@
           "sharePractice": true
         },
         "answers": {
-          "reason": "Olen uupunut töissä, ja palautuminen ei enää onnistu viikonloppuisin.",
-          "change": "Haluaisin palautua työuupumuksesta ja jaksaa taas työssä.",
-          "difficult_times": "Sunnuntai-iltaisin ja pitkien työpäivien jälkeen.",
-          "helped_before": "Metsäkävelyt ja selkeät päivärutiinit.",
-          "exercises": "Konkreettisia keinoja ja harjoituksia.",
-          "challenge": "Saa haastaa.",
-          "practical": "Etänä, suomeksi. Keskiviikkoisin iltapäivällä tai illalla."
+          "reason": "I'm burnt out at work, and I no longer manage to recover at weekends.",
+          "change": "I would like to recover from burnout and cope at work again.",
+          "difficult_times": "On Sunday evenings and after long working days.",
+          "helped_before": "Walks in the forest and clear daily routines.",
+          "exercises": "Concrete techniques and exercises.",
+          "challenge": "You can challenge me.",
+          "practical": "Remote, in Finnish. On Wednesday afternoons or evenings."
         },
         "rhythm": {
           "checkInDays": [
@@ -692,15 +692,15 @@
           "offset": -8,
           "action": "therapist_plan",
           "plan": {
-            "primaryGoal": "Palautua työuupumuksesta ja jaksaa työssä",
+            "primaryGoal": "To recover from burnout and cope at work",
             "allowedActivityIds": [
               "act-small-next-step",
               "act-values",
               "act-sleep-reflection"
             ],
             "checkInsPerWeek": 2,
-            "track": "Palautuminen työpäivän jälkeen",
-            "doNotAddress": "Työpaikan henkilöristiriidat käsitellään tapaamisissa, ei Mieliluotsissa."
+            "track": "Recovering after the working day",
+            "doNotAddress": "Conflicts with colleagues at the workplace are handled in the sessions, not in Mieliluotsi."
           }
         },
         {
@@ -722,7 +722,7 @@
       "firstName": "Maria",
       "age": 41,
       "municipality": "Vantaa",
-      "persona": "Terapia alkanut – yhteistyöpalaute kielteinen",
+      "persona": "Therapy started – negative feedback on the working relationship",
       "referral": {
         "soughtHelpOffset": -30,
         "offset": -29,
@@ -731,11 +731,11 @@
           "trauma"
         ],
         "flags": [],
-        "referrer": "Vantaan terveysasema (synteettinen)",
-        "assessedBy": "Psykologi (synteettinen)",
-        "summary": "Liikenneonnettomuuden jälkeinen pelko ja univaikeudet.",
+        "referrer": "Vantaa health centre (synthetic)",
+        "assessedBy": "Psychologist (synthetic)",
+        "summary": "Fear and sleep difficulties after a road accident.",
         "clinicalUrgency": "non_urgent",
-        "estimatedWait": "20–25 viikkoa"
+        "estimatedWait": "20–25 weeks"
       },
       "waitingListOffset": -28,
       "enrollOffset": -28,
@@ -750,13 +750,13 @@
           "sharePractice": true
         },
         "answers": {
-          "reason": "Vuoden takainen liikenneonnettomuus palaa mieleen, ja pelkään ajaa autolla.",
-          "change": "Haluaisin pystyä ajamaan töihin ilman voimakasta pelkoa.",
-          "difficult_times": "Aamut ennen työmatkaa ja illat, kun painajaiset valvottavat.",
-          "helped_before": "Kävely luonnossa.",
-          "exercises": "Konkreettisia harjoituksia.",
-          "challenge": "Rauhallinen ote, ei liikaa haastamista.",
-          "practical": "Etänä, suomeksi tai englanniksi. Torstai-iltapäivä sopii."
+          "reason": "A road accident a year ago keeps coming back to me, and I'm afraid to drive.",
+          "change": "I would like to be able to drive to work without intense fear.",
+          "difficult_times": "Mornings before the drive to work, and evenings when nightmares keep me awake.",
+          "helped_before": "Walking in nature.",
+          "exercises": "Concrete exercises.",
+          "challenge": "A calm approach, not too much challenging.",
+          "practical": "Remote, in Finnish or English. Thursday afternoon suits me."
         },
         "rhythm": {
           "checkInDays": [
@@ -785,14 +785,14 @@
           "offset": -6,
           "action": "therapist_plan",
           "plan": {
-            "primaryGoal": "Pystyä ajamaan töihin ilman voimakasta pelkoa",
+            "primaryGoal": "To be able to drive to work without intense fear",
             "allowedActivityIds": [
               "act-grounding",
               "act-paced-breathing"
             ],
             "checkInsPerWeek": 2,
-            "track": "Pelko työmatkalla",
-            "doNotAddress": "Onnettomuuden yksityiskohdat käsitellään vain tapaamisissa."
+            "track": "Fear on the way to work",
+            "doNotAddress": "The details of the accident are handled only in the sessions."
           }
         },
         {
@@ -804,7 +804,7 @@
             "styleFit": 2,
             "wantContinue": "unsure",
             "wantDiscussAlternative": true,
-            "note": "Toivoisin keskustelua siitä, sopiiko työskentelytapa minulle."
+            "note": "I would like to discuss whether this way of working suits me."
           }
         }
       ]
@@ -815,7 +815,7 @@
       "firstName": "Pekka",
       "age": 58,
       "municipality": "Tampere",
-      "persona": "Terapeuttiehdotus odottaa valintaa",
+      "persona": "Therapist suggestions waiting for a choice",
       "referral": {
         "soughtHelpOffset": -28,
         "offset": -27,
@@ -824,11 +824,11 @@
           "grief"
         ],
         "flags": [],
-        "referrer": "Tampereen terveysasema (synteettinen)",
-        "assessedBy": "Psykiatrinen sairaanhoitaja (synteettinen)",
-        "summary": "Pitkittynyt suru puolison kuoleman jälkeen.",
+        "referrer": "Tampere health centre (synthetic)",
+        "assessedBy": "Psychiatric nurse (synthetic)",
+        "summary": "Prolonged grief after the death of a spouse.",
         "clinicalUrgency": "non_urgent",
-        "estimatedWait": "20–25 viikkoa"
+        "estimatedWait": "20–25 weeks"
       },
       "waitingListOffset": -26,
       "enrollOffset": -26,
@@ -843,13 +843,13 @@
           "sharePractice": true
         },
         "answers": {
-          "reason": "Vaimoni kuoli vuosi sitten, enkä ole päässyt surun kanssa eteenpäin.",
-          "change": "Haluaisin oppia elämään menetyksen kanssa ja löytää arkeen asioita, joita odottaa.",
-          "difficult_times": "Illat ja viikonloput.",
-          "helped_before": "Mökkeily ja lapsenlapset.",
-          "exercises": "Enemmän keskustelua.",
-          "challenge": "Rauhallinen ja kuunteleva ote.",
-          "practical": "Lähivastaanotto Tampereella, suomeksi. Aamupäivät sopivat."
+          "reason": "My wife died a year ago, and I haven't been able to move forward with my grief.",
+          "change": "I would like to learn to live with the loss and find things in everyday life to look forward to.",
+          "difficult_times": "Evenings and weekends.",
+          "helped_before": "Time at the summer cottage, and my grandchildren.",
+          "exercises": "More conversation.",
+          "challenge": "A calm and listening approach.",
+          "practical": "In-person sessions in Tampere, in Finnish. Mornings suit me."
         },
         "rhythm": {
           "checkInDays": [
@@ -872,7 +872,7 @@
       "firstName": "Leena",
       "age": 36,
       "municipality": "Lahti",
-      "persona": "Pyysi yhteydenottoa ammattilaiselta",
+      "persona": "Asked a professional to get in touch",
       "referral": {
         "soughtHelpOffset": -14,
         "offset": -13,
@@ -881,11 +881,11 @@
           "mood"
         ],
         "flags": [],
-        "referrer": "Lahden terveysasema (synteettinen)",
-        "assessedBy": "Psykiatrinen sairaanhoitaja (synteettinen)",
-        "summary": "Pitkittynyt matala mieliala.",
+        "referrer": "Lahti health centre (synthetic)",
+        "assessedBy": "Psychiatric nurse (synthetic)",
+        "summary": "Prolonged low mood.",
         "clinicalUrgency": "non_urgent",
-        "estimatedWait": "8–12 viikkoa"
+        "estimatedWait": "8–12 weeks"
       },
       "waitingListOffset": -12,
       "enrollOffset": -12,
@@ -899,13 +899,13 @@
           "professionalMonitoring": true
         },
         "answers": {
-          "reason": "Mieliala on ollut pitkään matala, eikä mikään tunnu kiinnostavan.",
-          "change": "Haluaisin, että arjessa olisi taas jotain, mikä tuntuu mukavalta.",
-          "difficult_times": "Aamupäivät.",
-          "helped_before": "Ystävän kanssa puhuminen.",
-          "exercises": "Molemmat sopivat.",
-          "challenge": "En osaa sanoa.",
-          "practical": "Etänä tai lähivastaanotto Lahdessa, suomeksi. Päivällä."
+          "reason": "My mood has been low for a long time, and nothing seems interesting.",
+          "change": "I would like there to be something in everyday life that feels nice again.",
+          "difficult_times": "Mornings.",
+          "helped_before": "Talking with a friend.",
+          "exercises": "Both suit me.",
+          "challenge": "I can't say.",
+          "practical": "Remote or in-person in Lahti, in Finnish. During the day."
         },
         "rhythm": {
           "checkInDays": [
@@ -926,7 +926,7 @@
           "offset": -1,
           "action": "request_human",
           "reason": "waiting",
-          "message": "Haluaisin tietää, kauanko jonotus vielä kestää."
+          "message": "I would like to know how much longer the wait will last."
         }
       ]
     },
@@ -936,7 +936,7 @@
       "firstName": "Noora",
       "age": 29,
       "municipality": "Jyväskylä",
-      "persona": "Kutsu lähetetty – ei vielä aloittanut",
+      "persona": "Invitation sent – not started yet",
       "referral": {
         "soughtHelpOffset": -4,
         "offset": -3,
@@ -945,11 +945,11 @@
           "stress"
         ],
         "flags": [],
-        "referrer": "Jyväskylän terveysasema (synteettinen)",
-        "assessedBy": "Terveydenhoitaja (synteettinen)",
-        "summary": "Työkuorma ja palautumisen vaikeus.",
+        "referrer": "Jyväskylä health centre (synthetic)",
+        "assessedBy": "Public health nurse (synthetic)",
+        "summary": "Workload and difficulty recovering.",
         "clinicalUrgency": "non_urgent",
-        "estimatedWait": "8–12 viikkoa"
+        "estimatedWait": "8–12 weeks"
       },
       "waitingListOffset": -1,
       "enrollOffset": -1,

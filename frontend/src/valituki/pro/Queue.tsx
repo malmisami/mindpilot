@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useValituki } from '../context';
-import { fmtShort, fmtThousands } from '../format';
+import { fmtShort, fmtThousands, plural } from '../format';
 import { AlertIcon, ChevronRightIcon, CrossIcon, InfoIcon, SortIcon } from '../icons';
 import { Synthetic } from '../components/ui';
 import type { QueueRow } from '../types';
@@ -10,7 +10,7 @@ const REVIEW_ORDER: Record<string, number> = { safety: 0, requested: 1, contact:
 const TREND_ORDER: Record<string, number> = { declining: 0, insufficient: 1, stable: 2, improving: 3 };
 
 const initials = (name: string) => name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
-const share = (value: number, total: number) => `${Math.round((value / Math.max(1, total)) * 100)} % jonosta`;
+const share = (value: number, total: number) => `${Math.round((value / Math.max(1, total)) * 100)}% of the list`;
 
 export default function Queue() {
   const { view, setProClientId } = useValituki();
@@ -53,11 +53,11 @@ export default function Queue() {
   const samples = activeBucket ? pro.overview.samples.filter((sample) => sample.bucket === activeBucket.key) : [];
   return (
     <div className="queue-page">
-      <section className="kpi-band" aria-label="Suodata asiakasjonoa">
+      <section className="kpi-band" aria-label="Filter the client list">
         <button type="button" className="kpi kpi-hero" aria-pressed={filter === null} onClick={() => setFilter(null)}>
-          <span className="kpi-label">Aktiivisia asiakkaita</span>
+          <span className="kpi-label">Active clients</span>
           <span className="kpi-value">{fmtThousands(pro.overview.total)}</span>
-          <span className="kpi-sub">terapiajonossa, Mieliluotsi käytössä</span>
+          <span className="kpi-sub">on the therapy waiting list, using Mieliluotsi</span>
           {/* The whole queue as one bar: each group's share, in the group's colour. */}
           <span className="kpi-stack" aria-hidden="true">
             {buckets.map((b) => <i key={b.key} className={`kpi-seg kpi-${b.key}`} style={{ flexGrow: b.value }} />)}
@@ -70,42 +70,42 @@ export default function Queue() {
               <span className="kpi-label"><span className="kpi-dot" aria-hidden="true" />{b.label}</span>
               <span className="kpi-value">{fmtThousands(b.value)}</span>
               <span className="kpi-share" aria-hidden="true"><i style={{ width: `${(b.value / Math.max(1, pro.overview.total)) * 100}%` }} /></span>
-              <span className="kpi-sub">{share(b.value, pro.overview.total)}{b.live ? ` · demossa ${b.live}` : ''}</span>
+              <span className="kpi-sub">{share(b.value, pro.overview.total)}{b.live ? ` · ${b.live} in the demo` : ''}</span>
             </button>
           ))}
         </div>
       </section>
-      <Synthetic>{pro.overview.syntheticNote} Luvut kertovat tilanteen – eivät kliinistä priorisointia. Mieliluotsi ei ole priorisoinut asiakkaita.</Synthetic>
+      <Synthetic>{pro.overview.syntheticNote} The figures describe the situation – they are not a clinical prioritisation. Mieliluotsi has not prioritised clients.</Synthetic>
 
       <section className="card queue-card">
         <div className="card-row">
-          <h2 className="card-title-lg">Asiakasjono
+          <h2 className="card-title-lg">Client list
             {activeBucket && (
-              <button type="button" className="queue-filter" onClick={() => setFilter(null)} aria-label={`Poista suodatus: ${activeBucket.label}`}>
+              <button type="button" className="queue-filter" onClick={() => setFilter(null)} aria-label={`Remove filter: ${activeBucket.label}`}>
                 {activeBucket.label} <CrossIcon size={13} />
               </button>
             )}
           </h2>
-          <p className="muted small"><InfoIcon size={14} /> Työjonon järjestys: avoimet tarkistuspyynnöt ensin, sitten odotusaika. Hoidon kiireellisyyden
-            määrittää aina ammattilainen.</p>
+          <p className="muted small"><InfoIcon size={14} /> Work queue order: open review requests first, then waiting time. The urgency of care is
+            always set by a professional.</p>
         </div>
         <div className="table-wrap">
           <table className="table queue-table">
             <thead>
               <tr>
-                {header('name', 'Asiakas')}
-                {header('waitingDays', 'Odotusaika')}
-                {header('lastCheckIn', 'Viimeisin check-in')}
-                {header('trend', 'Suunta')}
-                <th scope="col">Viimeisin havainto</th>
-                {header('review', 'Ammattilaisen tarkistus')}
+                {header('name', 'Client')}
+                {header('waitingDays', 'Waiting time')}
+                {header('lastCheckIn', 'Latest check-in')}
+                {header('trend', 'Direction')}
+                <th scope="col">Latest observation</th>
+                {header('review', 'Professional review')}
                 {header('matching', 'Matching')}
-                <th scope="col">Seuraava toimenpide</th>
+                <th scope="col">Next action</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 && samples.length === 0 && (
-                <tr className="queue-empty"><td colSpan={8}>Ryhmässä ei ole demon asiakkaita – luku {fmtThousands(activeBucket?.value ?? 0)} on taustakohortin synteettinen luku.</td></tr>
+                <tr className="queue-empty"><td colSpan={8}>There are no demo clients in this group – the figure {fmtThousands(activeBucket?.value ?? 0)} is a synthetic figure for the background cohort.</td></tr>
               )}
               {rows.map((row) => (
                 <tr key={row.clientId} className={`${row.demoPrimary ? 'row-primary' : ''} review-${row.reviewKey}`} onClick={() => setProClientId(row.clientId)}>
@@ -118,7 +118,7 @@ export default function Queue() {
                       </span>
                     </button>
                   </td>
-                  <td className="num">{row.waitingDays !== null ? `${row.waitingDays} pv` : '–'}</td>
+                  <td className="num">{row.waitingDays !== null ? plural(row.waitingDays, 'day') : '–'}</td>
                   <td>{row.lastCheckIn ? fmtShort(row.lastCheckIn) : '–'}</td>
                   <td><span className={`trend trend-${row.trend}`} title={row.trendLabel}>{row.trendArrow}</span></td>
                   <td className="cell-obs">{row.latestObservation ?? '–'}</td>
@@ -136,12 +136,12 @@ export default function Queue() {
                     <span className="row-link">
                       <span className="row-avatar" aria-hidden="true">{initials(sample.name)}</span>
                       <span className="row-who">
-                        <span className="row-name">{sample.name} <span className="sample-tag">Esimerkki</span></span>
-                        <span className="row-sub">{sample.age} v · taustakohortti</span>
+                        <span className="row-name">{sample.name} <span className="sample-tag">Example</span></span>
+                        <span className="row-sub">Age {sample.age} · background cohort</span>
                       </span>
                     </span>
                   </td>
-                  <td className="num">{sample.waitingDays} pv</td>
+                  <td className="num">{plural(sample.waitingDays, 'day')}</td>
                   <td>{fmtShort(sample.lastCheckIn)}</td>
                   <td><span className={`trend trend-${sample.trend}`} title={sample.trendLabel}>{sample.trendArrow}</span></td>
                   <td className="cell-obs">{sample.latestObservation ?? '–'}</td>
@@ -153,13 +153,13 @@ export default function Queue() {
             </tbody>
           </table>
         </div>
-        <p className="muted small">Näytetään demon {rows.length} kuvitteellista asiakasta{activeBucket ? ` ryhmästä ”${activeBucket.label}”` : ''}{samples.length ? ` ja ${samples.length} esimerkkiprofiilia` : ''}. Taustakohortin {fmtThousands(pro.overview.total - pro.overview.liveClients)} asiakasta
-          ovat synteettisiä lukuja.</p>
+        <p className="muted small">Showing the demo's {plural(rows.length, 'fictional client')}{activeBucket ? ` in the group “${activeBucket.label}”` : ''}{samples.length ? ` and ${plural(samples.length, 'example profile')}` : ''}. The background cohort's {fmtThousands(pro.overview.total - pro.overview.liveClients)} clients
+          are synthetic figures.</p>
       </section>
 
       {pro.notifications.length > 0 && (
         <section className="card">
-          <h2 className="card-title">Ilmoitukset hoitotiimille</h2>
+          <h2 className="card-title">Notifications for the care team</h2>
           <ul className="pro-notes">
             {pro.notifications.slice(0, 6).map((n) => (
               <li key={n.id} className={`kind-${n.kind}`}>

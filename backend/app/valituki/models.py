@@ -10,7 +10,7 @@ from typing import Any, Literal, Optional
 from pydantic import BaseModel, Field
 
 # Bump when the stored layout changes; an older state file is then rebuilt from the seed.
-STATE_VERSION = 'valituki-3.0'
+STATE_VERSION = 'valituki-3.1-en'  # 3.1: English texts; a saved Finnish state is rebuilt
 
 JourneyState = Literal[
     'INVITED',

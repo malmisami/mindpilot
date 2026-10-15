@@ -7,7 +7,7 @@ Levels:
   3 – immediate safety information displayed
 
 Signals: deterministic phrase rules (data/valituki/safety_rules.json), structured answers (a very low 1/5 mood), the
-explicit "Tarvitsen apua nyt" action. An optional language-model hint is an *additional* signal only: the final level
+explicit "I need help now" action. An optional language-model hint is an *additional* signal only: the final level
 is the maximum of the deterministic level and the hint, so a model can raise a level but never lower a deterministic
 trigger.
 
@@ -26,10 +26,10 @@ from app.valituki import content
 from app.valituki.models import SafetyTrigger
 
 LEVEL_LABELS = {
-    0: 'Tavallinen tuki',
-    1: 'Lisä-check-in ehdotettu',
-    2: 'Ammattilaisen tarkistus suositeltu',
-    3: 'Välittömät turvallisuusohjeet näytetty',
+    0: 'Normal support',
+    1: 'Additional check-in suggested',
+    2: 'Professional review recommended',
+    3: 'Immediate safety information shown',
 }
 
 # A model's advisory hint mapped onto the same scale. Used only to raise a level.
@@ -38,29 +38,29 @@ AI_HINT_LEVELS = {'NONE': 0, 'REVIEW': 2, 'URGENT': 3}
 EXPLICIT_HELP_RULE = 'SAF-L3-EXPLICIT-HELP'
 
 SAFETY_CONTACTS = [
-    {'id': 'emergency', 'label': 'Välitön hätätilanne', 'action': 'soita 112', 'number': '112', 'tel': '112',
-     'when': 'Jos olet välittömässä vaarassa tai hengenvaara uhkaa.'},
-    {'id': 'paivystysapu', 'label': 'Kiireellinen terveysongelma', 'action': 'Päivystysapu 116117', 'number': '116117',
-     'tel': '116117', 'when': 'Kiireellinen terveysneuvonta ja ohjaus oikeaan hoitopaikkaan.'},
-    {'id': 'mieli', 'label': 'MIELI Kriisipuhelin', 'action': '09 2525 0111', 'number': '09 2525 0111', 'tel': '0925250111',
-     'when': 'Keskusteluapua kriisissä.'},
+    {'id': 'emergency', 'label': 'Immediate emergency', 'action': 'call 112', 'number': '112', 'tel': '112',
+     'when': 'If you are in immediate danger or your life is at risk.'},
+    {'id': 'paivystysapu', 'label': 'Urgent health problem', 'action': 'Medical Helpline 116117', 'number': '116117',
+     'tel': '116117', 'when': 'Urgent health advice and guidance to the right place of care.'},
+    {'id': 'mieli', 'label': 'MIELI Crisis Helpline', 'action': '09 2525 0111', 'number': '09 2525 0111', 'tel': '0925250111',
+     'when': 'Someone to talk to in a crisis.'},
 ]
 
 SAFETY_SCREEN = {
-    'title': 'Tarvitsetko apua juuri nyt?',
-    'notEmergency': 'Mieliluotsi ei ole päivystyspalvelu eikä tätä keskustelua seurata jatkuvasti.',
-    'intro': 'Jos olet vaarassa tai tarvitset apua heti, ota yhteyttä suoraan:',
-    'demoNote': 'Demo: ammattilaisen työjonoon syntyi synteettinen hälytys. Mieliluotsi ei ole ottanut yhteyttä hätäkeskukseen '
-                'tai muihin palveluihin.',
-    'dismiss': 'Olen lukenut ohjeet – palaa Mieliluotsiin',
+    'title': 'Do you need help right now?',
+    'notEmergency': 'Mieliluotsi is not an emergency service, and this conversation is not monitored all the time.',
+    'intro': 'If you are in danger or need help right away, contact one of these directly:',
+    'demoNote': 'Demo: a synthetic alert was created in the professional\'s work queue. Mieliluotsi has not contacted the emergency '
+                'response centre or any other service.',
+    'dismiss': 'I have read the information – back to Mieliluotsi',
 }
 
-SAFETY_REPLY = ('Haluan varmistaa, että saat apua heti. Mieliluotsi ei ole päivystyspalvelu eikä tätä keskustelua seurata '
-                'jatkuvasti. Välittömässä hätätilanteessa soita 112. Kiireellisessä terveysongelmassa Päivystysapu 116117. '
-                'MIELI Kriisipuhelin 09 2525 0111.')
+SAFETY_REPLY = ('I want to make sure you get help right away. Mieliluotsi is not an emergency service, and this conversation is '
+                'not monitored all the time. In an immediate emergency, call 112. For an urgent health problem, call the Medical '
+                'Helpline 116117. MIELI Crisis Helpline 09 2525 0111.')
 
-LEVEL2_CLIENT_TEXT = ('Kiitos, että kerroit. Pyysin ammattilaista katsomaan tilannettasi. Tämä havainto odottaa ammattilaisen '
-                      'tarkistusta. Jos tarvitset apua heti, soita 112 tai Päivystysapuun 116117.')
+LEVEL2_CLIENT_TEXT = ('Thank you for telling me. I asked a professional to look at your situation. This observation is waiting '
+                      'for a professional review. If you need help right away, call 112 or the Medical Helpline 116117.')
 
 
 @dataclass
@@ -99,7 +99,7 @@ def evaluate_text(text: Optional[str]) -> list[SafetyTrigger]:
     for rule, patterns in _compiled(content.safety_rules()['version']):
         if any(pattern.search(normalized) for pattern in patterns):
             triggers.append(SafetyTrigger(source='phrase_rule', ruleId=rule['id'], level=int(rule['level']),
-                                          category=rule['category'], detail='Tunnistettu ilmaus tekstissä'))
+                                          category=rule['category'], detail='Recognised phrase in the text'))
     return triggers
 
 
@@ -107,13 +107,13 @@ def evaluate_structured(*, mood: Optional[int] = None) -> list[SafetyTrigger]:
     floor = content.safety_rules()['structured']['moodFloor']
     if mood is not None and mood <= int(floor['threshold']):
         return [SafetyTrigger(source='structured_answer', ruleId=floor['ruleId'], level=int(floor['level']),
-                              category='Erittäin matala vointi', detail=f'Vointi {mood}/5')]
+                              category='Very low wellbeing', detail=f'Wellbeing {mood}/5')]
     return []
 
 
 def explicit_help_trigger() -> SafetyTrigger:
-    return SafetyTrigger(source='explicit_action', ruleId=EXPLICIT_HELP_RULE, level=3, category='Asiakas pyysi apua heti',
-                         detail='Painike "Tarvitsen apua nyt"')
+    return SafetyTrigger(source='explicit_action', ruleId=EXPLICIT_HELP_RULE, level=3, category='Client asked for help now',
+                         detail='Button "I need help now"')
 
 
 def assess(triggers: list[SafetyTrigger], ai_hint: Optional[str] = None,
@@ -127,7 +127,7 @@ def assess(triggers: list[SafetyTrigger], ai_hint: Optional[str] = None,
     all_triggers = [t for t in triggers if t.source != 'ai_hint']
     if ai_level > 0:
         all_triggers.append(SafetyTrigger(source='ai_hint', ruleId='AI-HINT', level=ai_level,
-                                          category='Kielimallin lisäsignaali (neuvoa-antava)',
+                                          category='Additional signal from the language model (advisory)',
                                           detail=f'safetyHint={ai_hint or "NONE"}, suggestedNextAction={ai_next_action or "NONE"}'))
     return SafetyResult(deterministic_level=deterministic, ai_hint=ai_hint, ai_level=ai_level, final_level=final,
                         triggers=all_triggers)

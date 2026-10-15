@@ -159,7 +159,7 @@ export default function ValitukiApp() {
 
       <main className="stage" id="main" ref={stageRef}>
         {error && <div className="alert alert-error" role="alert">{error}</div>}
-        {!view && !error && <p className="loading" role="status">Ladataan Mieliluotsia…</p>}
+        {!view && !error && <p className="loading" role="status">Loading Mieliluotsi…</p>}
         {ctx && (
           <ValitukiContext.Provider value={ctx}>
             {role === 'client' ? <ClientApp /> : (

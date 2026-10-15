@@ -4,6 +4,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.valituki import content
 
 client = TestClient(app)
 API = '/api/valituki'
@@ -17,7 +18,8 @@ def ok(response) -> dict:
 
 def test_full_demo_journey():
     view = ok(client.post(f'{API}/demo/reset', params=Q))['view']
-    assert view['meta']['syntheticNotice'] == 'Kaikki demon henkilöt ja terveystiedot ovat täysin kuvitteellisia.'
+    assert view['meta']['syntheticNotice'] == 'All people and health information in the demo are entirely fictional.'
+    assert view['meta']['tagline'] == 'Support starts now, even if therapy does not start yet.'
     aino = view['client']
     assert aino['journeyState'] == 'INVITED' and aino['intake']['status'] == 'not_started'
     demo = aino['intake']['demoAnswers']
@@ -41,7 +43,7 @@ def test_full_demo_journey():
 
     # 3: 14 days → check-ins, a useful activity and a pattern
     view = ok(client.post(f'{API}/demo/advance', params=Q, json={'days': 14}))['view']
-    assert view['client']['memory']['pending'][0]['title'] == 'Huomasimme jotain'
+    assert view['client']['memory']['pending'][0]['title'] == 'We noticed something'
     assert any(m['key'] == 'helpful' for m in view['client']['milestones'])
     ok(client.post(f'{API}/clients/cl-aino/insights/{view["client"]["memory"]["pending"][0]["id"]}/decision', params=Q,
                    json={'decision': 'approve'}))
@@ -50,7 +52,7 @@ def test_full_demo_journey():
     view = ok(client.post(f'{API}/demo/deteriorate', params=Q, json={'clientId': 'cl-aino'}))['view']
     detail = view['professional']['details']['cl-aino']
     assert detail['openReview'] and len(detail['openReview']['explanation']) == 4
-    assert detail['urgency']['label'] == 'Kiireetön'
+    assert detail['urgency']['label'] == 'Non-urgent'
     assert view['professional']['queue'][0]['clientId'] in ('cl-aino', 'cl-crisis')
     overview = {b['key']: b['value'] for b in view['professional']['overview']['buckets']}
     assert view['professional']['overview']['total'] >= 999 and overview['changeDetected'] >= 164
@@ -60,11 +62,11 @@ def test_full_demo_journey():
     view = ok(client.post(f'{API}/demo/open-slot', params=Q))['view']
     candidates = view['client']['matching']['candidates']
     assert [c['therapist']['name'] for c in candidates] == ['Anna Laine', 'Laura Koski', 'Katja Salmi']
-    assert candidates[0]['labelText'] == 'Vahva yhteensopivuus' and candidates[0]['reasons']
+    assert candidates[0]['labelText'] == content.matching_config()['labels'][0]['text'] and candidates[0]['reasons']
 
     # 6: Sami chooses Anna and approves the handover
     view = ok(client.post(f'{API}/clients/cl-aino/matches/select', params=Q, json={'candidateId': candidates[0]['id']}))['view']
-    assert view['client']['matching']['booking']['startText'] == 'Ti 17.11. klo 18.00'
+    assert view['client']['matching']['booking']['startText'] == 'Tue 17 Nov at 18:00'
     ok(client.post(f'{API}/clients/cl-aino/handover/approve', params=Q))
 
     # 7: Anna sees only the approved summary
@@ -76,8 +78,8 @@ def test_full_demo_journey():
     view = ok(client.post(f'{API}/therapists/th-anna/clients/cl-aino/first-session', params={**Q, 'therapistId': 'th-anna'}))['view']
     plan = next(r for r in view['therapist']['selected']['clients'] if r['clientId'] == 'cl-aino')['therapy']['suggestedPlan']
     view = ok(client.put(f'{API}/therapists/th-anna/clients/cl-aino/plan', params={**Q, 'therapistId': 'th-anna'}, json=plan))['view']
-    assert view['client']['mode']['statement'] == 'Terapeutti Anna on määrittänyt tämän suunnitelman.'
-    assert view['client']['mode']['title'] == 'Terapian välituki'
+    assert view['client']['mode']['statement'] == 'Your therapist Anna has set up this plan.'
+    assert view['client']['mode']['title'] == 'Between-session support'
 
 
 def test_safety_flow_and_scene_jumps():
@@ -93,5 +95,6 @@ def test_rules_are_enforced_by_the_api():
     ok(client.post(f'{API}/demo/reset', params=Q))
     response = client.post(f'{API}/clients/cl-aino/checkins', params=Q, json={'mood': 3})
     assert response.status_code == 409  # no check-ins before the intake
+    assert response.json()['detail'] == 'Check-in is not possible in the stage "On the waiting list – Mieliluotsi not started yet".'
     response = client.post(f'{API}/clients/cl-mikko/urgency', params=Q, json={'urgency': 'urgent'})
     assert response.status_code == 200  # professionals may change urgency; agents cannot (see test_agent)

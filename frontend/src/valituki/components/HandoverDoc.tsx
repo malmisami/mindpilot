@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { fmtDate, fmtNum } from '../format';
+import { fmtDate, fmtNum, plural } from '../format';
 import { EditIcon, TrashIcon, UndoIcon } from '../icons';
 import type { HandoverSection } from '../types';
 import { WellbeingChart } from './charts';
@@ -28,7 +28,7 @@ function SectionContent({ section }: { section: HandoverSection }) {
       return (
         <ul className="ho-list">
           {asRows(content).map((goal) => (
-            <li key={str(goal.id)}><span className="ho-sub">{goal.priority === 'primary' ? 'Päätavoite' : 'Tavoite'}</span> {str(goal.text)}</li>
+            <li key={str(goal.id)}><span className="ho-sub">{goal.priority === 'primary' ? 'Main goal' : 'Goal'}</span> {str(goal.text)}</li>
           ))}
         </ul>
       );
@@ -38,8 +38,8 @@ function SectionContent({ section }: { section: HandoverSection }) {
       return (
         <div>
           <p>{str(data.summary)}</p>
-          <WellbeingChart title="Vointi 1–5 odotusaikana" points={points} baseline={data.baseline as number | null} height={150}
-            events={asRows(data.events).map((e) => ({ date: str(e.date), label: 'Tarkistettu' }))} note="itse raportoitu" />
+          <WellbeingChart title="Wellbeing 1–5 during the wait" points={points} baseline={data.baseline as number | null} height={150}
+            events={asRows(data.events).map((e) => ({ date: str(e.date), label: 'Reviewed' }))} note="self-reported" />
         </div>
       );
     }
@@ -50,13 +50,13 @@ function SectionContent({ section }: { section: HandoverSection }) {
       return (
         <ul className="ho-list">
           {Number(stats.thoughtRecords) > 0 && (
-            <li>Ajatusten tutkiminen {str(stats.thoughtRecords)}×{stats.avgDrop !== null && stats.avgDrop !== undefined
-              && <span className="muted"> – tunne laski keskimäärin {fmtNum(Number(stats.avgDrop))} pistettä (0–10)</span>}</li>
+            <li>Exploring a thought {str(stats.thoughtRecords)}×{stats.avgDrop !== null && stats.avgDrop !== undefined
+              && <span className="muted"> – the feeling dropped by {fmtNum(Number(stats.avgDrop))} points on average (0–10)</span>}</li>
           )}
-          {traps.length > 0 && <li>Tunnistetut ajatusloukut: {traps.map((t) => `${str(t.label)} (${str(t.count)})`).join(', ')}</li>}
-          {Number(stats.experiments) > 0 && <li>Käyttäytymiskokeet: {str(stats.experimentsDone)}/{str(stats.experiments)} tehty</li>}
+          {traps.length > 0 && <li>Thinking traps recognised: {traps.map((t) => `${str(t.label)} (${str(t.count)})`).join(', ')}</li>}
+          {Number(stats.experiments) > 0 && <li>Behavioural experiments: {str(stats.experimentsDone)}/{str(stats.experiments)} done</li>}
           {asRows(data.ladders).map((ladder, i) => (
-            <li key={i}>Altistusporras: {str(ladder.goal)} <span className="muted">– {str(ladder.done)}/{str(ladder.total)} askelta tehty</span></li>
+            <li key={i}>Exposure ladder: {str(ladder.goal)} <span className="muted">– {str(ladder.done)}/{str(ladder.total)} steps done</span></li>
           ))}
         </ul>
       );
@@ -65,7 +65,7 @@ function SectionContent({ section }: { section: HandoverSection }) {
       return (
         <ul className="ho-list">
           {asRows(content).map((row) => (
-            <li key={str(row.title)}>{str(row.title)} <span className="muted">– tehty {str(row.tried)}×{row.latestRating ? `, viimeisin arvio ${str(row.latestRating)}/5` : ''}</span></li>
+            <li key={str(row.title)}>{str(row.title)} <span className="muted">– done {str(row.tried)}×{row.latestRating ? `, latest rating ${str(row.latestRating)}/5` : ''}</span></li>
           ))}
         </ul>
       );
@@ -84,7 +84,7 @@ function SectionContent({ section }: { section: HandoverSection }) {
       return (
         <ul className="ho-list">
           {asRows(content).map((row) => (
-            <li key={str(row.title)}>{str(row.title)} <span className="muted">{row.rating ? `(${str(row.rating)}/5)` : ''}{Number(row.skipped) ? ` · ohitettu ${str(row.skipped)}×` : ''}</span></li>
+            <li key={str(row.title)}>{str(row.title)} <span className="muted">{row.rating ? `(${str(row.rating)}/5)` : ''}{Number(row.skipped) ? ` · skipped ${str(row.skipped)}×` : ''}</span></li>
           ))}
         </ul>
       );
@@ -93,7 +93,7 @@ function SectionContent({ section }: { section: HandoverSection }) {
         <ul className="ho-list">
           {asRows(content).map((row) => (
             <li key={str(row.id)}>{str(row.text)}{Array.isArray(row.basis) && (
-              <span className="ho-basis">Perustuu: {(row.basis as (string | null)[]).filter(Boolean).join(' · ')}</span>)}</li>
+              <span className="ho-basis">Based on: {(row.basis as (string | null)[]).filter(Boolean).join(' · ')}</span>)}</li>
           ))}
         </ul>
       );
@@ -121,8 +121,8 @@ function SectionContent({ section }: { section: HandoverSection }) {
       return (
         <div className="ho-sharing">
           <p>{str(data.statement)}</p>
-          <p className="muted small">Jaettavat kohdat: {(data.included as string[]).length} · Poistetut: {(data.removed as string[]).length}
-            {Number(data.privateItems) ? ` · ${str(data.privateItems)} tietoa vain sinulla` : ''} · Keskusteluhistoria: {data.chatHistoryIncluded ? 'mukana' : 'ei mukana'}</p>
+          <p className="muted small">Items to share: {(data.included as string[]).length} · Removed: {(data.removed as string[]).length}
+            {Number(data.privateItems) ? ` · ${plural(Number(data.privateItems), 'item')} only you have` : ''} · Chat history: {data.chatHistoryIncluded ? 'included' : 'not included'}</p>
         </div>
       );
     }
@@ -170,17 +170,17 @@ export function HandoverDoc({ sections, layout = 'list', editable = false, busy 
           <TypeTag type={section.infoType} short iconOnly={layout === 'grid'} />
         </header>
         {section.removed ? (
-          <p className="muted small">Poistettu – tätä kohtaa ei jaeta.</p>
+          <p className="muted small">Removed – this item is not shared.</p>
         ) : !section.available ? (
           <p className="muted small">{section.unavailableReason}</p>
         ) : editing === section.key ? (
           <div className="ho-edit">
             <textarea value={draft} rows={section.key === 'questions' ? 4 : 3} onChange={(e) => setDraft(e.target.value)}
-              aria-label={`Muokkaa: ${section.title}`} />
-            {section.key === 'questions' && <p className="muted small">Yksi kysymys per rivi.</p>}
+              aria-label={`Edit: ${section.title}`} />
+            {section.key === 'questions' && <p className="muted small">One question per line.</p>}
             <div className="row-gap">
-              <button type="button" className="btn btn-primary btn-sm" disabled={busy || !draft.trim()} onClick={() => save(section)}>Tallenna</button>
-              <button type="button" className="btn btn-quiet btn-sm" onClick={() => setEditing(null)}>Peruuta</button>
+              <button type="button" className="btn btn-primary btn-sm" disabled={busy || !draft.trim()} onClick={() => save(section)}>Save</button>
+              <button type="button" className="btn btn-quiet btn-sm" onClick={() => setEditing(null)}>Cancel</button>
             </div>
           </div>
         ) : (
@@ -190,12 +190,12 @@ export function HandoverDoc({ sections, layout = 'list', editable = false, busy 
         {editable && section.removable && section.available && editing !== section.key && (
           <div className="ho-actions">
             {section.editable && !section.removed && (
-              <button type="button" className="btn btn-quiet btn-sm" disabled={busy} onClick={() => startEdit(section)}><EditIcon size={15} /> Muokkaa</button>
+              <button type="button" className="btn btn-quiet btn-sm" disabled={busy} onClick={() => startEdit(section)}><EditIcon size={15} /> Edit</button>
             )}
             {section.removed ? (
-              <button type="button" className="btn btn-quiet btn-sm" disabled={busy} onClick={() => onRestore?.(section.key)}><UndoIcon size={15} /> Palauta</button>
+              <button type="button" className="btn btn-quiet btn-sm" disabled={busy} onClick={() => onRestore?.(section.key)}><UndoIcon size={15} /> Restore</button>
             ) : (
-              <button type="button" className="btn btn-quiet btn-sm" disabled={busy} onClick={() => onRemove?.(section.key)}><TrashIcon size={15} /> Poista kohta</button>
+              <button type="button" className="btn btn-quiet btn-sm" disabled={busy} onClick={() => onRemove?.(section.key)}><TrashIcon size={15} /> Remove item</button>
             )}
           </div>
         )}
@@ -212,7 +212,7 @@ export function HandoverDoc({ sections, layout = 'list', editable = false, busy 
         {main.map((section) => render(section, GRID_WIDE.has(section.key) ? 'ho-wide' : ''))}
         {meta.length > 0 && (
           <details className="ho-meta ho-wide">
-            <summary>Tietolähteet ja jakamisluvat</summary>
+            <summary>Data sources and sharing permissions</summary>
             <div className="ho-meta-body">{meta.map((section) => render(section))}</div>
           </details>
         )}

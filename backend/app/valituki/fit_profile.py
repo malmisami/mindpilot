@@ -89,9 +89,9 @@ def rebuild(state: ValitukiState, client: ClientProfile, *, reason: str, agent: 
         profile.changelog.append(FitProfileChange(version=1, at=stamp, change=reason, agent=agent))
         state.fitProfiles.append(profile)
         records.act(state, agent=agent, type='create_fit_profile', client_id=client.id, rule_id='FIT-001',
-                    title='Loi Therapy Fit Profilen hyväksymistäsi tiedoista',
-                    detail='Profiiliin tuli vain se, minkä hyväksyit. Voit muokata tietoja ja niiden käyttöoikeuksia '
-                           'Tietoni-sivulla.')
+                    title='Created the Therapy Fit Profile from the information you approved',
+                    detail='Only what you approved went into the profile. You can edit the information and how it may be used '
+                           'on the My data page.')
         return profile
     if all(getattr(profile, key) == data[key] for key in FIELDS):
         return profile
@@ -102,5 +102,5 @@ def rebuild(state: ValitukiState, client: ClientProfile, *, reason: str, agent: 
     profile.changelog.append(FitProfileChange(version=profile.version, at=stamp, change=reason, agent=agent))
     if visible:
         records.act(state, agent=agent, type='update_fit_profile', client_id=client.id, rule_id='FIT-002',
-                    title=f'Therapy Fit Profile päivittyi (versio {profile.version})', detail=reason)
+                    title=f'Therapy Fit Profile updated (version {profile.version})', detail=reason)
     return profile

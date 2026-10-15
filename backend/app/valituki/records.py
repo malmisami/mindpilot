@@ -13,13 +13,13 @@ SYSTEM = 'system'
 DEMO = 'demo'
 
 AGENT_LABELS = {
-    'Orchestrator': 'Orkestroija',
-    'SupportAgent': 'Tukiagentti',
-    'CheckInAgent': 'Check-in-agentti',
-    'ObservationAgent': 'Havaintoagentti',
-    'MatchingAgent': 'Matching-agentti',
-    'NavigationAgent': 'Palveluohjausagentti',
-    'SafetyAgent': 'Turvallisuusagentti',
+    'Orchestrator': 'Orchestrator',
+    'SupportAgent': 'Support agent',
+    'CheckInAgent': 'Check-in agent',
+    'ObservationAgent': 'Observation agent',
+    'MatchingAgent': 'Matching agent',
+    'NavigationAgent': 'Navigation agent',
+    'SafetyAgent': 'Safety agent',
 }
 
 

@@ -95,7 +95,7 @@ class MockWaitingListAdapter(WaitingListAdapter):
 class MockHealthRecordAdapter(HealthRecordAdapter):
     def publish_handover(self, state, handover):
         return {'sent': False, 'reference': None,
-                'note': 'Demo: yhteenvetoa ei lähetetty potilastietojärjestelmään. Tuotannossa tallennus tehtäisiin tässä.'}
+                'note': 'Demo: the summary was not sent to a patient record system. In production it would be stored here.'}
 
 
 class MockTherapistDirectoryAdapter(TherapistDirectoryAdapter):
@@ -177,16 +177,16 @@ def describe() -> list[dict[str, str]]:
     """Shown in the professional UI so the integration points are visible without pretending they exist."""
     return [
         {'name': 'WaitingListAdapter', 'mock': 'MockWaitingListAdapter',
-         'production': 'Lähete- ja jonotiedot hyvinvointialueen potilashallinnon järjestelmästä'},
+         'production': "Referral and waiting list data from the wellbeing services county's patient administration system"},
         {'name': 'HealthRecordAdapter', 'mock': 'MockHealthRecordAdapter',
-         'production': 'Hyväksytyn yhteenvedon tallennus potilaskertomukseen (Kanta / alueen potilastietojärjestelmä)'},
+         'production': "Storing the approved summary in the patient record (Kanta / the county's patient record system)"},
         {'name': 'TherapistDirectoryAdapter', 'mock': 'MockTherapistDirectoryAdapter',
-         'production': 'Palveluntuottaja- ja palvelusetelihakemisto sekä terapeuttien kalenterit'},
-        {'name': 'AppointmentAdapter', 'mock': 'MockAppointmentAdapter', 'production': 'Ajanvarausjärjestelmä'},
+         'production': "Service provider and service voucher directory, and the therapists' calendars"},
+        {'name': 'AppointmentAdapter', 'mock': 'MockAppointmentAdapter', 'production': 'Appointment booking system'},
         {'name': 'NotificationAdapter', 'mock': 'InAppNotificationAdapter',
-         'production': 'Sovellusilmoitus, tekstiviesti tai sähköposti asiakkaan toiveen mukaan'},
+         'production': "App notification, text message or email, as the client prefers"},
         {'name': 'ProfessionalTaskAdapter', 'mock': 'InMemoryProfessionalTaskAdapter',
-         'production': 'Hoitotiimin työjono ammattilaisen järjestelmässä'},
+         'production': "The care team's work queue in the professional's system"},
     ]
 
 

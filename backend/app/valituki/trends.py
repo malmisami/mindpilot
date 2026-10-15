@@ -1,7 +1,7 @@
-"""Change detection against the client's own baseline, and recurring patterns ("Huomasimme jotain").
+"""Change detection against the client's own baseline, and recurring patterns ("We noticed something").
 
-The client is compared primarily with themselves. The baseline is the mean of the first check-ins (the "Miten voit
-tänään?" answer at the end of the intake plus the first routine check-ins). "Consecutive" means consecutive *completed*
+The client is compared primarily with themselves. The baseline is the mean of the first check-ins (the "How are you
+today?" answer at the end of the intake plus the first routine check-ins). "Consecutive" means consecutive *completed*
 check-ins: a missed check-in never counts as a change in wellbeing – it is reported separately as a missed check-in.
 Thresholds are demo policies in data/valituki/rules.json.
 """
@@ -14,19 +14,21 @@ from statistics import mean
 from typing import Any, Optional
 
 from app.valituki import content
-from app.valituki.labels import DOMAINS, fmt_date, fmt_num, join_fi
+from app.valituki.labels import DOMAINS, fmt_date, fmt_num, join_fi, plural
 from app.valituki.models import CheckIn, ClientProfile, ValitukiState
 from app.valituki.safety import normalize
 from app.valituki.store import add_days, days_between, weekday
 
 DIRECTION_LABELS = {
-    'improving': 'Hieman tavanomaista parempi',
-    'stable': 'Melko vakaa',
-    'declining': 'Hieman tavanomaista matalampi',
-    'insufficient': 'Tarkentuu muutaman check-inin jälkeen',
+    'improving': 'A little better than usual',
+    'stable': 'Fairly stable',
+    'declining': 'A little lower than usual',
+    'insufficient': 'Becomes clearer after a few check-ins',
 }
 DIRECTION_ARROWS = {'improving': '↑', 'stable': '→', 'declining': '↓', 'insufficient': '·'}
-WORK_WORDS = r'\btyo|\btoi(ssa|hin|den|ta)\b|palaver|esity|toimisto'
+# Work words in a journal note (normalised text): Finnish and English.
+WORK_WORDS = (r'\btyo|\btoi(ssa|hin|den|ta)\b|palaver|esity|toimisto'
+              r'|\bwork|\bjob\b|\bmeeting|presentation|\boffice|\bboss\b|colleague|deadline')
 
 
 @dataclass
@@ -97,10 +99,10 @@ def _domain_rows(window: list[CheckIn], minimum: int, first_name: str) -> list[d
         if domain == 'work' and worse:
             latest = worse[-1]
             rows.append({'kind': 'domain_work', 'domain': 'work', 'count': len(worse), 'of': len(window),
-                         'text': f'{first_name} kertoi työkyvyn heikentyneen ({fmt_date(latest.completedAt)})'})
+                         'text': f'{first_name} said their ability to work had got worse ({fmt_date(latest.completedAt)})'})
         elif len(worse) >= minimum:
             rows.append({'kind': f'domain_{domain}', 'domain': domain, 'count': len(worse), 'of': len(window),
-                         'text': f'{label} heikentynyt ({len(worse)}/{len(window)} viimeisintä check-iniä)'})
+                         'text': f'{label} worse in {len(worse)} of the last {plural(len(window), "check-in")}'})
     return rows
 
 
@@ -112,13 +114,13 @@ def missed_between(state: ValitukiState, client_id: str, start: str) -> list[Che
 def evaluate(state: ValitukiState, client: ClientProfile) -> TrendResult:
     policy = _policy()
     if client.baseline is None:
-        return TrendResult('insufficient', 0, None, None, None, client_text='Lähtötaso kirjataan ensimmäisessä check-inissä.',
-                           professional_text='Lähtötaso puuttuu.')
+        return TrendResult('insufficient', 0, None, None, None, client_text='The baseline is recorded at the first check-in.',
+                           professional_text='No baseline yet.')
     post = _post_baseline(state, client)
     if not post:
         return TrendResult('insufficient', 0, None, client.baseline, None,
-                           client_text='Oma lähtötasosi on kirjattu. Suunta tarkentuu muutaman check-inin jälkeen.',
-                           professional_text=f'Oma lähtötaso {fmt_num(client.baseline)} / 5. Ei vielä vertailtavia check-inejä.')
+                           client_text='Your own baseline has been recorded. The direction becomes clearer after a few check-ins.',
+                           professional_text=f'Own baseline {fmt_num(client.baseline)} / 5. No check-ins to compare yet.')
     window = post[-int(policy['window']):]
     recent = round(mean(c.mood for c in window), 2)  # type: ignore[misc]
     streak = below_streak(state, client)
@@ -136,29 +138,30 @@ def evaluate(state: ValitukiState, client: ClientProfile) -> TrendResult:
     if streak:
         values = ', '.join(f'{c.mood}/5' for c in streak)
         signals.append({'kind': 'below_baseline', 'count': len(streak),
-                        'text': f'Vointi oman lähtötason alapuolella {len(streak)} peräkkäisessä check-inissä '
-                                f'({values}; lähtötaso {fmt_num(client.baseline)})'})
+                        'text': f'Wellbeing below their own baseline in {len(streak)} check-ins in a row '
+                                f'({values}; baseline {fmt_num(client.baseline)})'})
     domain_rows = _domain_rows(domain_window, int(policy['domainWorseMin']), client.firstName)
     signals += [r for r in domain_rows if r['domain'] != 'work']
     if streak:
         missed = missed_between(state, client.id, streak[0].completedAt or streak[0].dueDate)
         if missed:
-            count = 'Yksi check-in' if len(missed) == 1 else f'{len(missed)} check-iniä'
+            count = 'One check-in was' if len(missed) == 1 else f'{len(missed)} check-ins were'
             signals.append({'kind': 'missed', 'count': len(missed),
-                            'text': f'{count} jäi väliin ({join_fi([fmt_date(c.dueDate) for c in missed])})'})
+                            'text': f'{count} missed ({join_fi([fmt_date(c.dueDate) for c in missed])})'})
     signals += [r for r in domain_rows if r['domain'] == 'work']
 
     worse_labels = [DOMAINS[r['domain']].lower() for r in signals if r.get('domain')]
     if direction == 'declining':
-        client_text = 'Vointisi on ollut viime päivinä hieman tavanomaista matalampi.'
+        client_text = 'Your wellbeing has been a little lower than usual in recent days.'
         if worse_labels:
-            client_text += f' Muutos näkyy erityisesti: {join_fi(worse_labels)}.'
+            client_text += f' The change shows especially in: {join_fi(worse_labels)}.'
     elif direction == 'improving':
-        client_text = 'Vointisi on ollut viime aikoina hieman tavanomaista parempi.'
+        client_text = 'Your wellbeing has been a little better than usual recently.'
     else:
-        client_text = 'Vointisi on pysynyt suunnilleen omalla tasollasi.'
-    professional_text = (f'Itse raportoitu vointi (1–5): oma lähtötaso {fmt_num(client.baseline)}, viimeiset {len(window)} '
-                         f'check-iniä keskimäärin {fmt_num(recent)}.')
+        client_text = 'Your wellbeing has stayed at about your own level.'
+    last = 'the last check-in' if len(window) == 1 else f'the last {len(window)} check-ins'
+    professional_text = (f'Self-reported wellbeing (1–5): own baseline {fmt_num(client.baseline)}, {last} '
+                         f'{fmt_num(recent)} on average.')
     return TrendResult(direction, level, rule_id, client.baseline, recent, len(streak), [c.id for c in window], signals,
                        client_text, professional_text)
 
@@ -209,17 +212,17 @@ def detect_workday_pattern(state: ValitukiState, client: ClientProfile) -> Optio
     first = (items[0].completedAt or items[0].dueDate)[:10]
     last = (items[-1].completedAt or items[-1].dueDate)[:10]
     span = days_between(first, last)
-    period = 'viimeisen viikon aikana' if span <= 7 else 'kahden viime viikon aikana' if span <= 14 else 'kolmen viime viikon aikana'
-    what = join_fi([{'anxiety': 'keskimääräistä enemmän ahdistusta', 'sleep': 'heikompaa unta'}[d] for d in found])
-    text = f'Työpäiviä edeltävinä iltoina olet raportoinut {what} {period}.'
+    period = 'during the past week' if span <= 7 else 'during the past two weeks' if span <= 14 else 'during the past three weeks'
+    what = join_fi([{'anxiety': 'more anxiety than average', 'sleep': 'poorer sleep'}[d] for d in found])
+    text = f'On evenings before workdays, you have reported {what} {period}.'
     return {
         'ruleId': policy['ruleId'], 'domains': found, 'text': text,
         'evidence': {'checkIns': len(items), 'journalEntries': len(notes), 'beforeWorkdays': len(before_work),
                      'beforeDaysOff': len(before_off), 'shares': shares, 'period': [first, last],
-                     'basis': [f'{len(items)} check-iniin', f'{len(notes)} päiväkirjamerkintään' if notes else None,
-                               'ei diagnoosi']},
+                     'basis': [plural(len(items), 'check-in'), plural(len(notes), 'journal entry', 'journal entries') if notes else None,
+                               'not a diagnosis']},
     }
 
 
 def weekday_name(iso: str) -> str:
-    return ['ma', 'ti', 'ke', 'to', 'pe', 'la', 'su'][date.fromisoformat(iso[:10]).weekday()]
+    return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][date.fromisoformat(iso[:10]).weekday()]

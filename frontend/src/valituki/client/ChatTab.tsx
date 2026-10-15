@@ -11,8 +11,8 @@ import { chatHurried, setChatRevealing, splitBubbles, subscribeChatHurry, typing
 import { useClientUI } from './ClientApp';
 import { toolIcon } from './HomeTab';
 
-const TOOL_LABELS: Record<string, string> = { checkin: 'Tee check-in', thought_record: 'Ajatusten tutkiminen', exposure: 'Altistusporras',
-  experiment: 'Käyttäytymiskoe' };
+const TOOL_LABELS: Record<string, string> = { checkin: 'Do a check-in', thought_record: 'Exploring a thought', exposure: 'Exposure ladder',
+  experiment: 'Behavioural experiment' };
 
 /** One row of the conversation. Mieliluotsi's messages are split into short bubbles, a sentence each; the client's
     messages, the dates and the saved cards are shown whole. */
@@ -71,7 +71,7 @@ export default function ChatTab() {
 
   // What was already there appears at once; a new reply bubble by bubble. Another conversation (a demo reset, another
   // client), a burst of messages or a hurried demo is shown at once.
-  const greeting = `Hei ${client.firstName}! Mitä mielessäsi on tänään?`;
+  const greeting = `Hi ${client.firstName}! What's on your mind today?`;
   const rows = useMemo(() => buildRows(client.chat, greeting, view.meta.currentDate), [client.chat, greeting, view.meta.currentDate]);
   const hurried = useSyncExternalStore(subscribeChatHurry, chatHurried);
   const [shown, setShown] = useState(rows.length);
@@ -151,17 +151,17 @@ export default function ChatTab() {
         <span className="cx-bot-avatar" aria-hidden="true"><LogoMark size={34} /></span>
         <div className="cx-chat-who">
           <p className="cx-chat-name">Mieliluotsi</p>
-          <p className="cx-chat-sub">{guided ? `${guided.title} · voit lopettaa milloin vain` : 'Tekoälyavusteinen tuki – ei terapeutti eikä päivystys'}</p>
+          <p className="cx-chat-sub">{guided ? `${guided.title} · you can stop at any time` : 'AI-assisted support – not a therapist or an emergency service'}</p>
         </div>
         {guided && (
           <button type="button" className="cx-stop" disabled={busy}
-            onClick={() => run((s) => api.stopPractice(s, client.id, guided.id))}>Lopeta</button>
+            onClick={() => run((s) => api.stopPractice(s, client.id, guided.id))}>Stop</button>
         )}
         {guided && <span className="cx-chat-progress" aria-hidden="true"><span style={{ width: `${progress}%` }} /></span>}
       </div>
 
       <div className="cx-chat-log" ref={logRef} aria-live="polite">
-        <p className="cx-chat-disclaimer"><InfoIcon size={14} /> Mieliluotsi ei ole terapeutti, eikä keskustelua seurata jatkuvasti. Hätätilanteessa soita 112.</p>
+        <p className="cx-chat-disclaimer"><InfoIcon size={14} /> Mieliluotsi is not a therapist, and the chat is not monitored all the time. In an emergency, call 112.</p>
         {rows.slice(0, visible).map((row, i) => (
           <ChatRow key={row.key} row={row} cont={byBot(row) && byBot(rows[i - 1])} busy={busy}
             onChoose={(message, option) => run((s) => api.chooseOffer(s, client.id, message.id, option))}
@@ -169,7 +169,7 @@ export default function ChatTab() {
         ))}
         {pending && <div className="cx-msg-me is-pending"><p>{pending}</p></div>}
         {(busy || !settled) && (
-          <div className={`cx-typing${!pending && byBot(rows[visible - 1]) ? ' is-cont' : ''}`} aria-label="Mieliluotsi kirjoittaa">
+          <div className={`cx-typing${!pending && byBot(rows[visible - 1]) ? ' is-cont' : ''}`} aria-label="Mieliluotsi is typing">
             <i /><i /><i />
           </div>
         )}
@@ -186,7 +186,7 @@ export default function ChatTab() {
             <Examples widget={asking} busy={busy} onUse={(example) => { setText(example); inputRef.current?.focus(); }} />
           )}
           {!guided && (
-            <div className="cx-quick" role="group" aria-label="Aloita ohjattu harjoitus">
+            <div className="cx-quick" role="group" aria-label="Start a guided exercise">
               {tools.map((tool) => (
                 <button key={tool} type="button" className="cx-quick-chip" disabled={busy}
                   onClick={() => run((s) => api.startPractice(s, client.id, tool, {}, 'chat'))}>
@@ -197,15 +197,15 @@ export default function ChatTab() {
           )}
         </div>
         <form className="cx-composer" onSubmit={submit}>
-          <label className="visually-hidden" htmlFor="chat-input">{guided?.questionText ?? 'Viesti Mieliluotsille'}</label>
+          <label className="visually-hidden" htmlFor="chat-input">{guided?.questionText ?? 'Message to Mieliluotsi'}</label>
           <textarea id="chat-input" ref={inputRef} rows={Math.min(4, Math.max(1, Math.ceil(text.length / 34)))} value={text} onChange={(e) => setText(e.target.value)}
             placeholder={placeholder(asking, guided !== null, multi.length)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void submit(); } }}  />
-          <button type="submit" className="cx-send" aria-label="Lähetä" disabled={busy || !settled || (!text.trim() && multi.length === 0)}><SendIcon size={18} /></button>
+          <button type="submit" className="cx-send" aria-label="Send" disabled={busy || !settled || (!text.trim() && multi.length === 0)}><SendIcon size={18} /></button>
         </form>
         {guided && asking?.type === 'text' && asking.skippable && (
           <button type="button" className="cw-skip cw-skip-center" disabled={busy} onClick={() => answerWith(guided, null, true)}>
-            {asking.skipLabel || 'Ohita kysymys'}
+            {asking.skipLabel || 'Skip question'}
           </button>
         )}
       </div>
@@ -214,9 +214,9 @@ export default function ChatTab() {
 }
 
 function placeholder(widget: ChatWidget | null, guided: boolean, picked: number): string {
-  if (widget?.type === 'text') return widget.placeholder || 'Kirjoita vastaus…';
-  if (widget?.type === 'multi') return picked ? `${picked} valittu – lähetä` : 'Valitse yksi tai useampi ja lähetä…';
-  return guided ? 'Vastaa valitsemalla – tai kirjoita…' : 'Kirjoita viesti…';
+  if (widget?.type === 'text') return widget.placeholder || 'Write your answer…';
+  if (widget?.type === 'multi') return picked ? `${picked} selected – send` : 'Choose one or more and send…';
+  return guided ? 'Answer by choosing – or write…' : 'Write a message…';
 }
 
 function ChatRow({ row, cont, busy, onChoose, onHelp }: {
@@ -231,15 +231,15 @@ function ChatRow({ row, cont, busy, onChoose, onHelp }: {
     <>
       <div className={`cx-bubble${cont ? ' is-cont' : ''}`}><p>{row.text}</p></div>
       {offer && (
-        <div className="cx-offer" role="group" aria-label="Vaihtoehdot">
+        <div className="cx-offer" role="group" aria-label="Options">
           {offer.options.map((o, i) => (
             <button key={o.value} type="button" className={`cx-btn cx-btn-sm ${i === 0 ? 'cx-btn-dark' : 'cx-btn-ghost'}`} disabled={busy}
               onClick={() => onChoose(offer.message, o.value)}>{o.label}</button>
           ))}
         </div>
       )}
-      {row.last && m?.textSource === 'live' && <span className="cx-source"><SparkleIcon size={11} /> Tekoälyn muotoilema</span>}
-      {row.last && m?.textSource === 'fallback' && <span className="cx-source">Valmis tekstipohja – tekoälyn vastausta ei käytetty</span>}
+      {row.last && m?.textSource === 'live' && <span className="cx-source"><SparkleIcon size={11} /> Worded by AI</span>}
+      {row.last && m?.textSource === 'fallback' && <span className="cx-source">Ready-made text – the AI reply was not used</span>}
     </>
   );
 }
@@ -259,7 +259,7 @@ function Message({ message: m, onHelp }: { message: ChatMessage; onHelp: () => v
         <LifebuoyIcon size={18} />
         <div>
           <p>{m.text}</p>
-          <button type="button" className="cx-btn cx-btn-rose cx-btn-sm" onClick={onHelp}>Apua nyt</button>
+          <button type="button" className="cx-btn cx-btn-rose cx-btn-sm" onClick={onHelp}>Help now</button>
         </div>
       </div>
     );

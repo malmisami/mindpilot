@@ -11,7 +11,7 @@ from typing import Any, Optional
 
 from app.valituki import adapters, content, fit_profile, insights, journey, matching, records, therapy, trends
 from app.valituki.ai import AIProvider, DemoAIProvider
-from app.valituki.labels import LANGUAGES, fmt_slot, fmt_slot_title
+from app.valituki.labels import LANGUAGES, fmt_date, fmt_slot, fmt_slot_title, plural
 from app.valituki.models import Booking, ClientProfile, MatchCandidate, MatchDecision, MatchRun, TherapistAvailability, ValitukiState
 from app.valituki.store import add_days, find, get_therapist, next_id, now
 
@@ -40,34 +40,34 @@ def build_input(state: ValitukiState, client: ClientProfile) -> matching.ClientM
     """The matching input: only approved insights the client allows to be used in matching, plus the referral."""
     referral = adapters.waiting_list.referral_for(state, client.id)
     if referral is None:
-        raise MatchingError('Lähetetietoja ei löytynyt.')
+        raise MatchingError('No referral information found.')
     approved = insights.for_client(state, client.id)
     practical = next((i for i in approved if i.kind == 'practical'), None)
     if practical is None:
-        raise MatchingError('Käytännön toiveita ei ole hyväksytty – matching ei voi alkaa.')
+        raise MatchingError('The practical wishes have not been approved – matching cannot start.')
     if not practical.sharing.matching:
-        raise MatchingError('Käytännön toiveita ei ole sallittu matchingiin, joten automaattinen matching ei voi alkaa. '
-                            'Hoitotiimi voi auttaa terapeutin löytämisessä.')
-    used = ['Lähetteen palvelu ja edellytetty osaaminen (ammattilaisen arvio)', 'Ikäryhmä']
+        raise MatchingError('The practical wishes are not allowed in matching, so automatic matching cannot start. '
+                            'The care team can help find a therapist.')
+    used = ["The referral's service and required competence (a professional's assessment)", 'Age group']
     not_used: list[str] = []
     primary = [i for i in approved if i.kind == 'primary_goal']
     secondary = [i for i in approved if i.kind == 'secondary_goal']
     primary_topics = [t for i in primary if i.sharing.matching for t in i.structured.get('topics', [])]
     secondary_topics = [t for i in secondary if i.sharing.matching for t in i.structured.get('topics', [])]
     if any(i.sharing.matching for i in primary + secondary):
-        used.append('Tavoitteesi (hyväksytty)')
+        used.append('Your goals (approved)')
     if any(not i.sharing.matching for i in primary + secondary):
-        not_used.append('Osa tavoitteista – et ole sallinut niiden käyttöä matchingissa')
+        not_used.append('Some of your goals – you have not allowed them to be used in matching')
     style_insight = next((i for i in approved if i.kind == 'working_style'), None)
     style: dict[str, Optional[str]] = {}
     if style_insight and style_insight.sharing.matching:
         style = {k: style_insight.structured.get(k) for k in ('structure', 'exercises', 'approach', 'homework')}
-        used.append('Työskentelytapatoiveesi (hyväksytty)')
+        used.append('Your wishes about the way of working (approved)')
     elif style_insight:
-        not_used.append('Työskentelytapatoive – et ole sallinut sen käyttöä matchingissa')
-    used.append('Käytännön toiveesi: kieli, vastaanottomuoto ja ajat (hyväksytty)')
-    not_used += ['Check-inien vastaukset, päiväkirjamerkinnät ja keskustelut', 'Mieliluotsin havainnot voinnistasi',
-                 'Sukupuoli tai muut taustatiedot – niitä ei päätellä']
+        not_used.append('Your wish about the way of working – you have not allowed it to be used in matching')
+    used.append('Your practical wishes: language, type of session and times (approved)')
+    not_used += ['Check-in answers, journal entries and conversations', "Mieliluotsi's observations about your wellbeing",
+                 'Gender or other background information – it is not inferred']
     flags = list(referral.flags)
     if open_safety_level(state, client.id) >= 2:
         flags.append('acute_safety_concern')
@@ -136,15 +136,15 @@ def readiness(state: ValitukiState, client: ClientProfile) -> list[dict[str, Any
     open_review = any(o.clientId == client.id and o.status == 'open' and o.requiresHumanReview
                       and o.kind == 'trend_decline' for o in state.wellbeingObservations) or open_safety_level(state, client.id) >= 2
     return [
-        {'key': 'profile', 'label': 'Therapy Fit Profile hyväksytty', 'passed': fit_profile.get(state, client.id) is not None},
-        {'key': 'permission', 'label': 'Käytännön toiveet sallittu matchingiin',
+        {'key': 'profile', 'label': 'Therapy Fit Profile approved', 'passed': fit_profile.get(state, client.id) is not None},
+        {'key': 'permission', 'label': 'Practical wishes allowed in matching',
          'passed': bool(practical and practical.sharing.matching)},
-        {'key': 'checkins', 'label': f'Vähintään {policy["minCheckIns"]} check-iniä',
-         'passed': len(completed) >= int(policy['minCheckIns']), 'detail': f'{len(completed)} tehty'},
-        {'key': 'review', 'label': 'Ei avoimia tarkistusta vaativia havaintoja', 'passed': not open_review},
-        {'key': 'waitingList', 'label': 'Jonotilanne sallii terapeutin varaamisen',
+        {'key': 'checkins', 'label': f'At least {plural(int(policy["minCheckIns"]), "check-in")}',
+         'passed': len(completed) >= int(policy['minCheckIns']), 'detail': f'{len(completed)} done'},
+        {'key': 'review', 'label': 'No open observations that need a review', 'passed': not open_review},
+        {'key': 'waitingList', 'label': 'The waiting list position allows booking a therapist',
          'passed': adapters.waiting_list.is_allocatable(state, client.id),
-         'detail': f'alkaen {episode.allocatableFrom}' if episode else 'ei jonotietoa'},
+         'detail': f'from {fmt_date(episode.allocatableFrom)}' if episode else 'no waiting list information'},
     ]
 
 
@@ -242,18 +242,18 @@ def select(state: ValitukiState, client: ClientProfile, candidate_id: str, actor
     """The client's choice. The first suitable time is booked through the AppointmentAdapter."""
     decision = current_decision(state, client.id)
     if decision is None or decision.status != 'proposed_to_client' or client.journeyState != 'MATCH_PROPOSED':
-        raise MatchingError('Valittavia terapeuttiehdotuksia ei ole.')
+        raise MatchingError('There are no therapist suggestions to choose from.')
     visible = decision_candidates(state, decision)[:decision.shownCount]
     candidate = next((c for c in visible if c.id == candidate_id), None)
     if candidate is None:
-        raise MatchingError('Ehdotusta ei voi valita.')
+        raise MatchingError('This suggestion cannot be chosen.')
     therapist = get_therapist(state, candidate.therapistId)
     if therapist.currentCapacity >= therapist.maxCapacity:
-        raise MatchingError(f'{therapist.name}: asiakaspaikka ehdittiin jo varata. Valitse toinen vaihtoehto tai pyydä apua.')
+        raise MatchingError(f'{therapist.name}: the client place has already been taken. Choose another option or ask for help.')
     free = adapters.therapist_directory.free_slots(state, therapist.id)
     slot = next((s for s in free if s.id == candidate.firstSlotId), None) or next(iter(free), None)
     if slot is None:
-        raise MatchingError(f'{therapist.name}: vapaita aikoja ei enää ole.')
+        raise MatchingError(f'{therapist.name}: there are no free times left.')
     stamp = now(state)
     for other in decision_candidates(state, decision):
         other.status = 'selected' if other.id == candidate.id else 'not_selected'
@@ -294,18 +294,18 @@ def select(state: ValitukiState, client: ClientProfile, candidate_id: str, actor
 def request_alternatives(state: ValitukiState, client: ClientProfile, actor: str) -> dict[str, Any]:
     decision = current_decision(state, client.id)
     if decision is None or decision.status != 'proposed_to_client':
-        raise MatchingError('Ehdotuksia ei ole.')
+        raise MatchingError('There are no suggestions.')
     remaining = len(decision.candidateIds) - decision.shownCount
     event = journey.apply(state, client, 'MATCH_ALTERNATIVES_REQUESTED', actor=actor, source='client',
                           payload={'decisionId': decision.id, 'remaining': max(0, remaining)})
     if remaining > 0:
         added = min(3, remaining)
         decision.shownCount += added
-        records.act(state, agent=AGENT, type='show_alternatives', event=event, title='Näytti muut kaikki ehdot täyttävät vaihtoehdot',
-                    detail=f'{added} lisävaihtoehtoa samoilla perusteilla.')
+        records.act(state, agent=AGENT, type='show_alternatives', event=event, title='Showed the other options that meet all the criteria',
+                    detail=f'{plural(added, "more option")} on the same grounds.')
         return {'added': added}
-    records.act(state, agent=AGENT, type='show_alternatives', event=event, title='Muita vaihtoehtoja ei juuri nyt ole',
-                detail='Kaikki ehdot täyttäviä vapaita terapeutteja ei ole enempää. Voit pyytää ammattilaista auttamaan valinnassa.')
+    records.act(state, agent=AGENT, type='show_alternatives', event=event, title='There are no other options right now',
+                detail='There are no more free therapists who meet all the criteria. You can ask a professional to help you choose.')
     return {'added': 0}
 
 
@@ -319,17 +319,18 @@ def request_help(state: ValitukiState, client: ClientProfile, actor: str, note: 
         decision.helpRequested = True
         decision.updatedAt = now(state)
     base.create_task(state, client, agent='NavigationAgent', type='matching_help', priority='normal',
-                     title='Asiakas toivoo apua terapeutin valintaan',
-                     reason='Asiakas valitsi "Haluan ammattilaisen auttavan valinnassa".',
-                     suggested='Ota yhteyttä ja käy vaihtoehdot läpi yhdessä asiakkaan kanssa.',
+                     title='The client would like help choosing a therapist',
+                     reason='The client chose "I want a professional to help me choose".',
+                     suggested='Contact the client and go through the options together.',
                      data={'note': note.strip()[:300] or None})
     records.notify(state, audience='coordinator', client_id=client.id, kind='matching', event=event, agent='NavigationAgent',
-                   title=f'{client.displayName} toivoo apua valintaan', body='Asiakas haluaa käydä vaihtoehdot läpi ammattilaisen kanssa.')
+                   title=f'{client.displayName} would like help with the choice',
+                   body='The client wants to go through the options with a professional.')
     records.notify(state, audience='client', client_id=client.id, kind='contact', event=event, agent='NavigationAgent',
-                   title='Pyyntösi on välitetty', body='Hoitotiimi ottaa yhteyttä ja käy vaihtoehdot kanssasi läpi. '
-                   'Ehdotukset pysyvät näkyvissäsi sillä välin.')
-    records.act(state, agent='NavigationAgent', type='create_task', event=event, title='Pyysi ammattilaista auttamaan valinnassa',
-                detail='Hoitotiimi sai tehtävän. Valinta on edelleen sinun.')
+                   title='Your request has been passed on', body='The care team will contact you and go through the options with you. '
+                   'The suggestions stay visible to you in the meantime.')
+    records.act(state, agent='NavigationAgent', type='create_task', event=event, title='Asked a professional to help with the choice',
+                detail='The care team received a task. The choice is still yours.')
 
 
 def languages_text(codes: list[str]) -> str:
@@ -337,4 +338,4 @@ def languages_text(codes: list[str]) -> str:
 
 
 def booking_of(state: ValitukiState, decision: MatchDecision) -> Optional[Booking]:
-    return find(state.bookings, decision.bookingId, 'Varausta') if decision.bookingId else None
+    return find(state.bookings, decision.bookingId, 'Booking') if decision.bookingId else None

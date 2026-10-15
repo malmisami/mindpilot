@@ -19,7 +19,7 @@ export function AgentTimeline({ items, fresh, showClient = false, compact = fals
     if (bucket && bucket.day === day) bucket.rows.push(item);
     else days.push({ day, rows: [item] });
   }
-  if (!shown.length) return <p className="muted small">Ei vielä tapahtumia.</p>;
+  if (!shown.length) return <p className="muted small">No events yet.</p>;
   return (
     <div className={`timeline ${compact ? 'timeline-compact' : ''}`}>
       {days.map((group) => (
@@ -40,7 +40,7 @@ export function AgentTimeline({ items, fresh, showClient = false, compact = fals
                     <AgentBadge agent={item.agent} />
                     {item.ruleId && <span className="tl-rule">{item.ruleId}</span>}
                     {item.aiSource && (
-                      <span className="tl-ai"><SparkleIcon size={11} /> {item.aiSource === 'live' ? 'Claude muotoili' : 'tekstipohja'}</span>
+                      <span className="tl-ai"><SparkleIcon size={11} /> {item.aiSource === 'live' ? 'Phrased by Claude' : 'text template'}</span>
                     )}
                   </p>
                 </div>

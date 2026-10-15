@@ -8,13 +8,13 @@ export default function Directory() {
   return (
     <div className="directory-page">
       <section className="card">
-        <h2 className="card-title-lg">Terapeuttihakemisto ja kapasiteetti</h2>
-        <Synthetic>Demon kuvitteelliset terapeutit. Vapaat ajat tulevat TherapistDirectoryAdapterin kalenterisynkronoinnista (mock).</Synthetic>
+        <h2 className="card-title-lg">Therapist directory and capacity</h2>
+        <Synthetic>The demo's fictional therapists. Free appointments come from the TherapistDirectoryAdapter's calendar sync (mock).</Synthetic>
         <div className="table-wrap">
           <table className="table">
             <thead>
-              <tr><th scope="col">Terapeutti</th><th scope="col">Erityisosaaminen</th><th scope="col">Työote</th><th scope="col">Kielet</th>
-                <th scope="col">Vastaanotto</th><th scope="col">Kapasiteetti</th><th scope="col">Seuraava vapaa aika</th></tr>
+              <tr><th scope="col">Therapist</th><th scope="col">Specialties</th><th scope="col">Approach</th><th scope="col">Languages</th>
+                <th scope="col">Sessions</th><th scope="col">Capacity</th><th scope="col">Next free appointment</th></tr>
             </thead>
             <tbody>
               {rows.map((t) => (
@@ -27,7 +27,7 @@ export default function Directory() {
                   <td>{t.active ? (
                     <Pill tone={t.currentCapacity >= t.maxCapacity ? 'warn' : 'ok'}>{t.currentCapacity}/{t.maxCapacity}</Pill>
                   ) : <Pill tone="neutral">{t.inactiveReason}</Pill>}</td>
-                  <td className="small">{t.nextAvailableSlot ?? (t.currentCapacity >= t.maxCapacity ? 'Ei paikkoja' : '–')}</td>
+                  <td className="small">{t.nextAvailableSlot ?? (t.currentCapacity >= t.maxCapacity ? 'No places' : '–')}</td>
                 </tr>
               ))}
             </tbody>
@@ -35,14 +35,14 @@ export default function Directory() {
         </div>
       </section>
       <section className="card">
-        <h2 className="card-title">Matchingin painot (muokattavissa: data/valituki/matching_config.json)</h2>
+        <h2 className="card-title">Matching weights (editable: data/valituki/matching_config.json)</h2>
         <div className="weights">
           {Object.entries(weights).map(([key, value]) => (
-            <div key={key} className="weight"><span>{WEIGHT_LABELS[key] ?? key}</span><strong>{value} %</strong></div>
+            <div key={key} className="weight"><span>{WEIGHT_LABELS[key] ?? key}</span><strong>{value}%</strong></div>
           ))}
         </div>
         <p className="muted small">{view.meta.matching.note}</p>
-        <h3 className="card-title">Integraatiopisteet (demossa mock-toteutukset)</h3>
+        <h3 className="card-title">Integration points (mock implementations in the demo)</h3>
         <ul className="adapters">
           {view.meta.adapters.map((a) => <li key={a.name}><code>{a.name}</code> – {a.production}</li>)}
         </ul>
@@ -52,6 +52,6 @@ export default function Directory() {
 }
 
 const WEIGHT_LABELS: Record<string, string> = {
-  goalCompetence: 'Tavoitteet ja osaaminen', workingStyle: 'Työskentelytapa', userPreferences: 'Omat toiveet',
-  languageAccessibility: 'Kieli ja saavutettavuus', availabilityContinuity: 'Saatavuus ja jatkuvuus', logistics: 'Logistiikka',
+  goalCompetence: 'Goals and expertise', workingStyle: 'Way of working', userPreferences: 'Own wishes',
+  languageAccessibility: 'Language and accessibility', availabilityContinuity: 'Availability and continuity', logistics: 'Logistics',
 };

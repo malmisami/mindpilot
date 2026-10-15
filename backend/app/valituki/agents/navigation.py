@@ -8,7 +8,7 @@ from __future__ import annotations
 from app.valituki import fit_profile, handover, journey, matching_flow, records, therapy
 from app.valituki.agents import base
 from app.valituki.ai import DemoAIProvider
-from app.valituki.labels import CONTACT_REASONS, count_word, fmt_slot_title, genitive
+from app.valituki.labels import CONTACT_REASONS, count_word, fmt_slot_title, plural
 from app.valituki.models import AgentEvent, ClientProfile, ValitukiState
 from app.valituki.store import get_therapist, now
 
@@ -22,63 +22,66 @@ def _client(state: ValitukiState, event: AgentEvent) -> ClientProfile:
 def on_enrolled(state: ValitukiState, event: AgentEvent, provider) -> None:
     client = _client(state, event)
     records.notify(state, audience='client', client_id=client.id, kind='info', event=event, agent=AGENT, action_view='intake',
-                   title='Tuki alkaa heti, vaikka terapia ei vielä ala',
-                   body='Olet terapian jonossa. Mieliluotsi kulkee rinnallasi odotuksen ajan – aloitus on lyhyt keskustelu.')
+                   title='Support starts now, even if therapy does not start yet',
+                   body='You are on the waiting list for therapy. Mieliluotsi is by your side while you wait – it starts with a '
+                        'short conversation.')
     records.act(state, agent=AGENT, type='send_invitation', event=event, rule_id='NAV-001',
-                title='Mieliluotsi lähetti kutsun heti jonoon liittämisen jälkeen',
-                detail='Käyttö on vapaaehtoista. Mieliluotsi ei ole terapeutti eikä päivystyspalvelu.')
+                title='Mieliluotsi sent an invitation right after the client joined the waiting list',
+                detail='Using it is voluntary. Mieliluotsi is not a therapist or an emergency service.')
 
 
 def on_insights_approved(state: ValitukiState, event: AgentEvent, provider) -> None:
     client = _client(state, event)
-    fit_profile.rebuild(state, client, agent=AGENT, create=True, reason=event.payload.get('reason', 'Hyväksytyt tiedot päivittyivät'))
+    fit_profile.rebuild(state, client, agent=AGENT, create=True, reason=event.payload.get('reason', 'The approved information was updated'))
 
 
 def on_baseline(state: ValitukiState, event: AgentEvent, provider) -> None:
     client = _client(state, event)
     records.notify(state, audience='client', client_id=client.id, kind='info', event=event, agent=AGENT, action_view='today',
-                   title='Mieliluotsi on nyt käytössä',
-                   body='Ensimmäistä terapia-aikaa odottaessasi Mieliluotsi kulkee rinnallasi. Sinä päätät, mitä tietoja jaetaan.')
+                   title='Mieliluotsi is now in use',
+                   body='While you wait for your first therapy appointment, Mieliluotsi is by your side. You decide what information '
+                        'is shared.')
     evaluate_readiness(state, client, provider)
 
 
 def on_user_requested_human(state: ValitukiState, event: AgentEvent, provider) -> None:
     client = _client(state, event)
-    reason_label = CONTACT_REASONS.get(event.payload.get('reason', 'other'), 'Muu asia')
+    reason_label = CONTACT_REASONS.get(event.payload.get('reason', 'other'), 'Something else')
     task = base.create_task(state, client, agent=AGENT, type='contact_request',
                             priority='high' if event.payload.get('reason') == 'wellbeing' else 'normal',
-                            title='Asiakas pyysi keskustelua ammattilaisen kanssa', reason=reason_label,
-                            suggested='Ota yhteyttä asiakkaaseen ja kirjaa yhteydenotto.',
+                            title='The client asked to talk with a professional', reason=reason_label,
+                            suggested='Contact the client and record the contact.',
                             data={'reason': event.payload.get('reason'), 'clientMessage': event.payload.get('message') or None},
                             handling_note=base.CONTACT_HANDLING)
     records.notify(state, audience='coordinator', client_id=client.id, kind='contact', event=event, agent=AGENT,
-                   title=f'Yhteydenottopyyntö: {client.displayName}', body=reason_label)
+                   title=f'Contact request: {client.displayName}', body=reason_label)
     records.notify(state, audience='client', client_id=client.id, kind='contact', event=event, agent=AGENT, action_view='messages',
-                   title='Pyyntösi on välitetty hoitotiimille', body=base.CONTACT_HANDLING)
+                   title='Your request has been passed on to the care team', body=base.CONTACT_HANDLING)
     records.act(state, agent=AGENT, type='forward_contact_request', event=event, rule_id='HUMAN-REQ-001',
-                title='Välitti yhteydenottopyynnön hoitotiimille heti', detail=f'Tehtävä {task.id}: {reason_label}.')
+                title='Passed the contact request on to the care team straight away', detail=f'Task {task.id}: {reason_label}.')
 
 
 def on_review_completed(state: ValitukiState, event: AgentEvent, provider) -> None:
     client = _client(state, event)
-    outcome = event.payload.get('outcome') or 'Tarkistettu'
+    outcome = event.payload.get('outcome') or 'Reviewed'
     records.notify(state, audience='client', client_id=client.id, kind='review', event=event, agent=AGENT, action_view='today',
-                   title='Ammattilainen on tarkistanut tilanteesi',
-                   body=f'{outcome}. Tuki jatkuu. Voit aina pyytää keskustelua ammattilaisen kanssa.')
+                   title='A professional has reviewed your situation',
+                   body=f'{outcome}. Support continues. You can always ask to talk with a professional.')
     records.act(state, agent=AGENT, type='resume_support', event=event, rule_id='NAV-REVIEW-001',
-                title='Jatkoi tukea ammattilaisen tarkistuksen jälkeen', detail=f'Ammattilaisen päätös: {outcome}.')
+                title='Resumed support after the professional review', detail=f"The professional's decision: {outcome}.")
     matching_flow.release_held(state, client, provider)
 
 
 def on_matching_ready(state: ValitukiState, event: AgentEvent, provider) -> None:
     client = _client(state, event)
     records.notify(state, audience='client', client_id=client.id, kind='matching', event=event, agent=AGENT, action_view='matching',
-                   title='Etsimme tilanteeseesi sopivaa terapeuttia',
-                   body='Therapy Fit Profilesi on valmis. Kun sopivalta terapeutilta vapautuu aika, näet vaihtoehdot perusteluineen.')
+                   title='We are looking for a therapist who suits your situation',
+                   body='Your Therapy Fit Profile is ready. When a suitable therapist has a free slot, you will see the options and the '
+                        'reasons for them.')
     records.act(state, agent=AGENT, type='enter_matching', event=event, rule_id='MATCH-READY-001',
-                title='Mieliluotsi käynnisti terapeutin etsinnän',
-                detail='Valmiusehdot täyttyivät (hyväksytty profiili, matching-lupa, check-init, jonotilanne). Matching ajetaan, kun '
-                       'kapasiteettia vapautuu.')
+                title='Mieliluotsi started the therapist search',
+                detail='The readiness criteria were met (approved profile, matching permission, check-ins, waiting list position). '
+                       'Matching runs when capacity opens.')
 
 
 def on_matches_generated(state: ValitukiState, event: AgentEvent, provider) -> None:
@@ -88,26 +91,28 @@ def on_matches_generated(state: ValitukiState, event: AgentEvent, provider) -> N
         return
     if event.payload.get('held'):
         records.act(state, agent=AGENT, type='hold_matches', event=event, rule_id='NAV-HOLD-001',
-                    title='Terapeuttiehdotukset odottavat ammattilaisen tarkistusta',
-                    detail='Ehdotukset näytetään, kun avoin tarkistuspyyntö on käsitelty.')
+                    title='The therapist suggestions are waiting for a professional review',
+                    detail='The suggestions are shown once the open review request has been handled.')
         return
     shown = min(count, 3)
-    headline = 'Löysimme yhden tilanteeseesi sopivan terapeutin.' if shown == 1 else \
-        f'Löysimme {count_word(shown)} tilanteeseesi sopivaa terapeuttia.'
+    headline = 'We found a therapist who suits your situation.' if shown == 1 else \
+        f'We found {count_word(shown)} therapists who suit your situation.'
     records.notify(state, audience='client', client_id=client.id, kind='matching', event=event, agent=AGENT, action_view='matching',
                    title=headline,
-                   body='Näet jokaisesta, miksi häntä ehdotetaan ja mitä toiveita ei pystytty täyttämään. Valinta on sinun.')
+                   body='For each one, you can see why they are suggested and which wishes could not be met. The choice is yours.')
     records.notify(state, audience='coordinator', client_id=client.id, kind='matching', event=event, agent=AGENT,
-                   title=f'Matching valmis: {client.displayName}', body=f'{shown} vaihtoehtoa näytettiin asiakkaalle.')
+                   title=f'Matching ready: {client.displayName}',
+                   body=f'{plural(shown, "option")} {"was" if shown == 1 else "were"} shown to the client.')
 
 
 def on_match_selected(state: ValitukiState, event: AgentEvent, provider) -> None:
     client = _client(state, event)
     therapist = get_therapist(state, event.payload['therapistId'])
     records.notify(state, audience='coordinator', client_id=client.id, kind='matching', event=event, agent=AGENT,
-                   title=f'{client.displayName} valitsi terapeutin', body=f'Valinta: {therapist.name}. Aika varattiin automaattisesti.')
+                   title=f'{client.displayName} chose a therapist',
+                   body=f'Choice: {therapist.name}. The appointment was booked automatically.')
     records.act(state, agent=AGENT, type='forward_selection', event=event, rule_id='NAV-MATCH-001',
-                title=f'Välitti valintasi ajanvaraukseen: {therapist.name}', detail='Ensimmäinen sopiva aika varattiin.')
+                title=f'Passed your choice on to appointment booking: {therapist.name}', detail='The first suitable time was booked.')
 
 
 def on_first_session_booked(state: ValitukiState, event: AgentEvent, provider) -> None:
@@ -115,22 +120,22 @@ def on_first_session_booked(state: ValitukiState, event: AgentEvent, provider) -
     therapist = get_therapist(state, event.payload['therapistId'])
     when = event.payload.get('startText') or fmt_slot_title(event.payload['start'])
     client.preparationChecklist = [
-        {'id': 'handover', 'text': 'Tarkista ja hyväksy yhteenveto ensimmäistä tapaamista varten', 'done': False},
-        {'id': 'topics', 'text': 'Valitse 1–3 asiaa, joista haluat aloittaa', 'done': False},
-        {'id': 'practical', 'text': 'Tarkista aika ja etäyhteyden linkki', 'done': False},
+        {'id': 'handover', 'text': 'Check and approve the summary for the first session', 'done': False},
+        {'id': 'topics', 'text': 'Choose 1–3 things you would like to start with', 'done': False},
+        {'id': 'practical', 'text': 'Check the time and the link for the remote session', 'done': False},
     ]
     client.matchingNotificationsPaused = True
     records.act(state, agent=AGENT, type='book_first_session', event=event, rule_id='NAV-BOOK-001',
-                title=f'Varasi ensimmäisen tapaamisen: {when}', detail=f'{therapist.name}. AppointmentAdapter (demo).')
+                title=f'Booked the first session: {when}', detail=f'{therapist.name}. AppointmentAdapter (demo).')
     record = handover.get_or_create(state, client, records.agent_actor(AGENT))
     handover.refresh_draft(state, client, record, provider or DemoAIProvider(), agent=AGENT)
     records.notify(state, audience='client', client_id=client.id, kind='handover', event=event, agent=AGENT, action_view='matching',
-                   title='Ensimmäinen tapaaminen on varattu',
-                   body=f'{therapist.name}, {when}. Yhteenveto ensimmäistä tapaamista varten odottaa – mitään ei jaeta ennen kuin '
-                        'hyväksyt sen.')
+                   title='Your first session has been booked',
+                   body=f'{therapist.name}, {when}. The summary for the first session is waiting for you – nothing is shared before '
+                        'you approve it.')
     records.notify(state, audience='therapist', therapist_id=therapist.id, client_id=client.id, kind='matching', event=event,
-                   agent=AGENT, title=f'Uusi asiakas: {client.displayName}',
-                   body=f'Ensimmäinen tapaaminen {when}. Yhteenveto näkyy, kun asiakas on hyväksynyt sen.')
+                   agent=AGENT, title=f'New client: {client.displayName}',
+                   body=f'First session {when}. The summary is visible once the client has approved it.')
 
 
 def on_handover_approved(state: ValitukiState, event: AgentEvent, provider) -> None:
@@ -138,11 +143,12 @@ def on_handover_approved(state: ValitukiState, event: AgentEvent, provider) -> N
     therapist = get_therapist(state, event.payload['therapistId'])
     sections = len(event.payload.get('sections', []))
     records.notify(state, audience='therapist', therapist_id=therapist.id, client_id=client.id, kind='handover', event=event,
-                   agent=AGENT, title=f'{genitive(client.firstName)} hyväksymä yhteenveto',
-                   body=f'{client.displayName} hyväksyi yhteenvedon jaettavaksi ennen ensimmäistä tapaamista.')
+                   agent=AGENT, title=f'Summary approved by {client.firstName}',
+                   body=f'{client.displayName} approved the summary for sharing before the first session.')
     records.act(state, agent=AGENT, type='share_handover', event=event, rule_id='HANDOVER-002',
-                title=f'Jakoi hyväksymäsi yhteenvedon terapeutille ({therapist.name})',
-                detail=f'Mukana vain hyväksymäsi kohdat ({sections}). Keskusteluhistoriaa ei jaettu. Voit perua jakamisen.')
+                title=f'Shared the summary you approved with the therapist ({therapist.name})',
+                detail=f'Only the parts you approved are included ({sections}). The chat history was not shared. You can withdraw '
+                       'the sharing.')
 
 
 def on_therapy_started(state: ValitukiState, event: AgentEvent, provider) -> None:
@@ -159,22 +165,21 @@ def on_therapy_started(state: ValitukiState, event: AgentEvent, provider) -> Non
         journey.set_resume_state(client, 'THERAPY_ACTIVE')
     first = therapist.name.split()[0]
     records.act(state, agent=AGENT, type='switch_mode', event=event, rule_id='THERAPY-001',
-                title='Siirtyi terapian välitueksi',
-                detail=f'Terapeutti {first} määrittää, miten Mieliluotsi tukee sinua tapaamisten välillä. Siihen asti '
-                       'Mieliluotsi jatkaa '
-                       'vain check-inejä ja turvallisuusohjeita.')
+                title='Switched to between-session support',
+                detail=f'Your therapist {first} sets how Mieliluotsi supports you between sessions. Until then, Mieliluotsi '
+                       'continues with check-ins and safety instructions only.')
     records.notify(state, audience='client', client_id=client.id, kind='therapy', event=event, agent=AGENT, action_view='plan',
-                   title='Terapia alkoi',
-                   body='Terapeutti määrittää, miten Mieliluotsi tukee sinua tapaamisten välillä. Mieliluotsi ei korvaa terapeuttia – '
-                        'se toimii terapeutin asettamissa rajoissa.')
+                   title='Therapy started',
+                   body='Your therapist sets how Mieliluotsi supports you between sessions. Mieliluotsi does not replace your '
+                        "therapist – it works within the limits your therapist sets.")
     records.notify(state, audience='client', client_id=client.id, kind='review', event=event, agent=AGENT, action_view='matching',
-                   title='Miltä yhteistyö terapeutin kanssa tuntuu?',
-                   body='Lyhyt palaute auttaa varmistamaan, että yhteistyö tuntuu sopivalta. Vastaukset eivät vaihda terapeuttia '
-                        'automaattisesti.')
+                   title='How does working with your therapist feel?',
+                   body='Short feedback helps make sure the collaboration feels right. Your answers do not change the therapist '
+                        'automatically.')
     records.notify(state, audience='therapist', therapist_id=therapist.id, client_id=client.id, kind='therapy', event=event,
-                   agent=AGENT, title=f'Määritä välituki: {client.displayName}',
-                   body='Voit määrittää päätavoitteen, sallitut harjoitukset, check-in-tiheyden, seurattavan asian ja aiheet, '
-                        'joita Mieliluotsi ei käsittele.')
+                   agent=AGENT, title=f'Set up between-session support: {client.displayName}',
+                   body='You can set the main goal, the allowed exercises, the check-in frequency, what is tracked and the topics '
+                        'Mieliluotsi does not address.')
 
 
 def on_therapy_ended(state: ValitukiState, event: AgentEvent, provider) -> None:
@@ -189,15 +194,15 @@ def on_therapy_ended(state: ValitukiState, event: AgentEvent, provider) -> None:
         journey.set_resume_state(client, 'AFTERCARE')
     first = therapist.name.split()[0]
     records.act(state, agent=AGENT, type='switch_mode', event=event, rule_id='AFTERCARE-001',
-                title='Siirtyi seurantaan terapian jälkeen',
-                detail=f'Terapeutti {first} laati ylläpitosuunnitelman. Mieliala ja ahdistus seurataan jatkossa sovitussa rytmissä; '
-                       'jos vointi laskee, hoitotiimi saa tarkistuspyynnön.')
+                title='Switched to follow-up after therapy',
+                detail=f'Your therapist {first} drew up a maintenance plan. From now on, mood and anxiety are followed at the agreed '
+                       'rhythm; if your wellbeing drops, the care team gets a review request.')
     records.notify(state, audience='client', client_id=client.id, kind='therapy', event=event, agent=AGENT, action_view='path',
-                   title='Terapia päättyi – seuranta jatkuu',
-                   body='Mieliluotsi seuraa mielialaa ja ahdistusta sovitussa rytmissä, ja harjoitukset ovat edelleen käytössäsi.')
-    practice.say(state, client, f'Terapia terapeutti {genitive(first)} kanssa on päättynyt – hienoa työtä. Seuranta jatkuu: kysyn '
-                                'mielialaa ja ahdistusta sovitussa rytmissä, ja harjoitukset ovat edelleen käytössäsi. '
-                                'Ylläpitosuunnitelmasi löytyy Hoitopolku-sivulta.')
+                   title='Therapy ended – follow-up continues',
+                   body='Mieliluotsi follows your mood and anxiety at the agreed rhythm, and the exercises are still available to you.')
+    practice.say(state, client, f'Your therapy with {first} has ended – great work. Follow-up continues: I will ask about your '
+                                'mood and anxiety at the agreed rhythm, and the exercises are still available to you. '
+                                'You can find your maintenance plan on the Care pathway page.')
 
 
 # --- daily rules ---------------------------------------------------------------------------------------------------------

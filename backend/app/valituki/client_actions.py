@@ -37,7 +37,7 @@ def actor(client: ClientProfile) -> str:
 
 def _require(client: ClientProfile, states: tuple[str, ...], what: str) -> None:
     if client.journeyState not in states:
-        raise JourneyError(f'{what} ei ole mahdollista vaiheessa "{journey.label(client.journeyState)}".')
+        raise JourneyError(f'{what} is not possible in the stage "{journey.label(client.journeyState)}".')
 
 
 # --- consent ---------------------------------------------------------------------------------------------------------
@@ -52,12 +52,12 @@ def set_consent(state: ValitukiState, client: ClientProfile, scope: dict[str, bo
     if changed.get('proactiveCheckins') is False:
         for due in [c for c in state.checkIns if c.clientId == client.id and c.status == 'due']:
             due.status = 'missed'
-        records.act(state, agent='CheckInAgent', type='stop_proactive', event=event, title='Lopetti oma-aloitteiset check-init',
-                    detail='Voit edelleen tehdä check-inin itse, ja turvallisuusohjeet ovat aina saatavilla.')
+        records.act(state, agent='CheckInAgent', type='stop_proactive', event=event, title='Stopped the proactive check-ins',
+                    detail='You can still do a check-in yourself, and the safety instructions are always available.')
     elif changed.get('proactiveCheckins') is True:
         client.nextCheckInDate = state.currentDate
-        records.act(state, agent='CheckInAgent', type='resume_proactive', event=event, title='Jatkoi check-inejä',
-                    detail='Suostumus annettiin.')
+        records.act(state, agent='CheckInAgent', type='resume_proactive', event=event, title='Resumed the check-ins',
+                    detail='Consent was given.')
 
 
 # --- check-ins -------------------------------------------------------------------------------------------------------
@@ -66,16 +66,16 @@ def submit_checkin(state: ValitukiState, client: ClientProfile, mood: int, chang
                    anxiety: Optional[int] = None, track_score: Optional[int] = None, no_change: bool = False,
                    provider: Optional[AIProvider] = None, who: Optional[str] = None, at: Optional[str] = None,
                    via_session: Optional[GuidedSession] = None) -> dict[str, Any]:
-    """Mood 1–5 and anxiety 1–5 ("Kuinka paljon ahdistusta tai jännitystä?"), what changed and an optional journal note.
+    """Mood 1–5 and anxiety 1–5 ("How much anxiety or nervousness?"), what changed and an optional journal note.
 
     Usually answered as a short conversation in the chat (practice.checkin); the simulation and the API call this directly,
     and the answer is then shown in the chat as one message."""
     _require(client, ACTIVE_STATES, 'Check-in')
     who = who or actor(client)
     if not 1 <= int(mood) <= 5:
-        raise ClientActionError('Valitse vointi asteikolla 1–5.')
+        raise ClientActionError('Choose your wellbeing on a scale of 1–5.')
     if anxiety is not None and not 1 <= int(anxiety) <= 5:
-        raise ClientActionError('Valitse ahdistus asteikolla 1–5.')
+        raise ClientActionError('Choose your anxiety on a scale of 1–5.')
     clean = {k: v for k, v in (changes or {}).items() if k in DOMAINS and v in ('worse', 'better')}
     note = (note or '').strip()[:1000]
     stamp = now(state, at)
@@ -130,9 +130,9 @@ def _close_checkin_session(state: ValitukiState, client: ClientProfile, item: Ch
         session.endedAt = item.completedAt
         session.step = None
     if via_session is None:
-        parts = [f'Vointi {mood}/5 · {MOOD_SCALE[mood].lower()}']
+        parts = [f'Wellbeing {mood}/5 · {MOOD_SCALE[mood].lower()}']
         if anxiety is not None:
-            parts.append(f'ahdistus {anxiety}/5 · {ANXIETY_SCALE[int(anxiety)].lower()}')
+            parts.append(f'anxiety {anxiety}/5 · {ANXIETY_SCALE[int(anxiety)].lower()}')
         line = ' · '.join(parts) + (f'\n{note}' if note else '')
         practice.say(state, client, line, role='client', kind='answer', sessionId=session.id if session else None,
                      value={'mood': mood, 'anxiety': anxiety})
@@ -143,18 +143,18 @@ def _close_checkin_session(state: ValitukiState, client: ClientProfile, item: Ch
 def _activity(activity_id: str):
     activity = content.activity(activity_id)
     if activity is None:
-        raise ClientActionError('Harjoitusta ei ole hyväksytyssä kirjastossa.')
+        raise ClientActionError('The exercise is not in the approved library.')
     return activity
 
 
 def complete_activity(state: ValitukiState, client: ClientProfile, activity_id: str, rating: Optional[int], note: str = '', *,
                       at: Optional[str] = None) -> ActivityCompletion:
-    _require(client, ACTIVE_STATES, 'Harjoituksen kirjaaminen')
+    _require(client, ACTIVE_STATES, 'Logging an exercise')
     activity = _activity(activity_id)
     stamp = now(state, at)
     rating = int(rating) if rating else None
     if rating is not None and not 1 <= rating <= 5:
-        raise ClientActionError('Arvio asteikolla 1–5.')
+        raise ClientActionError('Give a rating on a scale of 1–5.')
     completion = ActivityCompletion(id=next_id(state, 'actc'), clientId=client.id, activityId=activity.id, activityVersion=activity.version,
                                     status='completed', rating=rating, note=(note or '')[:300], mode=client.mode, createdAt=stamp,
                                     updatedAt=stamp, createdBy=actor(client), source='client')
@@ -172,7 +172,7 @@ def complete_activity(state: ValitukiState, client: ClientProfile, activity_id: 
 
 def skip_activity(state: ValitukiState, client: ClientProfile, activity_id: Optional[str] = None, *,
                   at: Optional[str] = None) -> Optional[ActivityCompletion]:
-    _require(client, ACTIVE_STATES, 'Harjoituksen ohittaminen')
+    _require(client, ACTIVE_STATES, 'Skipping an exercise')
     activity_id = activity_id or (client.todayActivity.activityId if client.todayActivity else None)
     if not activity_id:
         return None
@@ -193,19 +193,20 @@ def skip_activity(state: ValitukiState, client: ClientProfile, activity_id: Opti
 # --- what Mieliluotsi remembers ------------------------------------------------------------------------------------------
 
 def decide_insight(state: ValitukiState, client: ClientProfile, insight_id: str, decision: str) -> None:
-    """"Tämä tuntuu oikealta" / "Ei kuvaa tilannettani" for a proposed insight (e.g. a detected pattern)."""
+    """"This feels right" / "This does not describe my situation" for a proposed insight (e.g. a detected pattern)."""
     item = insights.get(state, client, insight_id)
     if decision == 'approve':
         insights.approve(state, client, item, actor(client))
         event = journey.apply(state, client, 'INSIGHTS_APPROVED', actor=actor(client), source='client',
-                              payload={'insightIds': [item.id], 'reason': f'Hyväksyit havainnon: {item.text}'})
+                              payload={'insightIds': [item.id], 'reason': f'You approved the observation: {item.text}'})
         orchestrator.dispatch(state, event)
     elif decision == 'reject':
         insights.reject(state, client, item, actor(client))
         records.act(state, agent='ObservationAgent', type='pattern_rejected', client_id=client.id,
-                    title='Kirjasi, ettei havainto kuvaa tilannettasi', detail='Havaintoa ei käytetä mihinkään. Kiitos palautteesta.')
+                    title='Noted that the observation does not describe your situation',
+                    detail='The observation is not used for anything. Thank you for the feedback.')
     else:
-        raise ClientActionError('Tuntematon päätös.')
+        raise ClientActionError('Unknown decision.')
 
 
 def edit_insight(state: ValitukiState, client: ClientProfile, insight_id: str, text: str) -> None:
@@ -213,7 +214,7 @@ def edit_insight(state: ValitukiState, client: ClientProfile, insight_id: str, t
 
     item = insights.get(state, client, insight_id)
     insights.update_text(state, client, item, text, actor(client))
-    fit_profile.rebuild(state, client, agent='NavigationAgent', reason=f'Muokkasit tietoa: {item.title}')
+    fit_profile.rebuild(state, client, agent='NavigationAgent', reason=f'You edited the information: {item.title}')
 
 
 def set_insight_sharing(state: ValitukiState, client: ClientProfile, insight_id: str, professional: bool, matching: bool) -> None:
@@ -222,7 +223,7 @@ def set_insight_sharing(state: ValitukiState, client: ClientProfile, insight_id:
     item = insights.get(state, client, insight_id)
     insights.set_sharing(state, client, item, professional=professional, matching=matching, actor=actor(client))
     fit_profile.rebuild(state, client, agent='NavigationAgent',
-                        reason=f'Käyttöoikeus muuttui: {item.title} – ' + ('matching sallittu' if matching else 'ei matchingissa'))
+                        reason=f'Permission changed: {item.title} – ' + ('allowed in matching' if matching else 'not used in matching'))
 
 
 def remove_insight(state: ValitukiState, client: ClientProfile, insight_id: str) -> None:
@@ -230,7 +231,7 @@ def remove_insight(state: ValitukiState, client: ClientProfile, insight_id: str)
 
     item = insights.get(state, client, insight_id)
     insights.remove(state, client, item, actor(client))
-    fit_profile.rebuild(state, client, agent='NavigationAgent', reason=f'Poistit tiedon: {item.title}')
+    fit_profile.rebuild(state, client, agent='NavigationAgent', reason=f'You removed the information: {item.title}')
 
 
 # --- conversation ----------------------------------------------------------------------------------------------------
@@ -243,10 +244,10 @@ def _message(state: ValitukiState, client: ClientProfile, role: str, text: str, 
 
 
 def send_message(state: ValitukiState, client: ClientProfile, text: str, provider: Optional[AIProvider] = None) -> dict[str, Any]:
-    _require(client, ACTIVE_STATES, 'Keskustelu')
+    _require(client, ACTIVE_STATES, 'Chatting')
     text = text.strip()[:1500]
     if not text:
-        raise ClientActionError('Kirjoita viesti.')
+        raise ClientActionError('Write a message.')
     provider = provider or DemoAIProvider()
     session = practice.active_session(state, client.id)
     if session is not None and not support.locked(client):
@@ -272,7 +273,7 @@ def send_message(state: ValitukiState, client: ClientProfile, text: str, provide
         safety_agent.raise_safety(state, client, deterministic, context='chat', actor=actor(client))
         reply = _message(state, client, 'assistant', SAFETY_REPLY, safetyLevel=3, textSource='fixed')
         records.audit(state, actor=records.agent_actor('SafetyAgent'), action='chat_safety_interrupt', client_id=client.id,
-                      detail='Deterministinen sääntö laukaisi tason 3 – kielimallia ei kutsuttu.')
+                      detail='A deterministic rule triggered level 3 – the language model was not called.')
         return {'safety': {'level': 3, 'screen': SAFETY_SCREEN}, 'messageId': reply.id}
     response = support.respond(state, client, text, provider, deterministic.final_level)
     result = assess(triggers, ai_hint=response.safetyHint, ai_next_action=response.suggestedNextAction)
@@ -282,11 +283,11 @@ def send_message(state: ValitukiState, client: ClientProfile, text: str, provide
         return {'safety': {'level': 3, 'screen': SAFETY_SCREEN}, 'messageId': reply.id}
     tool = response.suggestedTool if response.suggestedTool in practice.allowed_tools(state, client) else None
     if tool:
-        # The reply offers a guided tool; the client decides ("Kyllä, tutkitaan" / "Ei nyt").
-        labels = {'thought_record': 'Kyllä, tutkitaan', 'exposure': 'Kootaan porras', 'experiment': 'Suunnitellaan koe',
-                  'checkin': 'Tee check-in'}
+        # The reply offers a guided tool; the client decides ("Yes, let's explore it" / "Not now").
+        labels = {'thought_record': "Yes, let's explore it", 'exposure': "Let's build a ladder", 'experiment': "Let's plan an experiment",
+                  'checkin': 'Do a check-in'}
         prefill = {'situation': text} if tool == 'thought_record' else {}
-        reply = practice.offer(state, client, response.supportiveResponse, [(f'start:{tool}', labels[tool]), ('dismiss', 'Ei nyt')],
+        reply = practice.offer(state, client, response.supportiveResponse, [(f'start:{tool}', labels[tool]), ('dismiss', 'Not now')],
                                group='chat', data={'prefill': prefill, 'tool': tool}, source=response.source)
         reply.safetyLevel, reply.guardViolations = result.final_level, response.violations
         reply.suggestedNextAction, reply.uncertainty = response.suggestedNextAction, response.uncertainty
@@ -296,7 +297,7 @@ def send_message(state: ValitukiState, client: ClientProfile, text: str, provide
                          suggestedNextAction=response.suggestedNextAction, uncertainty=response.uncertainty,
                          guardViolations=response.violations)
     records.audit(state, actor=records.agent_actor('SupportAgent'), action='chat_response', client_id=client.id,
-                  detail=f'Vastaus: {response.source}' + (f'; hylätty turvatarkistuksessa: {", ".join(response.violations)}'
+                  detail=f'Reply: {response.source}' + (f'; rejected in the safety check: {", ".join(response.violations)}'
                                                           if response.violations else ''),
                   data={'approvedActivityId': response.approvedActivityId, 'deterministicLevel': result.deterministic_level,
                         'aiLevel': result.ai_level})
@@ -309,7 +310,7 @@ def send_message(state: ValitukiState, client: ClientProfile, text: str, provide
 
 def start_practice(state: ValitukiState, client: ClientProfile, tool: str, provider: Optional[AIProvider] = None, *,
                    prefill: Optional[dict[str, Any]] = None, started_from: str = 'chat') -> dict[str, Any]:
-    _require(client, ACTIVE_STATES, 'Harjoitus')
+    _require(client, ACTIVE_STATES, 'An exercise')
     session = practice.start(state, client, tool, provider or DemoAIProvider(), actor(client), prefill=prefill,
                              started_from=started_from)
     return {'sessionId': session.id, 'tool': session.tool}
@@ -317,7 +318,7 @@ def start_practice(state: ValitukiState, client: ClientProfile, tool: str, provi
 
 def answer_practice(state: ValitukiState, client: ClientProfile, value: Any, *, session_id: Optional[str] = None,
                     step_key: Optional[str] = None, skip: bool = False, provider: Optional[AIProvider] = None) -> dict[str, Any]:
-    _require(client, ACTIVE_STATES, 'Harjoitus')
+    _require(client, ACTIVE_STATES, 'An exercise')
     return practice.answer(state, client, value, provider or DemoAIProvider(), actor(client), session_id=session_id,
                            step_key=step_key, skip=skip)
 
@@ -328,13 +329,13 @@ def stop_practice(state: ValitukiState, client: ClientProfile, session_id: Optio
 
 def choose_offer(state: ValitukiState, client: ClientProfile, message_id: str, option: str,
                  provider: Optional[AIProvider] = None) -> dict[str, Any]:
-    _require(client, ACTIVE_STATES, 'Valinta')
+    _require(client, ACTIVE_STATES, 'Choosing')
     return practice.act_on_offer(state, client, message_id, option, provider or DemoAIProvider(), actor(client))
 
 
 def task_action(state: ValitukiState, client: ClientProfile, task_id: str, action: str,
                 provider: Optional[AIProvider] = None) -> dict[str, Any]:
-    _require(client, ACTIVE_STATES, 'Tehtävä')
+    _require(client, ACTIVE_STATES, 'A task')
     if action == 'done':
         return practice.complete_task(state, client, task_id, provider or DemoAIProvider(), actor(client))
     if action == 'later':
@@ -342,7 +343,7 @@ def task_action(state: ValitukiState, client: ClientProfile, task_id: str, actio
     if action == 'skip':
         practice.skip_task(state, client, task_id)
         return {'skipped': True}
-    raise ClientActionError('Tuntematon toiminto.')
+    raise ClientActionError('Unknown action.')
 
 
 def set_practice_sharing(state: ValitukiState, client: ClientProfile, kind: str, item_id: str, shared: bool) -> None:
@@ -354,7 +355,7 @@ def remove_practice_item(state: ValitukiState, client: ClientProfile, kind: str,
 
 
 def request_human(state: ValitukiState, client: ClientProfile, reason: str, message: str = '') -> dict[str, Any]:
-    _require(client, journey.ALL_OPEN, 'Yhteydenottopyyntö')
+    _require(client, journey.ALL_OPEN, 'A contact request')
     reason = reason if reason in CONTACT_REASONS else 'other'
     message = (message or '').strip()[:600]
     event = journey.apply(state, client, 'USER_REQUESTED_HUMAN', actor=actor(client), source='client',
@@ -380,8 +381,9 @@ def dismiss_safety(state: ValitukiState, client: ClientProfile) -> None:
     if observation:
         observation.clientAcknowledgedAt = lock.dismissedAt
     records.act(state, agent='SafetyAgent', type='safety_acknowledged', client_id=client.id,
-                title='Turvallisuusohjeet kuitattu – tavallinen tuki jatkuu',
-                detail='Havainto odottaa edelleen ammattilaisen tarkistusta. Ohjeet löytyvät aina "Tarvitsen apua nyt" -painikkeesta.')
+                title='Safety instructions acknowledged – usual support continues',
+                detail='The observation is still waiting for a professional review. The instructions are always behind the '
+                       '"I need help now" button.')
 
 
 # --- therapist matching, handover and feedback ------------------------------------------------------------------------
@@ -417,16 +419,16 @@ def withdraw_handover(state: ValitukiState, client: ClientProfile):
 
 
 def submit_match_feedback(state: ValitukiState, client: ClientProfile, data: dict[str, Any]) -> MatchFeedback:
-    _require(client, ('THERAPY_ACTIVE', 'HUMAN_REVIEW_NEEDED'), 'Yhteistyöpalaute')
+    _require(client, ('THERAPY_ACTIVE', 'HUMAN_REVIEW_NEEDED'), 'Feedback on the collaboration')
     current = therapy.episode(state, client.id)
     if current is None or current.status != 'active':
-        raise ClientActionError('Palautteen voi antaa ensimmäisen tapaamisen jälkeen.')
+        raise ClientActionError('Feedback can be given after the first session.')
     scores = [int(data[key]) for key in ('heard', 'goalsUnderstood', 'styleFit')]
     if any(s < 1 or s > 5 for s in scores):
-        raise ClientActionError('Arvioiden tulee olla välillä 1–5.')
+        raise ClientActionError('Ratings must be between 1 and 5.')
     want_continue = data.get('wantContinue', 'unsure')
     if want_continue not in ('yes', 'unsure', 'no'):
-        raise ClientActionError('Tuntematon vastaus.')
+        raise ClientActionError('Unknown answer.')
     discuss = bool(data.get('wantDiscussAlternative'))
     low = int(content.rules()['matchFeedback']['lowScore'])
     negative = min(scores) <= low or want_continue == 'no' or discuss

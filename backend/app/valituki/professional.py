@@ -17,14 +17,14 @@ from app.valituki.labels import URGENCY, fmt_date, frequency_text
 from app.valituki.models import ClientProfile, ProfessionalNote, ValitukiState
 from app.valituki.store import NotFoundError, days_between, get_client, next_id, now
 
-COORDINATOR_NAME = 'Hoitokoordinaattori Riikka (demo)'
+COORDINATOR_NAME = 'Care coordinator Riikka (demo)'
 ACTOR = records.COORDINATOR
 
 REVIEW_ACTIONS = {
-    'mark_reviewed': 'Tarkistettu – jatketaan Mieliluotsin tuella',
-    'contact': 'Ammattilainen ottaa yhteyttä',
-    'no_action': 'Tarkistettu – ei toimenpiteitä',
-    'frequency': 'Check-in-tiheyttä muutettiin',
+    'mark_reviewed': 'Reviewed – continues with Mieliluotsi support',
+    'contact': 'A professional will make contact',
+    'no_action': 'Reviewed – no action needed',
+    'frequency': 'Check-in frequency changed',
 }
 
 
@@ -38,12 +38,12 @@ class PermissionDenied(PermissionError):
 
 def set_clinical_urgency(state: ValitukiState, client: ClientProfile, urgency: str, actor: str, reason: str = '') -> None:
     if not records.is_professional(actor):
-        raise PermissionDenied('Vain ammattilainen voi muuttaa hoidon kiireellisyyttä. Mieliluotsi ei muuta sitä.')
+        raise PermissionDenied('Only a professional can change the urgency of care. Mieliluotsi does not change it.')
     if urgency not in URGENCY:
-        raise ProfessionalError('Tuntematon kiireellisyys.')
+        raise ProfessionalError('Unknown urgency.')
     episode = adapters.waiting_list.episode_for(state, client.id)
     if episode is None:
-        raise NotFoundError('Jonotietoa ei löytynyt.')
+        raise NotFoundError('No waiting list information found.')
     stamp = now(state)
     episode.urgencyHistory.append({'at': stamp, 'from': episode.clinicalUrgency, 'to': urgency, 'by': COORDINATOR_NAME,
                                    'reason': reason.strip()[:300]})
@@ -52,7 +52,7 @@ def set_clinical_urgency(state: ValitukiState, client: ClientProfile, urgency: s
     episode.urgencySetAt = stamp
     episode.updatedAt = stamp
     records.audit(state, actor=actor, action='clinical_urgency', client_id=client.id,
-                  detail=f'Ammattilainen asetti hoidon kiireellisyydeksi: {URGENCY[urgency]}'
+                  detail=f'A professional set the urgency of care to: {URGENCY[urgency]}'
                   + (f' – {reason.strip()}' if reason.strip() else ''))
 
 
@@ -67,22 +67,22 @@ def _complete_review(state: ValitukiState, client: ClientProfile, outcome: str, 
 def review_observation(state: ValitukiState, observation_id: str, action: str, note: str = '', frequency: Optional[int] = None,
                        provider: Optional[AIProvider] = None) -> dict[str, Any]:
     if action not in REVIEW_ACTIONS:
-        raise ProfessionalError('Tuntematon toimenpide.')
+        raise ProfessionalError('Unknown action.')
     observation = next((o for o in state.safetyObservations if o.id == observation_id), None) or next(
         (o for o in state.wellbeingObservations if o.id == observation_id), None)
     if observation is None:
-        raise NotFoundError('Havaintoa ei löytynyt.')
+        raise NotFoundError('Observation not found.')
     if observation.status in ('reviewed', 'closed'):
-        raise ProfessionalError('Havainto on jo käsitelty.')
+        raise ProfessionalError('The observation has already been handled.')
     client = get_client(state, observation.clientId)
     outcome = REVIEW_ACTIONS[action]
     if action == 'frequency':
         set_checkin_frequency(state, client, int(frequency or 3))
-        outcome = f'Check-in-tiheydeksi muutettiin {frequency_text(client.checkInDays)}'
+        outcome = f'Check-in frequency changed to {frequency_text(client.checkInDays)}'
     if action == 'contact':
         records.notify(state, audience='client', client_id=client.id, kind='contact', action_view='messages',
-                       title='Ammattilainen ottaa sinuun yhteyttä',
-                       body='Hoitotiimi on tarkistanut tilanteesi ja ottaa yhteyttä. Voit jatkaa Mieliluotsin käyttöä normaalisti.')
+                       title='A professional will contact you',
+                       body='The care team has reviewed your situation and will contact you. You can keep using Mieliluotsi as usual.')
     stamp = now(state)
     observation.status = 'reviewed' if action != 'no_action' else 'closed'
     observation.reviewedBy = COORDINATOR_NAME
@@ -98,7 +98,7 @@ def review_observation(state: ValitukiState, observation_id: str, action: str, n
             task.completedBy = COORDINATOR_NAME
             task.completedAt = task.updatedAt = stamp
     records.audit(state, actor=ACTOR, action='observation_reviewed', client_id=client.id,
-                  detail=f'{getattr(observation, "title", "Turvallisuushavainto")}: {outcome}'
+                  detail=f'{getattr(observation, "title", "Safety observation")}: {outcome}'
                   + (f' – {note.strip()}' if note.strip() else ''))
     completed = _complete_review(state, client, outcome, provider)
     return {'reviewCompleted': completed, 'journeyState': client.journeyState, 'outcome': outcome}
@@ -107,23 +107,23 @@ def review_observation(state: ValitukiState, observation_id: str, action: str, n
 def task_action(state: ValitukiState, task_id: str, action: str, note: str = '') -> dict[str, Any]:
     task = next((t for t in state.tasks if t.id == task_id), None)
     if task is None:
-        raise NotFoundError('Tehtävää ei löytynyt.')
+        raise NotFoundError('Task not found.')
     client = get_client(state, task.clientId)
     note = note.strip()[:600]
     if action == 'contact':
         task.status = 'contact_requested'
-        task.outcome = 'Yhteydenotto sovittu' + (f': {note}' if note else '')
+        task.outcome = 'Contact agreed' + (f': {note}' if note else '')
         records.notify(state, audience='client', client_id=client.id, kind='contact', action_view='messages',
-                       title='Ammattilainen ottaa sinuun yhteyttä',
-                       body='Hoitotiimi ottaa yhteyttä. Voit jatkaa Mieliluotsin käyttöä normaalisti.')
+                       title='A professional will contact you',
+                       body='The care team will contact you. You can keep using Mieliluotsi as usual.')
     elif action == 'complete':
         task.status = 'completed'
-        task.outcome = task.outcome or ('Käsitelty' + (f': {note}' if note else ''))
+        task.outcome = task.outcome or ('Handled' + (f': {note}' if note else ''))
     elif action == 'close':
         task.status = 'closed'
-        task.outcome = 'Suljettu' + (f': {note}' if note else '')
+        task.outcome = 'Closed' + (f': {note}' if note else '')
     else:
-        raise ProfessionalError('Tuntematon toimenpide.')
+        raise ProfessionalError('Unknown action.')
     task.completedBy = COORDINATOR_NAME
     task.completedAt = task.updatedAt = now(state)
     if task.observationId:
@@ -139,34 +139,34 @@ def set_checkin_frequency(state: ValitukiState, client: ClientProfile, per_week:
     client.checkInDays = therapy.days_for(per_week)
     client.nextCheckInDate = checkin.next_due_date(client, state.currentDate)
     records.act(state, agent='CheckInAgent', type='adjust_frequency', client_id=client.id, rule_id='PRO-FREQ-001',
-                title=f'Ammattilainen muutti check-in-rytmin: {frequency_text(client.checkInDays)}',
-                detail=f'Seuraava check-in {fmt_date(client.nextCheckInDate)}.')
+                title=f'A professional changed the check-in rhythm: {frequency_text(client.checkInDays)}',
+                detail=f'Next check-in on {fmt_date(client.nextCheckInDate)}.')
 
 
 def add_note(state: ValitukiState, client: ClientProfile, text: str, include_in_handover: bool = False) -> ProfessionalNote:
     text = text.strip()
     if not text:
-        raise ProfessionalError('Kirjoita merkintä.')
+        raise ProfessionalError('Write a note.')
     stamp = now(state)
     note = ProfessionalNote(id=next_id(state, 'note'), clientId=client.id, author=COORDINATOR_NAME, text=text[:1500],
                             includeInHandover=include_in_handover, createdAt=stamp, updatedAt=stamp, createdBy=ACTOR, source='professional')
     state.notes.append(note)
     records.audit(state, actor=ACTOR, action='note_added', client_id=client.id,
-                  detail='Ammattilaisen merkintä' + (' (liitetään yhteenvetoon)' if include_in_handover else ''))
+                  detail='Professional note' + (' (added to the summary)' if include_in_handover else ''))
     return note
 
 
 def run_matching(state: ValitukiState, client: ClientProfile, provider: Optional[AIProvider] = None):
     if not matching_flow.eligible_for_run(state, client):
-        raise ProfessionalError('Matching voidaan ajaa vain asiakkaalle, jonka terapeutin etsintä on käynnissä ja joka on sallinut '
-                                'tietojen käytön matchingissa.')
+        raise ProfessionalError('Matching can only be run for a client whose therapist search is under way and who has allowed '
+                                'their information to be used in matching.')
     return matching_flow.run(state, None, provider, client_ids=[client.id])
 
 
 def ensure_active(state: ValitukiState, client_id: str) -> ClientProfile:
     client = get_client(state, client_id)
     if client.journeyState == 'SERVICE_ENDED':
-        raise JourneyError('Asiakkaan palvelu on päättynyt.')
+        raise JourneyError("The client's service has ended.")
     return client
 
 
@@ -189,11 +189,11 @@ def bucket(state: ValitukiState, client: ClientProfile) -> Optional[str]:
 
 
 BUCKET_LABELS = {
-    'stable': 'Tilanne vakaa',
-    'changeDetected': 'Merkittävä muutos havaittu',
-    'contactRequested': 'Pyytänyt yhteydenottoa',
-    'matchingPossible': 'Matching mahdollista',
-    'missedCheckIns': 'Check-init jääneet tekemättä',
+    'stable': 'Stable',
+    'changeDetected': 'Significant change detected',
+    'contactRequested': 'Asked to be contacted',
+    'matchingPossible': 'Matching possible',
+    'missedCheckIns': 'Check-ins not done',
 }
 
 
@@ -208,7 +208,7 @@ def overview(state: ValitukiState) -> dict[str, Any]:
             live[key] += 1
     return {'total': sum(counts.values()), 'buckets': [{'key': k, 'label': BUCKET_LABELS[k], 'value': v, 'live': live[k]}
                                                         for k, v in counts.items()],
-            'syntheticNote': 'Demon synteettisiä esimerkkilukuja.', 'liveClients': sum(live.values()),
+            'syntheticNote': 'Synthetic example figures for the demo.', 'liveClients': sum(live.values()),
             'note': cohort['note'], 'samples': _samples(state, cohort), 'samplesNote': cohort.get('samplesNote', '')}
 
 
@@ -223,20 +223,20 @@ def _samples(state: ValitukiState, cohort: dict[str, Any]) -> list[dict[str, Any
 
 def review_status(state: ValitukiState, client: ClientProfile) -> dict[str, str]:
     if any(o.clientId == client.id and o.status == 'open' and o.level >= 3 for o in state.safetyObservations):
-        return {'key': 'safety', 'label': 'Turvallisuushälytys'}
+        return {'key': 'safety', 'label': 'Safety alert'}
     if base.open_review_items(state, client.id):
-        return {'key': 'requested', 'label': 'Tarkistus pyydetty'}
+        return {'key': 'requested', 'label': 'Review requested'}
     open_tasks = [t for t in state.tasks if t.clientId == client.id and t.status in ('open', 'contact_requested')]
     if any(t.type == 'contact_request' for t in open_tasks):
-        return {'key': 'contact', 'label': 'Yhteydenottopyyntö'}
+        return {'key': 'contact', 'label': 'Contact request'}
     if any(t.type == 'matching_review' for t in open_tasks):
         return {'key': 'matching_review', 'label': 'Matching review requested'}
     if any(t.type in ('engagement_check', 'matching_help') for t in open_tasks):
-        return {'key': 'task', 'label': 'Avoin tehtävä'}
+        return {'key': 'task', 'label': 'Open task'}
     reviewed = [o for o in state.wellbeingObservations + state.safetyObservations  # type: ignore[operator]
                 if o.clientId == client.id and o.status in ('reviewed', 'closed')]
     if reviewed:
-        return {'key': 'reviewed', 'label': 'Tarkistettu'}
+        return {'key': 'reviewed', 'label': 'Reviewed'}
     return {'key': 'none', 'label': '–'}
 
 
@@ -244,38 +244,38 @@ def matching_status(state: ValitukiState, client: ClientProfile) -> str:
     decision = matching_flow.current_decision(state, client.id)
     phase = journey.effective_state(client)
     if phase == 'THERAPY_ACTIVE':
-        return 'Terapia käynnissä'
+        return 'In therapy'
     if phase == 'MATCH_ACCEPTED':
-        return 'Terapeutti valittu'
+        return 'Therapist chosen'
     if decision and decision.status == 'held_for_review':
-        return 'Ehdotukset odottavat tarkistusta'
+        return 'Suggestions waiting for review'
     if phase == 'MATCH_PROPOSED':
-        return 'Ehdotukset asiakkaalla'
+        return 'Suggestions with the client'
     if phase == 'MATCHING_READY':
-        return 'Matching valmis – odottaa kapasiteettia'
+        return 'Ready for matching – waiting for capacity'
     if client.journeyState in ('INVITED', 'INTAKE'):
-        return 'Profiili puuttuu'
-    return 'Profiili rakentuu'
+        return 'No profile yet'
+    return 'Profile being built'
 
 
 def next_action(state: ValitukiState, client: ClientProfile) -> str:
     status = review_status(state, client)['key']
     if status in ('safety', 'requested'):
-        return 'Tarkista'
+        return 'Review'
     if status == 'contact':
-        return 'Ota yhteyttä'
+        return 'Make contact'
     if status == 'matching_review':
-        return 'Keskustele matchingista'
+        return 'Discuss the matching'
     if status == 'task':
-        return 'Kevyt yhteydenotto'
+        return 'Light-touch contact'
     if client.journeyState == 'INVITED':
-        return 'Odottaa käyttöönottoa'
+        return 'Waiting to get started'
     if client.journeyState == 'MATCH_PROPOSED':
-        return 'Odottaa asiakkaan valintaa'
+        return "Waiting for the client's choice"
     if client.journeyState == 'MATCH_ACCEPTED':
         booking = handover.active_booking(state, client.id)
-        return f'1. tapaaminen {fmt_date(booking.start) if booking else ""}'
-    return 'Ei toimenpiteitä'
+        return f'1st session {fmt_date(booking.start) if booking else ""}'.strip()
+    return 'No action needed'
 
 
 def queue(state: ValitukiState) -> list[dict[str, Any]]:
@@ -291,9 +291,9 @@ def queue(state: ValitukiState) -> list[dict[str, Any]]:
         latest = observations[-1] if observations else None
         latest_text = None
         if latest is not None:
-            latest_text = getattr(latest, 'title', None) or 'Turvallisuushavainto'
+            latest_text = getattr(latest, 'title', None) or 'Safety observation'
             if getattr(latest, 'level', 0) >= 3:
-                latest_text = 'DEMO-HÄLYTYS: välittömät turvallisuusohjeet'
+                latest_text = 'DEMO ALERT: immediate safety information shown'
         review = review_status(state, client)
         rows.append({
             'clientId': client.id, 'name': client.displayName, 'firstName': client.firstName, 'persona': client.persona,

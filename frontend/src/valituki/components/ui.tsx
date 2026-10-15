@@ -15,11 +15,11 @@ export function Eyebrow({ children }: { children: ReactNode }) {
 }
 
 const TYPE_META: Record<InfoType, { label: string; icon: ReactNode }> = {
-  user_said: { label: 'Asiakkaan sanoin / hyväksymä', icon: <QuoteIcon size={14} /> },
-  measured: { label: 'Mitattu / itse raportoitu', icon: <PulseIcon size={14} /> },
-  ai_summary: { label: 'Tekoälyn tiivistelmä', icon: <SparkleIcon size={14} /> },
-  professional_note: { label: 'Ammattilaisen merkintä', icon: <StethoscopeIcon size={14} /> },
-  system: { label: 'Järjestelmätieto', icon: <DocumentIcon size={14} /> },
+  user_said: { label: 'In the client\'s words / approved', icon: <QuoteIcon size={14} /> },
+  measured: { label: 'Measured / self-reported', icon: <PulseIcon size={14} /> },
+  ai_summary: { label: 'AI summary', icon: <SparkleIcon size={14} /> },
+  professional_note: { label: 'Professional\'s note', icon: <StethoscopeIcon size={14} /> },
+  system: { label: 'System information', icon: <DocumentIcon size={14} /> },
 };
 
 /** The information type of a piece of content – shown wherever user words, measurements, AI text and professional notes meet. */
@@ -34,12 +34,12 @@ export function TypeTag({ type, short = false, iconOnly = false }: { type: InfoT
 }
 
 const AGENT_SHORT: Record<string, string> = {
-  SupportAgent: 'Tuki', CheckInAgent: 'Check-in', ObservationAgent: 'Havainnot', MatchingAgent: 'Matching',
-  NavigationAgent: 'Palveluohjaus', SafetyAgent: 'Turvallisuus', Orchestrator: 'Orkestroija',
+  SupportAgent: 'Support', CheckInAgent: 'Check-in', ObservationAgent: 'Observations', MatchingAgent: 'Matching',
+  NavigationAgent: 'Service guidance', SafetyAgent: 'Safety', Orchestrator: 'Orchestrator',
 };
 
 export function AgentBadge({ agent, full = false }: { agent: string | null; full?: boolean }) {
-  if (!agent) return <span className="agent-badge agent-client">Asiakas</span>;
+  if (!agent) return <span className="agent-badge agent-client">Client</span>;
   return <span className={`agent-badge agent-${agent}`} title={agent}>{full ? agent : AGENT_SHORT[agent] ?? agent}</span>;
 }
 
@@ -62,28 +62,28 @@ export function SharingControl({ sharing, onChange, busy, compact = false }: {
 }) {
   const privateOnly = !sharing.professional && !sharing.matching;
   return (
-    <div className={`sharing ${compact ? 'sharing-compact' : ''}`} role="group" aria-label="Kuka saa käyttää tätä tietoa?">
+    <div className={`sharing ${compact ? 'sharing-compact' : ''}`} role="group" aria-label="Who may use this information?">
       <button type="button" className="share-opt" aria-pressed={privateOnly} disabled={busy}
         onClick={() => onChange({ professional: false, matching: false })}>
-        <LockIcon size={15} /> <span>Vain minä</span>
+        <LockIcon size={15} /> <span>Only me</span>
       </button>
       <button type="button" className="share-opt" aria-pressed={sharing.professional} disabled={busy}
         onClick={() => onChange({ professional: !sharing.professional, matching: sharing.matching })}>
-        <EyeIcon size={15} /> <span>{compact ? 'Ammattilainen' : 'Saa näkyä ammattilaiselle'}</span>
+        <EyeIcon size={15} /> <span>{compact ? 'Professional' : 'May be shown to a professional'}</span>
       </button>
       <button type="button" className="share-opt" aria-pressed={sharing.matching} disabled={busy}
         onClick={() => onChange({ professional: sharing.professional, matching: !sharing.matching })}>
-        <PuzzleIcon size={15} /> <span>{compact ? 'Matching' : 'Saa käyttää terapeutin matchingissa'}</span>
+        <PuzzleIcon size={15} /> <span>{compact ? 'Matching' : 'May be used in therapist matching'}</span>
       </button>
     </div>
   );
 }
 
 export function SharingSummary({ sharing }: { sharing: { professional: boolean; matching: boolean } }) {
-  if (!sharing.professional && !sharing.matching) return <span className="share-sum"><LockIcon size={13} /> Vain sinä</span>;
+  if (!sharing.professional && !sharing.matching) return <span className="share-sum"><LockIcon size={13} /> Only you</span>;
   return (
     <span className="share-sum">
-      {sharing.professional && <><EyeIcon size={13} /> Ammattilainen</>}
+      {sharing.professional && <><EyeIcon size={13} /> Professional</>}
       {sharing.professional && sharing.matching && <span aria-hidden="true">·</span>}
       {sharing.matching && <><PuzzleIcon size={13} /> Matching</>}
     </span>
@@ -104,7 +104,7 @@ export function Sheet({ title, onClose, children, footer, wide = false, labelled
       <div className={`sheet ${wide ? 'sheet-wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby={labelledBy ?? id}>
         <div className="sheet-head">
           <h3 id={labelledBy ?? id}>{title}</h3>
-          <button type="button" ref={closeRef} className="icon-btn" aria-label="Sulje" onClick={onClose}><CrossIcon size={18} /></button>
+          <button type="button" ref={closeRef} className="icon-btn" aria-label="Close" onClick={onClose}><CrossIcon size={18} /></button>
         </div>
         <div className="sheet-body">{children}</div>
         {footer && <div className="sheet-foot">{footer}</div>}
@@ -152,7 +152,7 @@ export function Empty({ icon, title, children }: { icon?: ReactNode; title: stri
   );
 }
 
-export function Synthetic({ children = 'Demon synteettisiä esimerkkilukuja.' }: { children?: ReactNode }) {
+export function Synthetic({ children = 'Synthetic example figures for the demo.' }: { children?: ReactNode }) {
   return <p className="synthetic-note"><InfoDot /> {children}</p>;
 }
 

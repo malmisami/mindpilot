@@ -1,7 +1,7 @@
 """CheckInAgent – scheduled check-ins and missing check-in follow-up.
 
 A missed check-in is a reason to send a gentle reminder, never a clinical conclusion. Several consecutive missed
-check-ins create a low-priority, non-clinical engagement task ("kevyt yhteydenotto").
+check-ins create a low-priority, non-clinical engagement task ("light-touch contact").
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from app.valituki.models import AgentEvent, CheckIn, ClientProfile, ValitukiStat
 from app.valituki.store import add_days, next_id, now
 
 AGENT = 'CheckInAgent'
-WEEKDAY_GENITIVE = ['maanantain', 'tiistain', 'keskiviikon', 'torstain', 'perjantain', 'lauantain', 'sunnuntain']
+WEEKDAY_GENITIVE = ["Monday's", "Tuesday's", "Wednesday's", "Thursday's", "Friday's", "Saturday's", "Sunday's"]
 
 
 def _policy() -> dict:
@@ -41,7 +41,7 @@ def schedule_extra(state: ValitukiState, client: ClientProfile, event: Optional[
     client.nextCheckInDate = tomorrow
     client.nextCheckInKind = 'extra'
     records.act(state, agent=AGENT, type='schedule_extra_checkin', event=event, client_id=client.id, rule_id=rule_id,
-                title='Sopi lyhyen lisä-check-inin huomiselle', detail=reason)
+                title='Arranged a short extra check-in for tomorrow', detail=reason)
     return True
 
 
@@ -88,25 +88,25 @@ def on_baseline(state: ValitukiState, event: AgentEvent, provider) -> None:
     client.nextCheckInDate = next_due_date(client, state.currentDate)
     client.nextCheckInKind = 'routine'
     records.act(state, agent=AGENT, type='create_plan', event=event, rule_id='PLAN-001',
-                title='Mieliluotsi loi odotusajan tukisuunnitelman',
-                detail=f'Check-in {frequency_text(client.checkInDays)}, ensimmäinen {fmt_date(client.nextCheckInDate)}. '
-                       'Yksi hyväksytty harjoitus kerrallaan – minkä tahansa voi ohittaa.')
+                title='Mieliluotsi created a support plan for the waiting time',
+                detail=f'Check-ins {frequency_text(client.checkInDays)}, the first on {fmt_date(client.nextCheckInDate)}. '
+                       'One approved exercise at a time – any of them can be skipped.')
 
 
 def on_due(state: ValitukiState, event: AgentEvent, provider) -> None:
     client = next(c for c in state.clients if c.id == event.clientId)
     checkin = next(c for c in state.checkIns if c.id == event.payload['checkInId'])
     extra = checkin.kind == 'extra'
-    greeting = f'Hei {client.firstName}' if client.communicationStyle == 'brief' else f'Hei {client.firstName}, mukava kuulla sinusta'
-    body = (f'{greeting}! Miten voit tänään? Check-in vie alle minuutin.' if not extra else
-            f'{greeting}. Kysyn kuulumisia tavallista aiemmin, koska vointisi on ollut viime päivinä hieman tavanomaista '
-            'matalampi. Check-in vie alle minuutin.')
+    greeting = f'Hi {client.firstName}' if client.communicationStyle == 'brief' else f'Hi {client.firstName}, nice to hear from you'
+    body = (f'{greeting}! How are you today? The check-in takes less than a minute.' if not extra else
+            f'{greeting}. I am checking in earlier than usual, because your wellbeing has been a little lower than usual in '
+            'recent days. The check-in takes less than a minute.')
     if checkin.trackLabel:
-        body += f' Mukana on terapeuttisi pyytämä seurantakysymys: {checkin.trackLabel.lower()}.'
+        body += f' It includes a tracking question your therapist asked for: {checkin.trackLabel.lower()}.'
     records.notify(state, audience='client', client_id=client.id, kind='checkin', action_view='checkin', event=event, agent=AGENT,
-                   title='Miten voit tänään?' if not extra else 'Lyhyt lisä-check-in', body=body)
+                   title='How are you today?' if not extra else 'A short extra check-in', body=body)
     records.act(state, agent=AGENT, type='send_checkin', event=event, rule_id='CHK-DUE-001' if not extra else _policy()['extraRuleId'],
-                title='Mieliluotsi lähetti check-inin' if not extra else 'Mieliluotsi lähetti lisä-check-inin', detail=body)
+                title='Mieliluotsi sent a check-in' if not extra else 'Mieliluotsi sent an extra check-in', detail=body)
     open_in_chat(state, client, checkin, provider)
 
 
@@ -114,14 +114,14 @@ def open_in_chat(state: ValitukiState, client: ClientProfile, checkin: CheckIn, 
     """Wysa-style: the check-in starts as a conversation in the chat. An exercise in progress is never interrupted."""
     if base.safety_locked(client):
         return
-    greeting = f'Hei {client.firstName}' if client.communicationStyle == 'brief' else f'Hei {client.firstName}, mukava kuulla sinusta'
-    intro = (f'{greeting}! On lyhyen check-inin aika – se vie alle minuutin.' if checkin.kind != 'extra' else
-             f'{greeting}. Kysyn kuulumisia tavallista aiemmin, koska vointisi on ollut viime päivinä hieman tavanomaista '
-             'matalampi.')
+    greeting = f'Hi {client.firstName}' if client.communicationStyle == 'brief' else f'Hi {client.firstName}, nice to hear from you'
+    intro = (f'{greeting}! It is time for a short check-in – it takes less than a minute.' if checkin.kind != 'extra' else
+             f'{greeting}. I am checking in earlier than usual, because your wellbeing has been a little lower than usual in '
+             'recent days.')
     active = practice.active_session(state, client.id)
     if active is not None and active.tool != 'checkin':
-        practice.offer(state, client, 'Check-in odottaa – teetkö sen, kun harjoitus on valmis?',
-                       [('start:checkin', 'Tee check-in'), ('dismiss', 'Myöhemmin')], group='checkin_due')
+        practice.offer(state, client, 'A check-in is waiting – will you do it once the exercise is finished?',
+                       [('start:checkin', 'Do a check-in'), ('dismiss', 'Later')], group='checkin_due')
         return
     practice.start(state, client, 'checkin', provider, records.agent_actor(AGENT), context={'checkInId': checkin.id},
                    started_from='agent', intro=intro)
@@ -143,17 +143,17 @@ def on_missed(state: ValitukiState, event: AgentEvent, provider) -> None:
     policy = _policy()
     day_name = WEEKDAY_GENITIVE[date.fromisoformat(checkin.dueDate).weekday()]
     records.act(state, agent=AGENT, type='notice_missing', event=event, rule_id=policy['reminderRuleId'],
-                at=event.occurredAt[11:16], title='Mieliluotsi huomasi, että check-in puuttuu',
-                detail=f'{day_name.capitalize()} {"lisä-" if checkin.kind == "extra" else ""}check-in jäi tekemättä. '
-                       'Puuttuva check-in ei kerro voinnista, eikä sitä tulkita muutokseksi.')
+                at=event.occurredAt[11:16], title='Mieliluotsi noticed that a check-in is missing',
+                detail=f'{day_name} {"extra " if checkin.kind == "extra" else ""}check-in was not done. '
+                       'A missing check-in says nothing about how you feel, and it is not interpreted as a change.')
     if client.automationPaused or not client.consent.proactiveCheckins:
         return
-    body = 'Check-in jäi väliin – ei haittaa. Voit tehdä sen silloin, kun sinulle sopii.'
+    body = 'A check-in was missed – no problem. You can do it whenever it suits you.'
     records.notify(state, audience='client', client_id=client.id, kind='checkin', action_view='checkin', event=event, agent=AGENT,
-                   title='Pieni muistutus', body=body)
+                   title='A small reminder', body=body)
     checkin.reminderSentAt = now(state)
     records.act(state, agent=AGENT, type='send_reminder', event=event, rule_id=policy['reminderRuleId'],
-                title=f'Lähetimme {allative(client.firstName)} muistutuksen', detail=body)
+                title=f'We sent {allative(client.firstName)} a reminder', detail=body)
 
     streak = consecutive_missed(state, client.id)
     if streak >= int(policy['missedForEngagementReview']) and not any(
@@ -161,22 +161,24 @@ def on_missed(state: ValitukiState, event: AgentEvent, provider) -> None:
         stamp = now(state)
         observation = WellbeingObservation(
             id=next_id(state, 'obs'), clientId=client.id, kind='missed_checkins', agent=AGENT, ruleId=policy['engagementRuleId'],
-            title='Check-init jääneet toistuvasti väliin',
-            reason=f'{streak} peräkkäistä check-iniä on jäänyt tekemättä. Tämä ei ole kliininen havainto eikä kerro voinnista.',
-            clientText='Check-inejä on jäänyt väliin. Pyysin hoitotiimiä katsomaan, sopiiko rytmi sinulle.',
-            explanation=[{'kind': 'missed', 'text': f'{streak} peräkkäistä check-iniä jäi tekemättä'}],
+            title='Check-ins repeatedly missed',
+            reason=f'{streak} check-ins in a row have not been done. This is not a clinical observation and says nothing about '
+                   'wellbeing.',
+            clientText='Some check-ins have been missed. I asked the care team to see whether the rhythm suits you.',
+            explanation=[{'kind': 'missed', 'text': f'{streak} check-ins in a row were not done'}],
             underlyingData={'consecutiveMissed': streak}, requiresHumanReview=False,
-            suggestedAction='Harkitse kevyttä yhteydenottoa ja kysy, sopiiko check-in-rytmi.', status='open', createdAt=stamp,
+            suggestedAction='Consider a light-touch contact and ask whether the check-in rhythm suits the client.', status='open',
+            createdAt=stamp,
             updatedAt=stamp, createdBy=records.agent_actor(AGENT), source='rule_based')
         state.wellbeingObservations.append(observation)
         task = base.create_task(state, client, agent=AGENT, type='engagement_check', priority='low',
-                                title='Kevyt yhteydenotto: check-init jääneet väliin', reason=observation.reason,
+                                title='Light-touch contact: check-ins missed', reason=observation.reason,
                                 suggested=observation.suggestedAction, data=observation.underlyingData,
                                 observation_id=observation.id)
         observation.taskId = task.id
         records.act(state, agent=AGENT, type='engagement_task', event=event, rule_id=policy['engagementRuleId'],
-                    title='Pyysi hoitotiimiä tarkistamaan check-in-rytmin',
-                    detail='Useampi check-in jäi peräkkäin väliin. Tämä ei tarkoita, että voinnissa olisi jotain huolestuttavaa.')
+                    title='Asked the care team to check the check-in rhythm',
+                    detail='Several check-ins in a row were missed. This does not mean that anything about your wellbeing is worrying.')
 
 
 def on_therapy_ended(state: ValitukiState, event: AgentEvent, provider) -> None:
@@ -190,8 +192,8 @@ def on_therapy_ended(state: ValitukiState, event: AgentEvent, provider) -> None:
     for due in [c for c in state.checkIns if c.clientId == client.id and c.status == 'due']:
         due.trackLabel = None
     records.act(state, agent=AGENT, type='reschedule', event=event, rule_id='AFTERCARE-CHK-001',
-                title='Siirsi check-init seurantarytmiin',
-                detail=f'Mieliala ja ahdistus {frequency_text(client.checkInDays)} – muutokset huomataan ajoissa.')
+                title='Moved the check-ins to the follow-up rhythm',
+                detail=f'Mood and anxiety {frequency_text(client.checkInDays)} – changes are noticed in time.')
 
 
 def on_plan_configured(state: ValitukiState, event: AgentEvent, provider) -> None:
@@ -205,5 +207,5 @@ def on_plan_configured(state: ValitukiState, event: AgentEvent, provider) -> Non
     for due in [c for c in state.checkIns if c.clientId == client.id and c.status == 'due']:
         due.trackLabel = config.track
     records.act(state, agent=AGENT, type='reschedule', event=event, rule_id='THERAPY-CHK-001',
-                title='Päivitti check-in-rytmin terapeutin määrityksen mukaan',
-                detail=f'Check-in {frequency_text(client.checkInDays)}. Mukana seurantakysymys: {config.track}.')
+                title="Updated the check-in rhythm to the therapist's settings",
+                detail=f'Check-ins {frequency_text(client.checkInDays)}. Includes the tracking question: {config.track}.')

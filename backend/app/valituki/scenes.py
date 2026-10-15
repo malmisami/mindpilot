@@ -18,7 +18,7 @@ class SceneError(ValueError):
 
 def build_scene(name: str) -> ValitukiState:
     if name not in ORDER:
-        raise SceneError('Tuntematon demovaihe.')
+        raise SceneError('Unknown demo stage.')
     target = ORDER.index(name)
     state = build_seed_state()
     aino = get_client(state, 'cl-aino')
@@ -47,9 +47,9 @@ def build_scene(name: str) -> ValitukiState:
     for observation in [o for o in state.wellbeingObservations
                         if o.clientId == aino.id and o.status == 'open' and o.kind == 'trend_decline']:
         professional.review_observation(state, observation.id, 'mark_reviewed',
-                                        'Soitettu Samille – jatketaan jonossa Mieliluotsin tuella.')
+                                        'Called Sami – continues on the waiting list with Mieliluotsi support.')
     # The professional's decision, as in the demo's step 13: the urgency becomes urgent.
-    professional.set_clinical_urgency(state, aino, 'urgent', professional.ACTOR, 'Vointi kolmesti oman lähtötason alapuolella')
+    professional.set_clinical_urgency(state, aino, 'urgent', professional.ACTOR, 'Wellbeing three times below their own baseline')
     if reached('matches'):
         return state
     # "Tämä tuntuu oikealta" – the demo's step 14: the observation stays on the home screen until the client approves it.

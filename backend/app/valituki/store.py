@@ -136,21 +136,21 @@ def get_client(state: ValitukiState, client_id: str) -> ClientProfile:
     for client in state.clients:
         if client.id == client_id:
             return client
-    raise NotFoundError(f'Asiakasta {client_id} ei löytynyt.')
+    raise NotFoundError(f'Client {client_id} not found.')
 
 
 def get_therapist(state: ValitukiState, therapist_id: str) -> Therapist:
     for therapist in state.therapists:
         if therapist.id == therapist_id:
             return therapist
-    raise NotFoundError(f'Terapeuttia {therapist_id} ei löytynyt.')
+    raise NotFoundError(f'Therapist {therapist_id} not found.')
 
 
-def find(items: list, item_id: str, label: str = 'Tietuetta'):
+def find(items: list, item_id: str, label: str = 'Record'):
     for item in items:
         if item.id == item_id:
             return item
-    raise NotFoundError(f'{label} {item_id} ei löytynyt.')
+    raise NotFoundError(f'{label} {item_id} not found.')
 
 
 def maybe_find(items: list, item_id: Optional[str]):

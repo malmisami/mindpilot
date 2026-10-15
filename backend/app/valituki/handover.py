@@ -1,4 +1,4 @@
-""""Yhteenveto ensimmäistä tapaamista varten" – the client-approved handover to the therapist.
+""""Summary for the first session" – the client-approved handover to the therapist.
 
 Principles:
 - Built only from approved information the client allows professionals to see (InsightSharing.professional), the
@@ -15,7 +15,7 @@ from typing import Any, Optional
 
 from app.valituki import adapters, content, insights, journey, records, trends
 from app.valituki.fit_profile import self_care_responses
-from app.valituki.labels import INFO_TYPES, fmt_date, fmt_num
+from app.valituki.labels import INFO_TYPES, fmt_date, fmt_num, plural
 from app.valituki.models import Booking, ClientProfile, HandoverEdits, HandoverSection, HandoverSource, HandoverSummary, ValitukiState
 from app.valituki.store import next_id, now
 
@@ -30,13 +30,17 @@ class HandoverError(ValueError):
 
 
 
-def _from_records(item) -> bool:
+def from_records(item) -> bool:
     """The starting profile came from the records (the referral and the assessment visit), not an intake conversation."""
-    return bool(item and (item.sourceLabel or '').startswith('Esitiedot'))
+    from app.valituki.intake import RECORDS_LABEL  # local import: intake imports the agents, which import this module
+
+    label = (item.sourceLabel or '') if item else ''
+    return bool(item) and label.startswith((RECORDS_LABEL, 'Esitiedot'))
 
 
 def _start_label(item) -> str:
-    return 'Esitiedot (lähete ja arviointikäynti)' if _from_records(item) else 'Alkukeskustelu'
+    return 'Records (referral and assessment visit)' if from_records(item) else 'First conversation'
+
 
 def find(state: ValitukiState, client_id: str) -> Optional[HandoverSummary]:
     return next((h for h in state.handovers if h.clientId == client_id), None)
@@ -64,14 +68,14 @@ def suggested_questions(state: ValitukiState, client: ClientProfile) -> list[str
     goal = next((i for i in shared if i.kind == 'primary_goal'), None)
     topics = set(goal.structured.get('topics', [])) if goal else set()
     if {'anxiety', 'work_stress'} <= topics:
-        questions.append('Miten voisin valmistautua palavereihin niin, ettei jännitys vie yöunia?')
+        questions.append('How could I prepare for meetings so that nervousness does not cost me my sleep?')
     elif goal:
-        questions.append(f'Mistä kannattaisi aloittaa, kun tavoitteeni on: {goal.text.rstrip(".").lower()}?')
+        questions.append(f'Where should we start, when my goal is: {goal.text.rstrip(".")}?')
     if any(i.kind == 'pattern' for i in shared):
-        questions.append('Mitä voisin tehdä iltaisin ennen työpäiviä, kun jännitys nousee?')
+        questions.append('What could I do in the evenings before workdays, when the nervousness rises?')
     helpful = [row for row in self_care_responses(state, client.id) if row['helpful']]
     if helpful:
-        questions.append(f'Miten voisin hyödyntää harjoitusta "{helpful[0]["title"]}" arjessa?')
+        questions.append(f'How could I use the exercise "{helpful[0]["title"]}" in everyday life?')
     return questions[:3]
 
 
@@ -97,106 +101,110 @@ def build_sections(state: ValitukiState, client: ClientProfile, record: Handover
     goal_insights = [i for i in shared if i.kind in ('primary_goal', 'secondary_goal')]
     primary = next((i for i in goal_insights if i.kind == 'primary_goal'), None)
     hope = edits.sectionTexts.get('hopes') or (primary.structured.get('hope') if primary else '') or ''
-    hope_source = _source('intake', f'{_start_label(primary)} – omin sanoin', primary.createdAt if primary else None)
-    add('hopes', 'Mitä toivon terapialta', 'user_said', text=hope, available=bool(hope), editable=True,
-        unavailable='Ei kirjattu.', sources=[hope_source],
-        note='Asiakkaan omat sanat esitiedoista (lähete ja arviointikäynti). Asiakas voi muokata tekstiä.' if _from_records(primary)
-        else 'Asiakkaan omat sanat alkukeskustelusta. Asiakas voi muokata tekstiä.')
-    add('goals', 'Tavoitteeni', 'user_said',
+    hope_source = _source('intake', f'{_start_label(primary)} – in own words', primary.createdAt if primary else None)
+    add('hopes', 'What I hope for from therapy', 'user_said', text=hope, available=bool(hope), editable=True,
+        unavailable='Not recorded.', sources=[hope_source],
+        note="The client's own words from the records (referral and assessment visit). The client can edit the text."
+        if from_records(primary) else "The client's own words from the first conversation. The client can edit the text.")
+    add('goals', 'My goals', 'user_said',
         content=[{'id': i.id, 'text': i.text, 'priority': 'primary' if i.kind == 'primary_goal' else 'secondary',
                   'edited': i.editedByClient, 'approvedAt': i.approvedAt} for i in goal_insights],
-        available=bool(goal_insights), unavailable='Ei jaettavia tavoitteita.',
-        sources=[_source('insight', f'Asiakkaan hyväksymä tavoite ({fmt_date(i.approvedAt)})', i.approvedAt, i.id) for i in goal_insights])
+        available=bool(goal_insights), unavailable='No goals to share.',
+        sources=[_source('insight', f'Goal approved by the client ({fmt_date(i.approvedAt)})', i.approvedAt, i.id) for i in goal_insights])
 
     trend = trends.evaluate(state, client)
     points = trends.series(state, client)
     reviewed = [o for o in state.wellbeingObservations if o.clientId == client.id and o.kind == 'trend_decline'
                 and o.status in ('reviewed', 'closed')]
-    add('wellbeing', 'Voinnin suunta odotusaikana', 'measured', available=bool(points) and client.consent.storeHistory,
-        unavailable='Check-inejä ei ole tallennettu.',
+    add('wellbeing', 'How my wellbeing developed while waiting', 'measured', available=bool(points) and client.consent.storeHistory,
+        unavailable='No check-ins have been stored.',
         content={'baseline': client.baseline, 'recent': trend.recent, 'direction': trend.direction,
                  'directionLabel': trends.DIRECTION_LABELS[trend.direction],
                  'points': [{'date': p['date'], 'mood': p['mood'], 'belowBaseline': p['belowBaseline']} for p in points],
-                 'checkIns': len(points), 'events': [{'date': o.createdAt[:10], 'label': 'Muutos tarkistettiin ammattilaisen toimesta'}
+                 'checkIns': len(points), 'events': [{'date': o.createdAt[:10], 'label': 'The change was reviewed by a professional'}
                                                      for o in reviewed],
-                 'summary': (f'Oma lähtötaso {fmt_num(client.baseline)} / 5. {trend.client_text.replace("Vointisi", "Vointi")}'
+                 'summary': (f'Own baseline {fmt_num(client.baseline)} / 5. {trend.client_text.replace("Your wellbeing", "Wellbeing")}'
                              if client.baseline is not None else '')},
-        sources=[_source('checkins', f'{len(points)} itse raportoitua check-iniä (1–5)', points[-1]['at'] if points else None)],
-        note='Itse raportoitu, suuntaa antava – ei diagnoosi.')
+        sources=[_source('checkins', f'{plural(len(points), "self-reported check-in")} (1–5)', points[-1]['at'] if points else None)],
+        note='Self-reported and indicative – not a diagnosis.')
 
     from app.valituki import practice
 
     practiced = practice.handover_facts(state, client)
-    add('practice', 'Mitä olen harjoitellut', 'measured', available=practiced is not None,
-        unavailable='Ohjattuja harjoituksia ei ole vielä tehty.', content=practiced,
-        sources=[_source('practice', 'Ohjatut KKT-harjoitukset: määrät, tunnistetut ajatusloukut ja tunteen muutos 0–10')],
-        note='Vain yhteenveto – ajatuspäiväkirjan merkintöjä ei jaeta ilman erillistä lupaasi.')
+    add('practice', 'What I have practised', 'measured', available=practiced is not None,
+        unavailable='No guided exercises done yet.', content=practiced,
+        sources=[_source('practice', 'Guided CBT exercises: numbers, thinking traps identified and the change in feeling 0–10')],
+        note='A summary only – thought diary entries are not shared without your separate permission.')
 
     responses = self_care_responses(state, client.id)
     tried = [r for r in responses if r['tried']]
-    add('tried', 'Mitä olen kokeillut', 'measured', available=bool(tried), unavailable='Harjoituksia ei ole vielä tehty.',
+    add('tried', 'What I have tried', 'measured', available=bool(tried), unavailable='No exercises done yet.',
         content=[{'title': r['title'], 'tried': r['tried'], 'latestRating': r['latestRating']} for r in tried],
-        sources=[_source('activity', 'Harjoitusmerkinnät ja omat arviot (1–5)')])
+        sources=[_source('activity', 'Exercise entries and own ratings (1–5)')])
     helped_before = next((i for i in shared if i.kind == 'helped_before'), None)
     helpful = [r for r in responses if r['helpful']]
-    add('helped', 'Mikä on auttanut', 'user_said', available=bool(helpful or helped_before), unavailable='Ei kirjattu.',
+    add('helped', 'What has helped', 'user_said', available=bool(helpful or helped_before), unavailable='Not recorded.',
         content={'activities': [{'title': r['title'], 'rating': r['latestRating']} for r in helpful],
                  'ownWords': helped_before.text if helped_before else None},
-        sources=[_source('activity', 'Oma arvio harjoituksesta')]
+        sources=[_source('activity', 'Own rating of the exercise')]
         + ([_source('insight', _start_label(helped_before), helped_before.approvedAt, helped_before.id)] if helped_before else []))
     not_helpful = [r for r in responses if (r['latestRating'] or 5) <= 2 or r['skipped'] >= 2]
-    add('not_helped', 'Mikä ei ole auttanut', 'measured', available=bool(not_helpful),
-        unavailable='Ei harjoituksia, jotka olisi arvioitu hyödyttömiksi.',
+    add('not_helped', 'What has not helped', 'measured', available=bool(not_helpful),
+        unavailable='No exercises rated unhelpful.',
         content=[{'title': r['title'], 'rating': r['latestRating'], 'skipped': r['skipped']} for r in not_helpful],
-        sources=[_source('activity', 'Omat arviot ja ohitukset')])
+        sources=[_source('activity', 'Own ratings and skips')])
     style = next((i for i in shared if i.kind == 'working_style'), None)
-    add('working_style', 'Työskentelytapatoiveet', 'user_said', text=style.text if style else None, available=bool(style),
-        unavailable='Ei jaettu.', sources=[_source('insight', 'Asiakkaan hyväksymä tulkinta', style.approvedAt, style.id)] if style else [])
+    add('working_style', 'Wishes about the way of working', 'user_said', text=style.text if style else None, available=bool(style),
+        unavailable='Not shared.',
+        sources=[_source('insight', 'Interpretation approved by the client', style.approvedAt, style.id)] if style else [])
     practical = next((i for i in shared if i.kind == 'practical'), None)
-    add('practical', 'Käytännön toiveet', 'user_said', text=practical.text if practical else None, available=bool(practical),
-        unavailable='Ei jaettu.',
-        sources=[_source('insight', 'Asiakkaan hyväksymä tulkinta', practical.approvedAt, practical.id)] if practical else [])
+    add('practical', 'Practical wishes', 'user_said', text=practical.text if practical else None, available=bool(practical),
+        unavailable='Not shared.',
+        sources=[_source('insight', 'Interpretation approved by the client', practical.approvedAt, practical.id)] if practical else [])
     observed = [i for i in shared if i.kind in ('pattern', 'difficult_times')]
-    add('observations', 'Hyväksymäni havainnot odotusajalta', 'user_said', available=bool(observed), unavailable='Ei jaettuja havaintoja.',
+    add('observations', 'Observations I approved while waiting', 'user_said', available=bool(observed),
+        unavailable='No shared observations.',
         content=[{'id': i.id, 'text': i.text, 'kind': i.kind, 'basis': i.evidence.get('basis') if i.kind == 'pattern' else None,
                   'approvedAt': i.approvedAt} for i in observed],
-        sources=[_source('insight', 'Mieliluotsin havainto, jonka asiakas hyväksyi' if i.kind == 'pattern' else _start_label(i),
+        sources=[_source('insight', 'Mieliluotsi observation approved by the client' if i.kind == 'pattern' else _start_label(i),
                          i.approvedAt, i.id) for i in observed],
-        note='Havainnot perustuvat asiakkaan omiin vastauksiin – eivät ole diagnooseja.')
+        note="The observations are based on the client's own answers – they are not diagnoses.")
     questions = edits.questions if edits.questionsEdited else record.suggestedQuestions
-    add('questions', 'Kysymykset, joista haluaisin aloittaa', 'user_said', content={'items': questions,
-                                                                                    'suggested': not edits.questionsEdited},
-        available=bool(questions), unavailable='Ei kysymyksiä.', editable=True,
-        sources=[_source('handover', 'Asiakkaan muokkaama' if edits.questionsEdited else 'Mieliluotsin ehdotus – asiakas hyväksyy')],
-        note=None if edits.questionsEdited else 'Mieliluotsi ehdotti nämä hyväksyttyjen tietojesi pohjalta. Muokkaa tai poista.')
+    add('questions', 'Questions I would like to start with', 'user_said', content={'items': questions,
+                                                                                   'suggested': not edits.questionsEdited},
+        available=bool(questions), unavailable='No questions.', editable=True,
+        sources=[_source('handover', 'Edited by the client' if edits.questionsEdited
+                         else 'Suggested by Mieliluotsi – the client approves')],
+        note=None if edits.questionsEdited else 'Mieliluotsi suggested these based on the information you approved. Edit or remove them.')
 
     professional_items = [{'date': o.reviewedAt[:10] if o.reviewedAt else o.createdAt[:10], 'title': o.title,
                            'outcome': o.reviewOutcome, 'note': o.reviewNote, 'by': o.reviewedBy}
                           for o in state.wellbeingObservations if o.clientId == client.id and o.status in ('reviewed', 'closed')
                           and o.kind != 'trend_improvement']
-    professional_items += [{'date': n.createdAt[:10], 'title': 'Ammattilaisen merkintä', 'outcome': None, 'note': n.text, 'by': n.author}
+    professional_items += [{'date': n.createdAt[:10], 'title': 'Professional note', 'outcome': None, 'note': n.text, 'by': n.author}
                            for n in state.notes if n.clientId == client.id and n.includeInHandover]
-    add('professional', 'Ammattilaisen havainnot', 'professional_note', content=professional_items, available=bool(professional_items),
-        unavailable='Ei ammattilaisen merkintöjä.', sources=[_source('professional', 'Hoitotiimin tarkistukset ja merkinnät')])
+    add('professional', "A professional's observations", 'professional_note', content=professional_items,
+        available=bool(professional_items), unavailable='No professional notes.',
+        sources=[_source('professional', "The care team's reviews and notes")])
 
-    add('ai_summary', 'Tekoälyn tiivistelmä', 'ai_summary', text=record.aiDraft, available=bool(record.aiDraft),
-        unavailable='Tiivistelmää ei ole vielä muodostettu.', note='Tekoälyn luonnos hyväksymistäsi tiedoista – ei kliininen arvio.')
+    add('ai_summary', 'AI summary', 'ai_summary', text=record.aiDraft, available=bool(record.aiDraft),
+        unavailable='No summary created yet.', note='An AI draft from the information you approved – not a clinical assessment.')
 
     included = [s for s in sections if s.available and not s.removed]
     sources = [{'section': s.title, 'label': src.label, 'at': src.at, 'infoType': INFO_TYPES[s.infoType]}
                for s in included for src in s.sources]
-    add('sources', 'Tietolähteet', 'system', content=sources, removable=False)
-    add('sharing', 'Jakamisluvat', 'system', removable=False, content={
+    add('sources', 'Sources of information', 'system', content=sources, removable=False)
+    add('sharing', 'Sharing permissions', 'system', removable=False, content={
         'included': [s.title for s in included],
         'removed': [s.title for s in sections if s.removed],
         'privateItems': private_count,
         'chatHistoryIncluded': bool(edits.includeChatHistory),
-        'statement': 'Jaetaan vain ne yhteenvedon kohdat, jotka asiakas hyväksyy. Keskusteluhistoriaa ei jaeta. Tiedot, joiden '
-                     'käyttöoikeudeksi on valittu "Vain minä", eivät ole mukana.',
+        'statement': 'Only the parts of the summary the client approves are shared. The chat history is not shared. Information '
+                     'set to "Only me" is not included.',
     })
     if edits.includeChatHistory:  # never on by default; kept for completeness of the consent model
         transcript = [m for m in state.chat if m.clientId == client.id and m.retained]
-        add('chat', 'Keskusteluhistoria', 'user_said', content=[{'role': m.role, 'text': m.text} for m in transcript])
+        add('chat', 'Chat history', 'user_said', content=[{'role': m.role, 'text': m.text} for m in transcript])
     order = {key: i for i, key in enumerate(SECTION_ORDER)}
     return sorted(sections, key=lambda s: order.get(s.key, 99))
 
@@ -228,8 +236,8 @@ def refresh_draft(state: ValitukiState, client: ClientProfile, record: HandoverS
     record.aiDraft, record.aiDraftSource = result.text, result.source
     record.updatedAt = now(state)
     records.act(state, agent=agent, type='draft_handover', client_id=client.id, rule_id='HANDOVER-001',
-                title='Kokosi yhteenvedon ensimmäistä tapaamista varten',
-                detail='Vain hyväksymistäsi tiedoista – ei keskusteluhistoriaa. Mitään ei jaeta ennen kuin hyväksyt sen.',
+                title='Put together a summary for the first session',
+                detail='Only from the information you approved – no chat history. Nothing is shared before you approve it.',
                 ai_task='generateHandoverDraft', ai_source=result.source)
 
 
@@ -239,7 +247,8 @@ def _invalidate(state: ValitukiState, client: ClientProfile, record: HandoverSum
         record.approvedSnapshot = None
         record.approvedAt = None
         records.audit(state, actor=actor, action='handover_approval_reset', client_id=client.id,
-                      detail=f'Yhteenvedon hyväksyntä nollattiin: {reason}. Terapeutti ei näe yhteenvetoa ennen uutta hyväksyntää.')
+                      detail=f'The approval of the summary was reset: {reason}. The therapist does not see the summary until it is '
+                             'approved again.')
 
 
 def update(state: ValitukiState, client: ClientProfile, change: dict[str, Any], actor: str) -> HandoverSummary:
@@ -249,7 +258,7 @@ def update(state: ValitukiState, client: ClientProfile, change: dict[str, Any], 
     edits: HandoverEdits = record.edits
     if action == 'remove':
         if section in FIXED:
-            raise HandoverError('Tätä kohtaa ei voi poistaa.')
+            raise HandoverError('This part cannot be removed.')
         if section not in edits.removedSections:
             edits.removedSections.append(section)
     elif action == 'restore':
@@ -257,25 +266,25 @@ def update(state: ValitukiState, client: ClientProfile, change: dict[str, Any], 
     elif action == 'edit' and section in EDITABLE_TEXT:
         text = str(change.get('text', '')).strip()[:800]
         if not text:
-            raise HandoverError('Kirjoita teksti tai poista kohta.')
+            raise HandoverError('Write a text or remove the part.')
         edits.sectionTexts[section] = text
     elif action == 'edit' and section == 'questions':
         items = [str(q).strip()[:200] for q in change.get('questions', []) if str(q).strip()][:5]
         edits.questions = items
         edits.questionsEdited = True
     else:
-        raise HandoverError('Tuntematon muokkaus.')
+        raise HandoverError('Unknown edit.')
     record.updatedAt = now(state)
-    _invalidate(state, client, record, actor, 'asiakas muokkasi yhteenvetoa')
+    _invalidate(state, client, record, actor, 'the client edited the summary')
     records.audit(state, actor=actor, action='handover_edited', client_id=client.id,
-                  detail=f'Yhteenveto: {action} – {section}')
+                  detail=f'Summary: {action} – {section}')
     return record
 
 
 def approve(state: ValitukiState, client: ClientProfile, actor: str) -> HandoverSummary:
     booking = active_booking(state, client.id)
     if booking is None:
-        raise HandoverError('Yhteenvedon voi hyväksyä jaettavaksi, kun terapeutti on valittu.')
+        raise HandoverError('The summary can be approved for sharing once a therapist has been chosen.')
     record = get_or_create(state, client, actor)
     sections = build_sections(state, client, record)
     record.approvedSnapshot = [s for s in sections if s.available and not s.removed]
@@ -297,20 +306,20 @@ def approve(state: ValitukiState, client: ClientProfile, actor: str) -> Handover
     return record
 
 
-def withdraw(state: ValitukiState, client: ClientProfile, actor: str, reason: str = 'asiakas perui jakamisen') -> HandoverSummary:
+def withdraw(state: ValitukiState, client: ClientProfile, actor: str, reason: str = 'the client withdrew the sharing') -> HandoverSummary:
     record = find(state, client.id)
     if record is None or record.status != 'approved':
-        raise HandoverError('Yhteenvetoa ei ole jaettu.')
+        raise HandoverError('The summary has not been shared.')
     record.status = 'withdrawn'
     record.approvedSnapshot = None
     record.withdrawnAt = now(state)
     event = journey.apply(state, client, 'HANDOVER_WITHDRAWN', actor=actor, source='client', payload={'reason': reason})
     if record.therapistId:
         records.notify(state, audience='therapist', therapist_id=record.therapistId, client_id=client.id, kind='handover',
-                       title='Yhteenvedon jakaminen peruttu', event=event,
-                       body=f'{client.displayName} perui yhteenvedon jakamisen. Se ei ole enää nähtävissä.')
-    records.act(state, agent='NavigationAgent', type='withdraw_handover', event=event, title='Perui yhteenvedon jakamisen',
-                detail=f'Terapeutti ei enää näe yhteenvetoa ({reason}).')
+                       title='Sharing of the summary withdrawn', event=event,
+                       body=f'{client.displayName} withdrew the sharing of the summary. It is no longer visible.')
+    records.act(state, agent='NavigationAgent', type='withdraw_handover', event=event, title='Withdrew the sharing of the summary',
+                detail=f'The therapist no longer sees the summary ({reason}).')
     return record
 
 
@@ -335,7 +344,7 @@ def therapist_clients(state: ValitukiState, therapist_id: str) -> list[dict[str,
 
 def _therapist_sections(state: ValitukiState, client: ClientProfile, record: Optional[HandoverSummary]) -> Optional[list[dict]]:
     """Exactly the snapshot the client approved – nothing before the approval (the draft is the client's) and nothing after a
-    withdrawal, as the client is told: "Mitään ei jaeta ennen kuin hyväksyt sen."""
+    withdrawal, as the client is told: "Nothing is shared before you approve it."""
     if record is None or record.status != 'approved' or not record.approvedSnapshot:
         return None
     return [s.model_dump() for s in record.approvedSnapshot]
@@ -343,9 +352,9 @@ def _therapist_sections(state: ValitukiState, client: ClientProfile, record: Opt
 
 def summary_line(record: Optional[HandoverSummary]) -> str:
     if record is None:
-        return 'Ei yhteenvetoa'
-    return {'draft': 'Luonnos – odottaa asiakkaan hyväksyntää', 'approved': f'Asiakas hyväksyi {fmt_date(record.approvedAt)}',
-            'withdrawn': f'Jakaminen peruttu {fmt_date(record.withdrawnAt)}'}[record.status]
+        return 'No summary'
+    return {'draft': "Draft – waiting for the client's approval", 'approved': f'Approved by the client on {fmt_date(record.approvedAt)}',
+            'withdrawn': f'Sharing withdrawn on {fmt_date(record.withdrawnAt)}'}[record.status]
 
 
 def library_titles(ids: list[str]) -> list[str]:

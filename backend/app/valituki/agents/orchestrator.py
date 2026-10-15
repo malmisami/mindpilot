@@ -75,7 +75,7 @@ def dispatch(state: ValitukiState, event: AgentEvent, provider: Optional[AIProvi
         ran.append(name)
     if skipped:
         records.audit(state, actor=records.agent_actor('Orchestrator'), action='safety_interrupt', client_id=event.clientId,
-                      event_id=event.id, detail=f'SafetyAgent keskeytti tavallisen kulun: {", ".join(skipped)} ohitettiin '
+                      event_id=event.id, detail=f'SafetyAgent interrupted the usual flow: {", ".join(skipped)} skipped '
                                                  f'({event.type}).', data={'skipped': skipped})
     return ran
 

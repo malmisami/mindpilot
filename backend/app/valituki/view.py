@@ -1,5 +1,5 @@
 """Read models for the three roles. The demo returns them together; a production API would authorise each role separately
-(see README → Rajaukset)."""
+(see README → Limitations)."""
 from __future__ import annotations
 
 from typing import Any, Optional
@@ -32,23 +32,23 @@ from app.valituki.safety import LEVEL_LABELS, SAFETY_CONTACTS, SAFETY_SCREEN
 from app.valituki.store import days_between, get_therapist
 
 DISCLAIMERS = [
-    'Mieliluotsi ei ole terapeutti eikä tee diagnooseja.',
-    'Mieliluotsi ei korvaa terveydenhuollon ammattilaista eikä tee hoitopäätöksiä.',
-    'Mieliluotsi ei ole päivystyspalvelu, eikä sitä seurata jatkuvasti.',
-    'Hätätilanteessa 112. Kiireellinen terveysongelma: Päivystysapu 116117.',
+    'Mieliluotsi is not a therapist and does not make diagnoses.',
+    'Mieliluotsi does not replace a healthcare professional and does not make treatment decisions.',
+    'Mieliluotsi is not an emergency service, and it is not monitored around the clock.',
+    'In an emergency, call 112. Urgent health problem: Medical Helpline 116117.',
 ]
 CLIENT_ORDER = ['cl-aino', 'cl-mikko', 'cl-sara', 'cl-crisis', 'cl-juha', 'cl-maria', 'cl-pekka', 'cl-leena', 'cl-noora']
 SCENES = [
-    {'key': 'start', 'label': '1. Sami jonossa – alkutila'},
-    {'key': 'intake', 'label': '2. Mieliluotsi otettu käyttöön'},
-    {'key': 'cbt', 'label': '3. Ajatusten tutkiminen chatissa'},
-    {'key': 'weeks', 'label': '4. 14 päivää tukea ja harjoittelua'},
-    {'key': 'change', 'label': '5. Muutos havaittu'},
-    {'key': 'reviewed', 'label': '5b. Ammattilainen tarkistanut'},
-    {'key': 'matches', 'label': '6. Terapeuttiehdotukset'},
-    {'key': 'handover', 'label': '7. Yhteenveto hyväksytty'},
-    {'key': 'therapy', 'label': '9. Terapia ja terapeutin ohjaama välituki'},
-    {'key': 'aftercare', 'label': '10. Terapian jälkeinen seuranta'},
+    {'key': 'start', 'label': '1. Sami on the waiting list – starting point'},
+    {'key': 'intake', 'label': '2. Mieliluotsi set up'},
+    {'key': 'cbt', 'label': '3. Exploring a thought in the chat'},
+    {'key': 'weeks', 'label': '4. 14 days of support and practice'},
+    {'key': 'change', 'label': '5. Change detected'},
+    {'key': 'reviewed', 'label': '5b. Reviewed by a professional'},
+    {'key': 'matches', 'label': '6. Therapist suggestions'},
+    {'key': 'handover', 'label': '7. Summary approved'},
+    {'key': 'therapy', 'label': '9. Therapy and therapist-guided between-session support'},
+    {'key': 'aftercare', 'label': '10. Follow-up after therapy'},
 ]
 
 
@@ -59,11 +59,11 @@ def therapist_public(therapist: Therapist) -> dict[str, Any]:
         'approaches': therapist.therapeuticApproaches, 'workingStyle': therapist.workingStyle,
         'levels': {'structured': therapist.structuredLevel, 'directive': therapist.directiveLevel, 'exercises': therapist.exerciseLevel,
                    'homework': therapist.homeworkLevel},
-        'formats': (['Etävastaanotto'] if therapist.remote else []) + ([f'Lähivastaanotto: {", ".join(therapist.locations)}']
+        'formats': (['Remote session'] if therapist.remote else []) + ([f'In-person session: {", ".join(therapist.locations)}']
                                                                         if therapist.inPerson else []),
-        'availableTimes': [f'{labels.WEEKDAYS_SHORT[t.weekday]} klo {t.time.replace(":", ".")}' for t in therapist.availableTimes],
+        'availableTimes': [f'{labels.WEEKDAYS_SHORT[t.weekday]} at {t.time}' for t in therapist.availableTimes],
         'accessibility': [labels.ACCESSIBILITY.get(a, a) for a in therapist.accessibility], 'bio': therapist.bio,
-        'syntheticLabel': 'Demon kuvitteellinen terapeutti.',
+        'syntheticLabel': 'A fictional demo therapist.',
     }
 
 
@@ -73,10 +73,10 @@ def meta(state: ValitukiState) -> dict[str, Any]:
     config = content.matching_config()
     return {
         'appName': 'Mieliluotsi',
-        'tagline': 'Tuki alkaa heti, vaikka terapia ei vielä ala.',
-        'syntheticNotice': 'Kaikki demon henkilöt ja terveystiedot ovat täysin kuvitteellisia.',
-        'notMedicalDevice': 'Hackathon-prototyyppi: ei kliinisesti validoitu, ei lääkinnällinen laite eikä tarkoitettu oikeiden '
-                            'potilaiden hoitoon.',
+        'tagline': 'Support starts now, even if therapy does not start yet.',
+        'syntheticNotice': 'All people and health information in the demo are entirely fictional.',
+        'notMedicalDevice': 'Hackathon prototype: not clinically validated, not a medical device and not intended for the care of '
+                            'real patients.',
         'disclaimers': DISCLAIMERS,
         'ai': ai.status(),
         'currentDate': state.currentDate,
@@ -128,40 +128,40 @@ def presenter_steps(state: ValitukiState) -> dict[str, Any]:
     practiced = any(r.clientId == aino.id for r in state.thoughtRecords)
     configured = config is not None or any(c.clientId == aino.id for c in state.therapistConfigs)
     steps = [
-        {'n': 1, 'key': 'start', 'title': 'Sami on jonossa terapiaan', 'done': aino.journeyState != 'INVITED',
-         'hint': 'Asiakas → Jatka'},
-        {'n': 2, 'key': 'intake', 'title': 'Käyttöönotto: esitiedot ja yhteydenpito',
+        {'n': 1, 'key': 'start', 'title': 'Sami is on the waiting list for therapy', 'done': aino.journeyState != 'INVITED',
+         'hint': 'Client → Continue'},
+        {'n': 2, 'key': 'intake', 'title': 'Getting started: records and staying in touch',
          'done': bool(session and session.status == 'completed'),
-         'hint': 'Valitse, pidetäänkö yhteyttä sovelluksessa vai puhelulla, ja kuinka usein'},
-        {'n': 3, 'key': 'cbt', 'title': 'Ajatusten tutkiminen chatissa', 'done': practiced,
-         'hint': 'Koti → Demoviesti (tai kirjoita tilanne) → "Kyllä, tutkitaan" → vastaa tai "Toista demokeskustelu"'},
-        {'n': 4, 'key': 'weeks', 'title': 'Simuloi 14 päivää', 'done': len(checkins) >= 6 or bool(decline),
-         'hint': 'Demo-ohjaus → Simuloi 14 päivää → Edistyminen'},
-        {'n': 5, 'key': 'change', 'title': 'Voinnin muutos ja ammattilaisen tarkistus',
+         'hint': 'Choose whether to keep in touch in the app or by phone, and how often'},
+        {'n': 3, 'key': 'cbt', 'title': 'Exploring a thought in the chat', 'done': practiced,
+         'hint': 'Home → Demo message (or describe a situation) → "Yes, let\'s explore it" → answer or "Replay demo conversation"'},
+        {'n': 4, 'key': 'weeks', 'title': 'Simulate 14 days', 'done': len(checkins) >= 6 or bool(decline),
+         'hint': 'Demo control → Simulate 14 days → Progress'},
+        {'n': 5, 'key': 'change', 'title': 'A change in wellbeing and a professional review',
          'done': bool(decline) and all(o.status != 'open' for o in decline),
-         'hint': 'Simuloi voinnin heikkeneminen → Ammattilainen → Sami → Merkitse tarkistetuksi'},
-        {'n': 6, 'key': 'matches', 'title': 'Terapeutin vapaa aika ja matching',
+         'hint': 'Simulate a decline in wellbeing → Professional → Sami → Mark as reviewed'},
+        {'n': 6, 'key': 'matches', 'title': 'A free therapist slot and matching',
          'done': bool(decision and decision.status in ('proposed_to_client', 'client_selected')),
-         'hint': 'Demo-ohjaus → Avaa terapeutin vapaa aika → Asiakas → Hoitopolku'},
-        {'n': 7, 'key': 'handover', 'title': 'Sami valitsee Annan ja hyväksyy yhteenvedon',
+         'hint': 'Demo control → Open a free therapist slot → Client → Care pathway'},
+        {'n': 7, 'key': 'handover', 'title': 'Sami chooses Anna and approves the summary',
          'done': bool(record and record.status == 'approved'),
-         'hint': 'Valitse Anna → Hyväksy jaettavaksi'},
-        {'n': 8, 'key': 'firstSession', 'title': 'Terapeutti näkee yhteenvedon', 'done': phase in ('THERAPY_ACTIVE', 'AFTERCARE'),
-         'hint': 'Terapeutti → Anna Laine → Pidä ensimmäinen tapaaminen'},
-        {'n': 9, 'key': 'therapy', 'title': 'Terapeutti määrittää välituen ja välitehtävän', 'done': configured,
-         'hint': 'Terapeutti → Mieliluotsi tapaamisten välillä → Tallenna'},
-        {'n': 10, 'key': 'aftercare', 'title': 'Terapia päättyy – seuranta jatkuu',
+         'hint': 'Choose Anna → Approve for sharing'},
+        {'n': 8, 'key': 'firstSession', 'title': 'The therapist sees the summary', 'done': phase in ('THERAPY_ACTIVE', 'AFTERCARE'),
+         'hint': 'Therapist → Anna Laine → Hold the 1st session'},
+        {'n': 9, 'key': 'therapy', 'title': 'The therapist sets up between-session support and a task', 'done': configured,
+         'hint': 'Therapist → Mieliluotsi between sessions → Save'},
+        {'n': 10, 'key': 'aftercare', 'title': 'Therapy ends – follow-up continues',
          'done': phase == 'AFTERCARE' or any(p.clientId == aino.id for p in state.aftercarePlans),
-         'hint': 'Demo-ohjaus → Terapia päättyy (tai Terapeutti → Päätä terapia)'},
+         'hint': 'Demo control → Therapy ends (or Therapist → End therapy)'},
     ]
     for step in steps:
         step['scene'] = STEP_SCENES[step['key']]
     upcoming = next((s for s in steps if not s['done']), None)
-    hint = upcoming['hint'] if upcoming else 'Valmis – lopeta Konsepti-sivun viestiin.'
+    hint = upcoming['hint'] if upcoming else 'Done – finish with the message on the Concept page.'
     if upcoming and upcoming['key'] == 'weeks' and pattern and pattern.status == 'proposed':
-        hint = 'Näytä Kodin "Huomasimme jotain" ja hyväksy havainto'
+        hint = 'Show "We noticed something" on Home and approve the observation'
     if upcoming and upcoming['key'] == 'change' and decline and any(o.status == 'open' for o in decline):
-        hint = 'Vaihda Ammattilainen-näkymään → Sami → Merkitse tarkistetuksi'
+        hint = 'Switch to the Professional view → Sami → Mark as reviewed'
     return {'steps': steps, 'next': upcoming['n'] if upcoming else None, 'nextKey': upcoming['key'] if upcoming else None,
             'hint': hint}
 
@@ -197,28 +197,35 @@ def _timeline_entries(state: ValitukiState, client: ClientProfile, *, audience: 
         title = None
         if event.type == 'CHECKIN_COMPLETED':
             mood = payload.get('mood')
-            title = (('Teit check-inin' if you else f'{client.firstName} teki check-inin')
-                     + (f' (vointi {mood}/5)' if mood and not you else '') + (' myöhässä' if payload.get('late') else ''))
+            title = (('You did a check-in' if you else f'{client.firstName} did a check-in')
+                     + (f' (wellbeing {mood}/5)' if mood and not you else '') + (' late' if payload.get('late') else ''))
         elif event.type == 'ACTIVITY_COMPLETED':
             activity = content.activity(payload.get('activityId'))
-            title = ('Teit harjoituksen' if you else f'{client.firstName} teki harjoituksen') + f': {activity.title if activity else ""}' \
+            title = ('You did an exercise' if you else f'{client.firstName} did an exercise') + f': {activity.title if activity else ""}' \
                 + (f' ({payload["rating"]}/5)' if payload.get('rating') else '')
-        elif event.type == 'INSIGHTS_APPROVED' and str(payload.get('reason', '')).startswith('Esitiedot'):
-            title = 'Annoit luvan käyttää esitietoja' if you else f'{client.firstName} antoi luvan käyttää esitietoja'
+        elif event.type == 'INSIGHTS_APPROVED' and _records_approval(state, payload):
+            title = 'You gave permission to use your records' if you else f'{client.firstName} gave permission to use the records'
         elif event.type == 'INSIGHTS_APPROVED':
-            title = 'Hyväksyit tiedot' if you else f'{client.firstName} hyväksyi tiedot'
+            title = 'You approved the information' if you else f'{client.firstName} approved the information'
         elif event.type == 'MATCH_SELECTED':
-            title = 'Valitsit terapeutin' if you else f'{client.firstName} valitsi terapeutin'
+            title = 'You chose a therapist' if you else f'{client.firstName} chose a therapist'
         elif event.type == 'HANDOVER_APPROVED':
-            title = 'Hyväksyit yhteenvedon jaettavaksi' if you else f'{client.firstName} hyväksyi yhteenvedon jaettavaksi'
+            title = 'You approved the summary for sharing' if you else f'{client.firstName} approved the summary for sharing'
         elif event.type == 'USER_REQUESTED_HUMAN':
-            title = 'Pyysit keskustelua ammattilaisen kanssa' if you else f'{client.firstName} pyysi keskustelua ammattilaisen kanssa'
+            title = 'You asked to talk with a professional' if you else f'{client.firstName} asked to talk with a professional'
         if title:
             rows.append({'id': event.id, 'at': event.occurredAt, 'seq': event.seq, 'kind': 'client', 'agent': None,
                          'agentLabel': client.firstName, 'title': title, 'detail': '', 'ruleId': None, 'aiTask': None,
                          'aiSource': None, 'type': event.type})
     rows.sort(key=lambda r: (r['at'], r['kind'] == 'agent', r['seq']), reverse=True)
     return rows[:limit]
+
+
+def _records_approval(state: ValitukiState, payload: dict[str, Any]) -> bool:
+    """The client's consent to use the records (referral and assessment visit), not an approval of interpretations."""
+    ids = set(payload.get('insightIds') or [])
+    return str(payload.get('reason', '')).startswith((intake.RECORDS_LABEL, 'Esitiedot')) or any(
+        handover.from_records(i) for i in state.insights if i.id in ids)
 
 
 def milestones(state: ValitukiState, client: ClientProfile) -> list[dict[str, Any]]:
@@ -233,73 +240,75 @@ def milestones(state: ValitukiState, client: ClientProfile) -> list[dict[str, An
         items.append({'key': key, 'date': date, 'title': title, 'text': text, 'tone': tone, 'quote': quote, 'status': status, 'note': note})
 
     if referral:
-        add('sought_help', referral.soughtHelpAt, 'Hain apua', referral.summary or 'Terveysasemalla arvioitiin terapian tarve.',
-            quote=goals[0].text if goals else None,
-            note=f'Terapiajonoon {labels.fmt_date(episode.startedAt)} · arvioitu odotus {episode.estimatedWait}' if episode else None)
+        add('sought_help', referral.soughtHelpAt, 'I sought help',
+            referral.summary or 'The need for therapy was assessed at the health centre.', quote=goals[0].text if goals else None,
+            note=f'On the therapy waiting list since {labels.fmt_date(episode.startedAt)} · estimated wait {episode.estimatedWait}'
+            if episode else None)
     if session and session.completedAt:
         engagement = next((i for i in insights.for_client(state, client.id, kind='engagement')), None)
         days = engagement.structured.get('checkInDays', client.checkInDays) if engagement else client.checkInDays
-        add('started', session.completedAt, 'Mieliluotsi alkoi',
-            f'{client.firstName} määritti tavoitteet ja check-in-rytmin ({labels.frequency_text(days)}).', tone='brand')
+        add('started', session.completedAt, 'Mieliluotsi started',
+            f'{client.firstName} set the goals and the check-in rhythm: {labels.frequency_text(days)}.', tone='brand')
     else:
-        add('started', state.currentDate, 'Mieliluotsi alkaa', 'Tuki alkaa heti, vaikka terapia ei vielä ala.', tone='brand',
+        add('started', state.currentDate, 'Mieliluotsi starts', 'Support starts now, even if therapy does not start yet.', tone='brand',
             status='current')
     pattern = next((i for i in sorted(state.insights, key=lambda i: i.createdAt) if i.clientId == client.id and i.kind == 'pattern'
                     and i.status in ('proposed', 'approved')), None)
     if pattern:
-        add('first_insight', pattern.createdAt, 'Ensimmäinen havainto', pattern.text, tone='insight',
-            note='Hyväksyit havainnon' if pattern.status == 'approved' else 'Odottaa, tunnistatko sen omaksesi')
+        add('first_insight', pattern.createdAt, 'First observation', pattern.text, tone='insight',
+            note='You approved the observation' if pattern.status == 'approved' else 'Waiting to see whether it rings true for you')
     helpful = next((c for c in sorted(state.activityCompletions, key=lambda c: c.createdAt) if c.clientId == client.id
                     and (c.rating or 0) >= 4), None)
     if helpful:
         activity = content.activity(helpful.activityId)
-        add('helpful', helpful.createdAt, 'Toimiva keino',
-            f'{activity.title if activity else helpful.activityId} arvioitiin hyödylliseksi {helpful.rating}/5.', tone='helpful')
+        add('helpful', helpful.createdAt, 'Something that works',
+            f'{activity.title if activity else helpful.activityId} was rated helpful: {helpful.rating}/5.', tone='helpful')
     decline = next((o for o in sorted(state.wellbeingObservations, key=lambda o: o.createdAt) if o.clientId == client.id
                     and o.kind == 'trend_decline'), None)
     if decline:
         count = next((s.get('count') for s in decline.explanation if s.get('kind') == 'below_baseline'), 3)
-        words = {2: 'Kaksi', 3: 'Kolme', 4: 'Neljä'}.get(count, str(count))
-        add('change', decline.createdAt, 'Voinnissa muutos',
-            f'{words} peräkkäistä check-iniä lähtötason alapuolella. Ammattilaiselle luotiin tarkistuspyyntö.', tone='change',
-            note=f'Ammattilainen tarkisti {labels.fmt_date(decline.reviewedAt)}: {decline.reviewOutcome}' if decline.reviewedAt
-            else 'Odottaa ammattilaisen tarkistusta. Mieliluotsi ei muuttanut hoitosi kiireellisyyttä.')
+        words = {2: 'Two', 3: 'Three', 4: 'Four'}.get(count, str(count))
+        add('change', decline.createdAt, 'A change in wellbeing',
+            f'{words} check-ins in a row below your own baseline. A review request was created for a professional.', tone='change',
+            note=f'A professional reviewed it on {labels.fmt_date(decline.reviewedAt)}: {decline.reviewOutcome}' if decline.reviewedAt
+            else 'Waiting for a professional review. Mieliluotsi did not change the urgency of your care.')
     decision = next((d for d in state.matchDecisions if d.clientId == client.id and d.status in ('proposed_to_client', 'client_selected')
                      and d.releasedAt), None)
     booking = handover.active_booking(state, client.id)
     if decision:
         shown = min(len(decision.candidateIds), decision.shownCount)
         chosen = next((c for c in state.matchCandidates if c.id == decision.selectedCandidateId), None)
-        add('therapist_found', decision.releasedAt, 'Terapeutti löytyi',
-            f'{labels.count_word(shown).capitalize()} sopivaa vaihtoehtoa löytyi.' if shown > 1 else 'Sopiva vaihtoehto löytyi.',
-            tone='brand', note=f'Valitsit: {get_therapist(state, chosen.therapistId).name}' if chosen else 'Valinta on sinun')
+        add('therapist_found', decision.releasedAt, 'A therapist was found',
+            f'{labels.count_word(shown).capitalize()} suitable options were found.' if shown > 1 else 'A suitable option was found.',
+            tone='brand', note=f'You chose: {get_therapist(state, chosen.therapistId).name}' if chosen else 'The choice is yours')
     elif client.journeyState not in ('THERAPY_ACTIVE',):
-        add('therapist_found', None, 'Terapeutti löytyy', 'Etsimme tilanteeseesi sopivaa terapeuttia.', status='upcoming')
+        add('therapist_found', None, 'A therapist will be found', 'We are looking for a therapist who suits your situation.',
+            status='upcoming')
     record = handover.find(state, client.id)
     if booking:
         shared = record and record.status == 'approved'
-        add('first_session', booking.start, 'Ensimmäinen tapaaminen',
-            'Käyttäjän hyväksymä yhteenveto jaettiin terapeutille.' if shared else 'Yhteenveto odottaa hyväksyntääsi.',
+        add('first_session', booking.start, 'First session',
+            'The summary you approved was shared with the therapist.' if shared else 'The summary is waiting for your approval.',
             tone='brand', status='done' if booking.status == 'completed' else 'upcoming',
             note=f'{get_therapist(state, booking.therapistId).name} · {labels.fmt_slot(booking.start)}')
     else:
-        add('first_session', None, 'Ensimmäinen tapaaminen', 'Kokoat yhteenvedon, jonka terapeutti saa ennen ensimmäistä tapaamista.',
+        add('first_session', None, 'First session', 'You put together a summary the therapist receives before the first session.',
             status='upcoming')
     config = next((c for c in state.therapistConfigs if c.clientId == client.id), None)
     if config:
         therapist = get_therapist(state, config.therapistId)
-        add('therapy_mode', config.createdAt, 'Terapeutin ohjaama välituki',
-            f'Terapeutti {therapist.name.split()[0]} määritti, miten Mieliluotsi tukee sinua tapaamisten välillä.', tone='therapy')
+        add('therapy_mode', config.createdAt, 'Therapist-guided between-session support',
+            f'Your therapist {therapist.name.split()[0]} set how Mieliluotsi supports you between sessions.', tone='therapy')
     else:
-        add('therapy_mode', None, 'Terapeutin ohjaama välituki', 'Terapian alettua terapeutti määrittää, miten Mieliluotsi tukee sinua.',
-            status='upcoming')
+        add('therapy_mode', None, 'Therapist-guided between-session support',
+            'Once therapy has started, your therapist sets how Mieliluotsi supports you.', status='upcoming')
     plan = therapy.aftercare_plan(state, client.id)
     if plan:
-        add('aftercare', plan.createdAt, 'Seuranta terapian jälkeen',
-            'Terapia päättyi. Mieliala ja ahdistus seurataan sovitussa rytmissä, ja harjoitukset jatkuvat.', tone='brand')
+        add('aftercare', plan.createdAt, 'Follow-up after therapy',
+            'Therapy ended. Mood and anxiety are followed at the agreed rhythm, and the exercises continue.', tone='brand')
     else:
-        add('aftercare', None, 'Seuranta terapian jälkeen',
-            'Terapian jälkeen Mieliluotsi seuraa vointia ja muistuttaa terapiassa opitusta.', status='upcoming')
+        add('aftercare', None, 'Follow-up after therapy',
+            'After therapy, Mieliluotsi follows how you are doing and reminds you of what you learnt in therapy.', status='upcoming')
     done = [i for i in items if i['status'] == 'done']
     upcoming = [i for i in items if i['status'] != 'done']
     return sorted(done, key=lambda i: i['date'] or '') + upcoming
@@ -360,10 +369,10 @@ def _fit_profile_view(state: ValitukiState, client: ClientProfile) -> Optional[d
                          for key, dim in labels.STYLE_DIMENSIONS.items()] if style else []
     practical = profile.practicalPreferences
     data['practicalRows'] = [
-        {'label': 'Kieli', 'value': labels.join_fi([labels.LANGUAGES[c] for c in practical.get('languages') or []], 'tai')},
-        {'label': 'Vastaanotto', 'value': labels.FORMATS.get(practical.get('format') or 'either')},
-        {'label': 'Ajat', 'value': labels.join_fi([labels.TIMES[t] for t in practical.get('times') or []], 'tai') or 'Ei toivetta'},
-        {'label': 'Päivät', 'value': labels.join_fi([labels.WEEKDAYS[d] for d in practical.get('days') or []], 'tai') or 'Ei toivetta'},
+        {'label': 'Language', 'value': labels.join_fi([labels.LANGUAGES[c] for c in practical.get('languages') or []], 'or')},
+        {'label': 'Session', 'value': labels.FORMATS.get(practical.get('format') or 'either')},
+        {'label': 'Times', 'value': labels.join_fi([labels.TIMES[t] for t in practical.get('times') or []], 'or') or 'No preference'},
+        {'label': 'Days', 'value': labels.join_fi([labels.WEEKDAYS[d] for d in practical.get('days') or []], 'or') or 'No preference'},
     ] if practical else []
     return data
 
@@ -458,7 +467,7 @@ def client_view(state: ValitukiState, client: ClientProfile) -> dict[str, Any]:
             'service': labels.SERVICE_CATEGORIES.get(referral.serviceCategory, '') if referral else '',
             'statusLabel': journey.label(client.journeyState),
             'reviewPending': bool(review_open),
-            'reviewText': 'Tämä havainto odottaa ammattilaisen tarkistusta. Mieliluotsi ei ole muuttanut hoitosi kiireellisyyttä.'
+            'reviewText': 'This observation is waiting for a professional review. Mieliluotsi has not changed the urgency of your care.'
             if review_open else None,
         },
         'intake': {
@@ -562,7 +571,7 @@ def _chat(state: ValitukiState, client: ClientProfile) -> list[dict[str, Any]]:
 
 def _observation_row(o) -> dict[str, Any]:
     if hasattr(o, 'level'):
-        return {'id': o.id, 'category': 'safety', 'kind': f'safety_{o.level}', 'title': f'Turvallisuushavainto – {LEVEL_LABELS[o.level]}',
+        return {'id': o.id, 'category': 'safety', 'kind': f'safety_{o.level}', 'title': f'Safety observation – {LEVEL_LABELS[o.level]}',
                 'level': o.level, 'status': o.status, 'createdAt': o.createdAt, 'agent': 'SafetyAgent',
                 'ruleId': ', '.join(sorted({t.ruleId for t in o.triggers})),
                 'explanation': [{'kind': t.source, 'text': f'{t.category} ({t.ruleId})'} for t in o.triggers],

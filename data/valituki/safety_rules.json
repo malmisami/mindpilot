@@ -1,11 +1,11 @@
 {
-  "version": "demo-2",
-  "note": "Deterministiset turvallisuussäännöt. Tekstit normalisoidaan ennen vertailua (pienet kirjaimet, ä→a, ö→o, å→a, välimerkit pois). Säännöt ovat tarkoituksella varovaisia: kieltomuotoja ei tulkita. Demo-policy, joka vaatii kliinisen validoinnin.",
+  "version": "demo-3",
+  "note": "Deterministic safety rules in Finnish, Swedish and English. Texts are normalised before matching (lower case, ä→a, ö→o, å→a, punctuation removed; the apostrophe is kept, so a curly apostrophe becomes a space). The rules are intentionally cautious: negations are not interpreted. A demo policy that requires clinical validation.",
   "phraseRules": [
     {
       "id": "SAF-L3-SUICIDE-FI",
       "level": 3,
-      "category": "Itsetuhoiset ajatukset",
+      "category": "Suicidal thoughts",
       "patterns": [
         "\\b(halua|tahdo|tahto)\\w*\\s+kuolla",
         "\\btapan itseni",
@@ -21,9 +21,31 @@
       ]
     },
     {
+      "id": "SAF-L3-SUICIDE-EN",
+      "level": 3,
+      "category": "Suicidal thoughts",
+      "patterns": [
+        "\\bkill(ing)? myself",
+        "\\bsuicid",
+        "\\b(end|ending|take|taking) my (own )?life",
+        "\\bend my life",
+        "\\b(want|wanted|wanting|wish|wished|wishing|like|going|need|ready|deserve) to die\\b",
+        "\\bwant to die",
+        "\\bwanna die\\b",
+        "\\bwish (i was|i were|i'd been|i d been|to be) dead",
+        "\\b(rather|prefer to) (die|be dead)\\b",
+        "\\bbetter off (dead|without me)",
+        "\\b(don'?t|don t|do not) want to (live|be alive|exist)\\b(?! (in|with|at|on|near|there|here|alone|together|abroad|by)\\b)",
+        "\\bno (reason|point)( in| to)? (live|living|go on|going on|be alive|being alive)\\b",
+        "\\b(not|isn'?t|isn t) worth living",
+        "\\bend(ing)? it all\\b",
+        "\\b(hope|wish|want)\\w* (i |to )?(never|not|didn'?t|didn t|don'?t|don t|won'?t|won t|wouldn'?t|wouldn t) wake up"
+      ]
+    },
+    {
       "id": "SAF-L3-SELFHARM-FI",
       "level": 3,
-      "category": "Itsensä vahingoittaminen",
+      "category": "Self-harm",
       "patterns": [
         "\\b(vahingoittaa|satuttaa|viiltaa) itse",
         "\\bvahingoitan itseani",
@@ -34,18 +56,40 @@
       ]
     },
     {
+      "id": "SAF-L3-SELFHARM-EN",
+      "level": 3,
+      "category": "Self-harm",
+      "patterns": [
+        "\\bhurt myself",
+        "\\b(hurt|hurting|harm|harming|cut|cutting|injure|injuring|burn|burning|punish|punishing) myself",
+        "\\bself.?harm",
+        "\\bself.?injur",
+        "\\boverdos",
+        "\\b(take|taking|took|swallow|swallowing|swallowed) all (of )?(my |the )?(pills|tablets|medication|medications|medicine|medicines|meds)\\b"
+      ]
+    },
+    {
       "id": "SAF-L3-HARM-OTHERS-FI",
       "level": 3,
-      "category": "Toisen vahingoittaminen",
+      "category": "Harming someone else",
       "patterns": [
         "\\b(satuttaa|vahingoittaa|tappaa) (jotakuta|toista|muita|hanet|hanta|jonkun)",
         "\\btapan (hanet|jonkun)"
       ]
     },
     {
+      "id": "SAF-L3-HARM-OTHERS-EN",
+      "level": 3,
+      "category": "Harming someone else",
+      "patterns": [
+        "\\b(hurt|hurting|harm|harming|kill|killing|attack|attacking|stab|stabbing) (someone|somebody|anyone|anybody|others|other people|him|her|them)\\b(?! feelings)",
+        "\\b(hurt|hurting|harm|harming|kill|killing|hit|hitting) my (child|children|kids?|baby|partner|wife|husband)\\b"
+      ]
+    },
+    {
       "id": "SAF-L3-DANGER-FI",
       "level": 3,
-      "category": "Välitön vaara",
+      "category": "Immediate danger",
       "patterns": [
         "\\bhengenvaara",
         "\\ben ole turvassa",
@@ -53,9 +97,22 @@
       ]
     },
     {
+      "id": "SAF-L3-DANGER-EN",
+      "level": 3,
+      "category": "Immediate danger",
+      "patterns": [
+        "\\bnot safe\\b",
+        "\\b(feel|feeling|i'?m|i m|i am) unsafe\\b",
+        "\\b(immediate|acute) danger",
+        "\\b(i'?m|i m|i am) in danger\\b(?! of)",
+        "\\b(my )?life is (in danger|at risk|threatened)",
+        "\\blife.threatening"
+      ]
+    },
+    {
       "id": "SAF-L3-SV",
       "level": 3,
-      "category": "Itsetuhoiset ajatukset (ruotsi)",
+      "category": "Suicidal thoughts (Swedish)",
       "patterns": [
         "\\bvill (jag )?do\\b",
         "\\bta livet av mig",
@@ -65,23 +122,9 @@
       ]
     },
     {
-      "id": "SAF-L3-EN",
-      "level": 3,
-      "category": "Itsetuhoiset ajatukset (englanti)",
-      "patterns": [
-        "\\bkill myself",
-        "\\bsuicid",
-        "\\bend my life",
-        "\\bwant to die",
-        "\\bhurt myself",
-        "\\bself.?harm",
-        "\\bnot safe\\b"
-      ]
-    },
-    {
       "id": "SAF-L2-HOPELESS-FI",
       "level": 2,
-      "category": "Toivottomuus tai voimien loppuminen",
+      "category": "Hopelessness or running out of strength",
       "patterns": [
         "\\btoivot(on|toma|onta|tomuus|tomalta)",
         "\\ben jaksa enaa",
@@ -94,20 +137,40 @@
       ]
     },
     {
-      "id": "SAF-L2-SV-EN",
+      "id": "SAF-L2-HOPELESS-EN",
       "level": 2,
-      "category": "Toivottomuus (ruotsi / englanti)",
+      "category": "Hopelessness or running out of strength",
       "patterns": [
-        "\\borkar inte mer",
         "\\bhopeless",
         "\\bcan'?t go on",
-        "\\bcannot go on"
+        "\\bcannot go on",
+        "\\b(can t|can not) go on",
+        "\\b(can'?t|can t|cannot|can not) (cope|take|bear|stand|handle|do|manage|keep going|carry on)\\b( \\w+){0,3} (anymore|any more|any longer)\\b",
+        "\\b(don'?t|don t|do not) want to (go on|carry on|keep going)( \\w+){0,3} (anymore|any more|any longer)\\b",
+        "\\b(falling apart|fell apart|breaking point|nervous breakdown)\\b",
+        "\\bi( \\w+)? (broke|break|breaking) down\\b",
+        "\\b(no|isn'?t any|isn t any) (point|sense|meaning) (in |to )?(anything|everything|trying|any of (this|it)|life)\\b",
+        "\\bnothing (matters|makes sense)\\b",
+        "\\b(life|everything) (is|feels|seems) (pointless|meaningless)",
+        "\\bsee no future",
+        "\\b(don'?t|don t|do not|can'?t|can t|cannot) see (a|any) future",
+        "\\bno future for me",
+        "\\b(nobody|no one|no-one|noone) (cares|would care|would even care|would notice|would miss me|loves me)",
+        "\\b(give|giving|given|gave) up on (everything|life|myself)"
+      ]
+    },
+    {
+      "id": "SAF-L2-SV",
+      "level": 2,
+      "category": "Hopelessness (Swedish)",
+      "patterns": [
+        "\\borkar inte mer"
       ]
     },
     {
       "id": "SAF-L1-DISTRESS-FI",
       "level": 1,
-      "category": "Kuormitus",
+      "category": "Strain",
       "patterns": [
         "\\b(tosi|todella|erittain|hirvean) (huono|paha|raskas)",
         "\\bahdistaa (tosi|todella|hirveasti|paljon)",
@@ -115,6 +178,21 @@
         "\\ben ole nukkunut",
         "\\byksinainen",
         "\\bpaniikki"
+      ]
+    },
+    {
+      "id": "SAF-L1-DISTRESS-EN",
+      "level": 1,
+      "category": "Strain",
+      "patterns": [
+        "\\b(really|very|so|extremely|terribly|awfully) (bad|awful|terrible|horrible|heavy|rough)\\b",
+        "\\bfeel(ing)? (awful|terrible|horrible|dreadful)\\b",
+        "\\b(really|very|so|extremely|terribly|awfully) anxious\\b",
+        "\\banxiety is (really |very |so )?(bad|awful|terrible|unbearable)",
+        "\\b(can'?t|can t|cannot|can not|couldn'?t|couldn t|could not) (get to |fall )?sleep\\b",
+        "\\b(haven'?t|haven t|have not|hardly|barely) (been )?(slept|sleeping)\\b",
+        "\\b(i'?m|i m|i am|feel|feeling|felt|so|very|really|terribly|extremely) lonely\\b",
+        "\\bpanic"
       ]
     }
   ],

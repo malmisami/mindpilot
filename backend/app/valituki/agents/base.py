@@ -7,8 +7,8 @@ from app.valituki import adapters, records
 from app.valituki.models import ClientProfile, ProfessionalReviewTask, ValitukiState
 from app.valituki.store import next_id, now
 
-CONTACT_HANDLING = ('Demo: hoitotiimi ottaa yhteyttä kahden arkipäivän kuluessa. Mieliluotsia ei seurata jatkuvasti – jos tarvitset '
-                    'apua heti, soita 112 tai Päivystysapuun 116117.')
+CONTACT_HANDLING = ('Demo: the care team makes contact within two working days. Mieliluotsi is not monitored around the clock – '
+                    'if you need help right away, call 112 or the Medical Helpline 116117.')
 
 
 def create_task(state: ValitukiState, client: ClientProfile, *, agent: str, type: str, priority: str, title: str, reason: str,

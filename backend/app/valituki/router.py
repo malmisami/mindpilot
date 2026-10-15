@@ -39,7 +39,7 @@ def _run(action: Callable[[ValitukiState], Any], client_id: Optional[str], thera
             result = action(state)
             data = view.build(state, client_id, therapist_id)
     except ValidationError as exc:
-        raise HTTPException(status_code=400, detail='Virheellinen syöte: ' + '; '.join(
+        raise HTTPException(status_code=400, detail='Invalid input: ' + '; '.join(
             f'{".".join(str(p) for p in err["loc"])}: {err["msg"]}' for err in exc.errors()[:3])) from exc
     except tuple(ERRORS) as exc:
         raise HTTPException(status_code=ERRORS[type(exc)], detail=str(exc)) from exc

@@ -1,6 +1,6 @@
 {
   "version": "demo-2",
-  "note": "Agenttien deterministiset säännöt ja kynnysarvot. Demo-policy, joka vaatii kliinisen validoinnin ennen todellista käyttöä.",
+  "note": "The agents' deterministic rules and thresholds. A demo policy that requires clinical validation before real use.",
   "clock": {"dailyTickTime": "09:00", "defaultAnswerTime": "20:00"},
   "checkins": {
     "defaultDays": [0, 2, 5],

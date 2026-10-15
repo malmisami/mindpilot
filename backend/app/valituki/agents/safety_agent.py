@@ -31,9 +31,9 @@ def raise_safety(state: ValitukiState, client: ClientProfile, result: SafetyResu
         existing.updatedAt = stamp
         observation, is_new = existing, False
     else:
-        required = {3: 'Tarkista tilanne heti sovitun prosessin mukaisesti ja kirjaa tehdyt toimet.',
-                    2: 'Tarkista havainto ja päätä yhteydenotosta.',
-                    1: 'Ei vaadi toimenpiteitä; lisä-check-in on suunniteltu.'}[level]
+        required = {3: 'Review the situation right away following the agreed process and record the actions taken.',
+                    2: 'Review the observation and decide whether to contact the client.',
+                    1: 'No action needed; an additional check-in has been planned.'}[level]
         observation = SafetyObservation(
             id=next_id(state, 'saf'), clientId=client.id, level=level, deterministicLevel=result.deterministic_level,
             aiHint=result.ai_hint, aiLevel=result.ai_level, triggers=result.triggers, context=context, requiredHumanAction=required,
@@ -68,8 +68,8 @@ def on_safety_signal(state: ValitukiState, event: AgentEvent, provider) -> None:
     if level >= 2 and is_new:
         task = base.create_task(
             state, client, agent=AGENT, type='safety_review', priority='urgent' if level == 3 else 'high',
-            title='Turvallisuushavainto odottaa tarkistusta' if level == 2 else 'DEMO-HÄLYTYS: välittömät turvallisuusohjeet näytetty',
-            reason=f'{LEVEL_LABELS[level]}. Laukaisijat: {", ".join(sorted({t.category for t in observation.triggers}))}.',
+            title='Safety observation awaiting review' if level == 2 else 'DEMO ALERT: immediate safety information shown',
+            reason=f'{LEVEL_LABELS[level]}. Triggers: {", ".join(sorted({t.category for t in observation.triggers}))}.',
             suggested=observation.requiredHumanAction, observation_id=observation.id,
             data={'level': level, 'rules': rules, 'context': event.payload.get('context')},
             handling_note=base.CONTACT_HANDLING if level == 2 else '')
@@ -78,23 +78,25 @@ def on_safety_signal(state: ValitukiState, event: AgentEvent, provider) -> None:
         client.safetyLock = SafetyLock(observationId=observation.id, activatedAt=event.occurredAt)
         client.todayActivity = None
         records.notify(state, audience='coordinator', client_id=client.id, kind='safety', event=event, agent=AGENT,
-                       title=f'DEMO-HÄLYTYS: {client.displayName} – välittömät turvallisuusohjeet näytetty',
-                       body='Asiakkaalle näytettiin 112-, 116117- ja MIELI Kriisipuhelin -ohjeet. Mieliluotsi ei ole ottanut yhteyttä '
-                            'hätäpalveluihin. Tarkista tilanne sovitun prosessin mukaisesti.')
+                       title=f'DEMO ALERT: {client.displayName} – immediate safety information shown',
+                       body='The client was shown the 112, Medical Helpline 116117 and MIELI Crisis Helpline information. Mieliluotsi '
+                            'has not contacted the emergency services. Review the situation following the agreed process.')
         records.act(state, agent=AGENT, type='safety_interrupt', event=event, rule_id=rules,
-                    title='Keskeytti tavallisen tuen ja näytti turvallisuusohjeet',
-                    detail='Näytettiin: välitön hätätilanne 112, Päivystysapu 116117 ja MIELI Kriisipuhelin 09 2525 0111. '
-                           'Ammattilaisen työjonoon syntyi synteettinen hälytys. Mieliluotsi ei ole ottanut yhteyttä hätäpalveluihin.')
+                    title='Paused normal support and showed the safety information',
+                    detail='Shown: immediate emergency 112, Medical Helpline 116117 and MIELI Crisis Helpline 09 2525 0111. A '
+                           'synthetic alert was created in the professional\'s work queue. Mieliluotsi has not contacted the '
+                           'emergency services.')
     elif level == 2 and is_new:
         records.notify(state, audience='coordinator', client_id=client.id, kind='review', event=event, agent=AGENT,
-                       title=f'Tarkistus pyydetty: {client.displayName}', body=f'Turvallisuushavainto (taso 2). Säännöt: {rules}.')
+                       title=f'Review requested: {client.displayName}', body=f'Safety observation (level 2). Rules: {rules}.')
         records.notify(state, audience='client', client_id=client.id, kind='review', event=event, agent=AGENT, action_view='today',
-                       title='Pyysin ammattilaista katsomaan tilannettasi', body=LEVEL2_CLIENT_TEXT)
+                       title='I asked a professional to look at your situation', body=LEVEL2_CLIENT_TEXT)
         records.act(state, agent=AGENT, type='request_human_review', event=event, rule_id=rules,
-                    title='Pyysi ammattilaista tarkistamaan tilanteen',
-                    detail='Tämä havainto odottaa ammattilaisen tarkistusta. Mieliluotsi ei ole muuttanut hoitosi kiireellisyyttä.')
+                    title='Asked a professional to review the situation',
+                    detail='This observation is waiting for a professional review. Mieliluotsi has not changed the urgency of '
+                           'your care.')
     elif level == 1:
         from app.valituki.agents import checkin
 
         checkin.schedule_extra(state, client, event, rules or 'SAF-L1',
-                               'Vastauksessa oli merkkejä kuormituksesta, joten kuulumisia kysytään uudelleen jo huomenna.')
+                               'The answer showed signs of strain, so the client is asked how they are again tomorrow.')

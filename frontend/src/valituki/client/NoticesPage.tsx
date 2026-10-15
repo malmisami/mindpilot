@@ -3,7 +3,7 @@ import { BellIcon, ChatIcon } from '../icons';
 import { AgentBadge } from '../components/ui';
 import { useClientUI } from './ClientApp';
 
-/** "Viestit Mieliluotsilta": notifications (reminders, service steps) and the client's own requests to the care team. */
+/** "Messages from Mieliluotsi": notifications (reminders, service steps) and the client's own requests to the care team. */
 export default function NoticesPage() {
   const { client, openSheet } = useClientUI();
   return (
@@ -22,12 +22,12 @@ export default function NoticesPage() {
       </ul>
       {client.requests.length > 0 && (
         <section className="cx-section">
-          <h2 className="cx-h2">Pyyntösi hoitotiimille</h2>
+          <h2 className="cx-h2">Your requests to the care team</h2>
           <ul className="request-list">
             {client.requests.map((r) => (
               <li key={r.id}>
                 <strong>{r.title}</strong>
-                <span className="muted small">{fmtDateTime(r.createdAt)} · {r.status === 'open' ? 'Odottaa yhteydenottoa' : r.status === 'contact_requested' ? 'Yhteydenotto sovittu' : 'Käsitelty'}</span>
+                <span className="muted small">{fmtDateTime(r.createdAt)} · {r.status === 'open' ? 'Waiting to be contacted' : r.status === 'contact_requested' ? 'Contact arranged' : 'Handled'}</span>
                 {r.outcome && <span className="small">{r.outcome}</span>}
               </li>
             ))}
@@ -35,7 +35,7 @@ export default function NoticesPage() {
         </section>
       )}
       <button type="button" className="cx-btn cx-btn-ghost cx-btn-block" onClick={() => openSheet({ type: 'contact' })}>
-        <ChatIcon size={18} /> Haluan keskustella ammattilaisen kanssa
+        <ChatIcon size={18} /> I want to talk to a professional
       </button>
     </div>
   );

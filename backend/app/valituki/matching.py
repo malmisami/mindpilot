@@ -16,6 +16,7 @@ from typing import Any, Optional
 from app.valituki import content
 from app.valituki.labels import (
     ACCESSIBILITY,
+    AGE_GROUPS,
     AGE_RANGES,
     CLIENT_FLAGS,
     LANGUAGES,
@@ -23,44 +24,46 @@ from app.valituki.labels import (
     SERVICE_CATEGORIES,
     fmt_slot,
     join_fi,
+    plural,
     topic,
 )
 from app.valituki.models import FilterOutcome, MatchComponent, Therapist, TherapistAvailability
 from app.valituki.store import days_between, weekday
 
 FILTER_LABELS = {
-    'active': 'Aktiivinen terapeutti',
-    'service': 'Palvelun kelpoisuus',
-    'role': 'Ammattiryhmä',
-    'age': 'Ikäryhmä',
-    'competence': 'Lähetteen edellyttämä osaaminen',
-    'language': 'Kieli',
-    'location': 'Etävastaanotto tai sijainti',
-    'exclusion': 'Poissulkuehdot',
-    'capacity': 'Vapaa asiakaspaikka',
-    'availability': 'Vapaa aika lähiviikkoina',
+    'active': 'Active therapist',
+    'service': 'Service eligibility',
+    'role': 'Professional group',
+    'age': 'Age group',
+    'competence': 'Competence the referral requires',
+    'language': 'Language',
+    'location': 'Remote session or location',
+    'exclusion': 'Exclusion criteria',
+    'capacity': 'Free client place',
+    'availability': 'Free time in the coming weeks',
 }
 
 COMPONENT_LABELS = {
-    'goalCompetence': 'Tavoitteet ja osaaminen',
-    'workingStyle': 'Työskentelytapa',
-    'userPreferences': 'Omat toiveet',
-    'languageAccessibility': 'Kieli ja saavutettavuus',
-    'availabilityContinuity': 'Saatavuus ja jatkuvuus',
-    'logistics': 'Logistiikka',
+    'goalCompetence': 'Goals and competence',
+    'workingStyle': 'Way of working',
+    'userPreferences': 'Own wishes',
+    'languageAccessibility': 'Language and accessibility',
+    'availabilityContinuity': 'Availability and continuity',
+    'logistics': 'Logistics',
 }
 
+# The topic as the object of "Works with …" (the names were Finnish case forms; English needs only the plain noun).
 TOPIC_GENITIVE = {
-    'anxiety': 'ahdistuksen', 'work_stress': 'työperäisen stressin', 'sleep': 'unen', 'burnout': 'uupumuksen',
-    'stress': 'stressin', 'mood': 'mielialan', 'relationships': 'ihmissuhteiden', 'life_transitions': 'elämänmuutosten',
-    'loneliness': 'yksinäisyyden', 'grief': 'surun', 'trauma': 'vaikeiden kokemusten', 'self_esteem': 'itsetunnon',
-    'panic': 'paniikkioireiden', 'young_people': 'nuorten',
+    'anxiety': 'anxiety', 'work_stress': 'work-related stress', 'sleep': 'sleep', 'burnout': 'burnout',
+    'stress': 'stress', 'mood': 'mood', 'relationships': 'relationships', 'life_transitions': 'life changes',
+    'loneliness': 'loneliness', 'grief': 'grief', 'trauma': 'difficult experiences', 'self_esteem': 'self-esteem',
+    'panic': 'panic symptoms', 'young_people': 'young people',
 }
-TIME_ILLATIVE = {'morning': 'aamupäiväaikoihin', 'daytime': 'iltapäiväaikoihin', 'evening': 'ilta-aikoihin'}
-TIME_PLURAL = {'morning': 'aamupäiväaikoja', 'daytime': 'iltapäiväaikoja', 'evening': 'ilta-aikoja'}
-TIME_ADVERB = {'morning': 'aamupäivisin', 'daytime': 'iltapäivisin', 'evening': 'iltaisin'}
-WEEKDAY_ESSIVE = ['maanantaina', 'tiistaina', 'keskiviikkona', 'torstaina', 'perjantaina', 'lauantaina', 'sunnuntaina']
-WEEKDAY_PARTITIVE = ['maanantaita', 'tiistaita', 'keskiviikkoa', 'torstaita', 'perjantaita', 'lauantaita', 'sunnuntaita']
+TIME_ILLATIVE = {'morning': 'mornings', 'daytime': 'afternoons', 'evening': 'evenings'}
+TIME_PLURAL = TIME_ILLATIVE
+TIME_ADVERB = {'morning': 'in the morning', 'daytime': 'in the afternoon', 'evening': 'in the evening'}
+WEEKDAY_ESSIVE = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+WEEKDAY_PARTITIVE = ['Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays', 'Sundays']
 STYLE_TARGETS = {
     'structure': ('structuredLevel', {'structured': 5, 'balanced': 3, 'exploratory': 1}),
     'exercises': ('exerciseLevel', {'concrete': 5, 'both': 3, 'conversation': 1}),
@@ -165,40 +168,42 @@ def hard_filters(client: ClientMatchInput, therapist: Therapist, slots: list[The
         outcomes.append(FilterOutcome(key=key, label=FILTER_LABELS[key], passed=passed, reason=reason))
 
     add('active', therapist.active,
-        'Aktiivinen' if therapist.active else f'Ei vastaanota uusia asiakkaita ({therapist.inactiveReason or "ei aktiivinen"})')
+        'Active' if therapist.active else f'Not taking new clients ({therapist.inactiveReason or "not active"})')
     service_ok = client.service_category in therapist.serviceCategories
     add('service', service_ok, f'{SERVICE_CATEGORIES.get(client.service_category, client.service_category)} '
-        + ('kuuluu palveluihin' if service_ok else 'ei kuulu terapeutin palveluihin'))
+        + ("is among the therapist's services" if service_ok else "is not among the therapist's services"))
     roles = config['roleEligibility'].get(client.service_category, [])
     role_ok = therapist.roleCategory in roles
     add('role', role_ok, f'{ROLE_CATEGORIES[therapist.roleCategory].capitalize()} '
-        + ('– sopii lähetteen palveluun' if role_ok else '– ei sovi lähetteen palveluun'))
+        + ("– suits the referral's service" if role_ok else "– does not suit the referral's service"))
     age_ok = any(AGE_RANGES[g][0] <= client.age <= AGE_RANGES[g][1] for g in therapist.ageGroups if g in AGE_RANGES)
-    add('age', age_ok, 'Ikäryhmä sopii' if age_ok else f'Vastaanottaa vain ikäryhmää {", ".join(therapist.ageGroups)}')
+    add('age', age_ok, 'Age group fits' if age_ok
+        else f'Only sees clients aged {join_fi([AGE_GROUPS.get(g, g) for g in therapist.ageGroups], "or")}')
     missing = [c for c in client.required_competencies if c not in therapist.specialties]
-    add('competence', not missing, 'Lähetteen edellyttämä osaaminen löytyy' if not missing
-        else f'Puuttuu: {join_fi([topic(c) for c in missing])}')
+    add('competence', not missing, 'Has the competence the referral requires' if not missing
+        else f'Missing: {join_fi([topic(c) for c in missing])}')
     shared = [lang for lang in client.languages if lang in therapist.languages]
-    add('language', bool(shared), f'Yhteinen kieli: {join_fi([LANGUAGES[x] for x in shared])}' if shared else
-        f'Ei yhteistä kieltä (terapeutti: {join_fi([LANGUAGES[x] for x in therapist.languages])})')
+    add('language', bool(shared), f'Shared language: {join_fi([LANGUAGES[x] for x in shared])}' if shared else
+        f'No shared language (therapist: {join_fi([LANGUAGES[x] for x in therapist.languages])})')
     wanted = _wanted_formats(client)
     remote_ok = 'remote' in wanted and therapist.remote
     local_ok = 'in_person' in wanted and therapist.inPerson and _in_area(client, therapist)
     if remote_ok or local_ok:
-        where = 'Etävastaanotto mahdollinen' if remote_ok else f'Lähivastaanotto: {", ".join(therapist.locations)}'
+        where = 'Remote session possible' if remote_ok else f'In-person session: {", ".join(therapist.locations)}'
     else:
-        where = 'Vain lähivastaanotto: ' + ', '.join(therapist.locations) if not therapist.remote else 'Vain etävastaanotto'
+        where = 'In-person sessions only: ' + ', '.join(therapist.locations) if not therapist.remote else 'Remote sessions only'
     add('location', remote_ok or local_ok, where)
     blocked = sorted(set(therapist.exclusionCriteria) & set(client.flags))
     personal = therapist.id in client.personal_exclusions
-    add('exclusion', not blocked and not personal, 'Ei poissulkuehtoja' if not blocked and not personal else
-        ('Asiakas pyysi rajaamaan pois' if personal else f'Poissulkuehto: {join_fi([CLIENT_FLAGS.get(b, b) for b in blocked])}'))
+    add('exclusion', not blocked and not personal, 'No exclusion criteria' if not blocked and not personal else
+        ('The client asked to exclude this therapist' if personal
+         else f'Exclusion criterion: {join_fi([CLIENT_FLAGS.get(b, b) for b in blocked])}'))
     capacity_ok = therapist.currentCapacity < therapist.maxCapacity
-    add('capacity', capacity_ok, f'{therapist.maxCapacity - therapist.currentCapacity} vapaata paikkaa' if capacity_ok
-        else f'Ei vapaita asiakaspaikkoja ({therapist.currentCapacity}/{therapist.maxCapacity})')
+    add('capacity', capacity_ok, plural(therapist.maxCapacity - therapist.currentCapacity, 'free place') if capacity_ok
+        else f'No free client places ({therapist.currentCapacity}/{therapist.maxCapacity})')
     compatible = compatible_slots(client, therapist, slots, today, int(config['slotHorizonDays'])) if capacity_ok else []
-    add('availability', bool(compatible), f'Ensimmäinen sopiva aika {fmt_slot(compatible[0].start)}' if compatible
-        else 'Ei vapaita sopivia aikoja lähiviikkoina')
+    add('availability', bool(compatible), f'First suitable time: {fmt_slot(compatible[0].start)}' if compatible
+        else 'No suitable free times in the coming weeks')
     return outcomes
 
 
@@ -226,15 +231,15 @@ def _components(client: ClientMatchInput, therapist: Therapist, slot: TherapistA
         primary_hits = [t for t in client.primary_topics if t in therapist.specialties]
         secondary_hits = [t for t in client.secondary_topics if t in therapist.specialties and t not in client.primary_topics]
         if primary_hits:
-            reasons.append(f'Työskentelee {join_fi([TOPIC_GENITIVE.get(t, topic(t)) for t in primary_hits])} kanssa')
+            reasons.append(f'Works with {join_fi([TOPIC_GENITIVE.get(t, topic(t)) for t in primary_hits])}')
         if secondary_hits:
-            reasons.append(f'Työskentelee myös {join_fi([TOPIC_GENITIVE.get(t, topic(t)) for t in secondary_hits])} kanssa')
+            reasons.append(f'Also works with {join_fi([TOPIC_GENITIVE.get(t, topic(t)) for t in secondary_hits])}')
         misses = [t for t, _ in topics if t not in therapist.specialties]
         if misses:
-            unmet.append(f'Ei kirjattua erityisosaamista: {join_fi([topic(t) for t in misses])}')
-        add('goalCompetence', score, f'{len(hits)}/{len(topics)} tavoitteidesi aihealueesta osaamisalueina')
+            unmet.append(f'No recorded special competence in {join_fi([topic(t) for t in misses])}')
+        add('goalCompetence', score, f'{len(hits)}/{len(topics)} of your goal areas are among their areas of competence')
     else:
-        add('goalCompetence', 0.5, 'Tavoitteita ei käytetty matchingissa')
+        add('goalCompetence', 0.5, 'Goals were not used in matching')
 
     # Working style
     style_scores = []
@@ -246,34 +251,35 @@ def _components(client: ClientMatchInput, therapist: Therapist, slot: TherapistA
         diff = abs(targets[wish] - level)
         style_scores.append(1 - diff / 4)
         if dimension == 'structure' and wish == 'structured' and level >= 4:
-            reasons.append('Käyttää strukturoitua työskentelytapaa')
+            reasons.append('Uses a structured way of working')
         elif dimension == 'structure' and wish == 'exploratory' and level <= 2:
-            reasons.append('Tutkiva ja keskusteleva työote')
+            reasons.append('An exploratory, conversational approach')
         elif dimension == 'exercises' and wish == 'concrete' and level >= 4:
-            reasons.append('Tarjoaa konkreettisia harjoitteita')
+            reasons.append('Offers concrete exercises')
         elif dimension == 'exercises' and wish == 'conversation' and level <= 2:
-            reasons.append('Painottaa keskustelua harjoitusten sijaan')
+            reasons.append('Focuses on conversation rather than exercises')
         elif dimension == 'approach' and wish == 'directive' and level >= 4:
-            reasons.append('Haastaa tarvittaessa aktiivisesti')
+            reasons.append('Challenges actively when needed')
         elif dimension == 'approach' and wish == 'reflective' and level <= 2:
-            reasons.append('Rauhallinen, pohdintaa tukeva ote')
+            reasons.append('A calm approach that supports reflection')
         elif dimension == 'homework' and wish == 'yes' and level >= 4:
-            reasons.append('Käyttää välitehtäviä')
+            reasons.append('Uses between-session tasks')
         if diff >= 2:
             unmet.append({
-                'structure': 'Työskentelytapa on joustavampi kuin toivomasi selkeä eteneminen' if wish == 'structured'
-                else 'Työskentelytapa on jäsennellympi kuin toivoit',
-                'exercises': 'Vähemmän konkreettisia harjoitteita kuin toivoit' if wish == 'concrete'
-                else 'Enemmän harjoituksia kuin toivoit',
-                'approach': 'Haastaa vähemmän kuin toivoit' if wish == 'directive' else 'Haastaa enemmän kuin toivoit',
-                'homework': 'Välitehtäviä vähemmän kuin toivoit' if wish == 'yes' else 'Välitehtäviä enemmän kuin toivoit',
+                'structure': 'The way of working is more flexible than the clear progression you hoped for' if wish == 'structured'
+                else 'The way of working is more structured than you hoped for',
+                'exercises': 'Fewer concrete exercises than you hoped for' if wish == 'concrete'
+                else 'More exercises than you hoped for',
+                'approach': 'Challenges less than you hoped for' if wish == 'directive' else 'Challenges more than you hoped for',
+                'homework': 'Fewer between-session tasks than you hoped for' if wish == 'yes'
+                else 'More between-session tasks than you hoped for',
             }[dimension])
     if style_scores:
         style_score = sum(style_scores) / len(style_scores)
-        add('workingStyle', style_score, f'{therapist.workingStyle} – vastaa toiveitasi '
-            f'{"hyvin" if style_score >= 0.8 else "osittain" if style_score >= 0.5 else "heikosti"}')
+        add('workingStyle', style_score, f'{therapist.workingStyle} – matches your wishes '
+            f'{"well" if style_score >= 0.8 else "partly" if style_score >= 0.5 else "poorly"}')
     else:
-        add('workingStyle', float(config['neutralStyleScore']), 'Työskentelytapatoiveita ei käytetty matchingissa')
+        add('workingStyle', float(config['neutralStyleScore']), 'Wishes about the way of working were not used in matching')
 
     # The client's own preferences: time of day and weekday (time of day weighs more – configurable)
     pref_weights = config.get('preferenceWeights', {'time': 0.5, 'day': 0.5})
@@ -283,55 +289,56 @@ def _components(client: ClientMatchInput, therapist: Therapist, slot: TherapistA
     if client.times:
         ok = bucket in client.times
         parts.append((float(pref_weights['time']), 1.0 if ok else 0.0))
-        notes.append('aika sopii' if ok else 'aika ei sovi')
+        notes.append('time fits' if ok else 'time does not fit')
         if ok:
-            reasons.append(f'Aika sopii toivomiisi {join_fi([TIME_ILLATIVE[t] for t in client.times], "tai")}')
+            reasons.append(f'The time fits your wish for {join_fi([TIME_ILLATIVE[t] for t in client.times], "or")}')
         else:
-            unmet.append(f'Vapaat ajat ovat {TIME_ADVERB[bucket]} – toivoit {join_fi([TIME_PLURAL[t] for t in client.times], "tai")}')
+            unmet.append(f'The free times are {TIME_ADVERB[bucket]} – you wished for '
+                         f'{join_fi([TIME_PLURAL[t] for t in client.times], "or")}')
     if client.days:
         ok = day in client.days
         parts.append((float(pref_weights['day']), 1.0 if ok else 0.0))
-        notes.append('päivä sopii' if ok else 'päivä ei sovi')
+        notes.append('day fits' if ok else 'day does not fit')
         if not ok:
-            unmet.append(f'Ensimmäinen vapaa aika on {WEEKDAY_ESSIVE[day]} – toivoit '
-                         f'{join_fi([WEEKDAY_PARTITIVE[d] for d in client.days], "tai")}')
+            unmet.append(f'The first free time is on a {WEEKDAY_ESSIVE[day]} – you wished for '
+                         f'{join_fi([WEEKDAY_PARTITIVE[d] for d in client.days], "or")}')
     preference = sum(w * s for w, s in parts) / sum(w for w, _ in parts) if parts else 1.0
-    add('userPreferences', preference, '; '.join(notes).capitalize() or 'Ei aikatoiveita')
+    add('userPreferences', preference, '; '.join(notes).capitalize() or 'No time wishes')
 
     # Language and accessibility
     primary = client.languages[0] if client.languages else 'fi'
     lang_score = 0.6 if primary in therapist.languages else 0.3
     if primary in therapist.languages and primary == 'fi':
-        reasons.append('Vastaanotto suomeksi')
+        reasons.append('Sessions in Finnish')
     elif primary in therapist.languages:
-        reasons.append(f'Vastaanotto kielellä {LANGUAGES[primary]}')
+        reasons.append(f'Sessions in {LANGUAGES[primary]}')
     else:
-        unmet.append(f'Ensisijainen kielesi ({LANGUAGES[primary]}) ei ole käytössä')
+        unmet.append(f'Your primary language ({LANGUAGES[primary]}) is not available')
     needs = client.accessibility_needs
     covered = [n for n in needs if n in therapist.accessibility]
     lang_score += 0.4 * (len(covered) / len(needs) if needs else 1.0)
     for need in needs:
         if need not in covered:
-            unmet.append(f'Saavutettavuustarve ei toteudu: {ACCESSIBILITY.get(need, need)}')
-    add('languageAccessibility', lang_score, f'{LANGUAGES[primary].capitalize()}: {"kyllä" if primary in therapist.languages else "ei"}'
-        + (f'; saavutettavuus {len(covered)}/{len(needs)}' if needs else ''))
+            unmet.append(f'Accessibility need not met: {ACCESSIBILITY.get(need, need)}')
+    add('languageAccessibility', lang_score, f'{LANGUAGES[primary]}: {"yes" if primary in therapist.languages else "no"}'
+        + (f'; accessibility {len(covered)}/{len(needs)}' if needs else ''))
 
     # Availability and continuity
     days = days_between(today, slot.start)
     availability = next(item['score'] for item in config['availabilityScores'] if days <= item['maxDays'])
     add('availabilityContinuity', 0.7 * availability + 0.3 * (1.0 if therapist.weeklyContinuity else 0.0),
-        f'Ensimmäinen sopiva aika {days} päivän päästä; '
-        + ('viikoittainen jatkuvuus' if therapist.weeklyContinuity else 'tapaamiset harvemmin kuin viikoittain'))
+        f'First suitable time in {plural(days, "day")}; '
+        + ('weekly continuity' if therapist.weeklyContinuity else 'sessions less often than weekly'))
     if not therapist.weeklyContinuity:
-        unmet.append('Tapaamiset harvemmin kuin kerran viikossa')
+        unmet.append('Sessions less often than once a week')
 
     # Logistics
     if 'remote' in slot.formats and 'remote' in _wanted_formats(client) and therapist.remote:
-        logistics, text = 1.0, 'Etävastaanotto'
-        reasons.append('Etävastaanotto')
+        logistics, text = 1.0, 'Remote session'
+        reasons.append('Remote session')
     else:
-        logistics, text = (1.0 if _in_area(client, therapist) else 0.6), f'Lähivastaanotto: {", ".join(therapist.locations)}'
-        reasons.append(f'Lähivastaanotto: {", ".join(therapist.locations)}')
+        logistics, text = (1.0 if _in_area(client, therapist) else 0.6), f'In-person session: {", ".join(therapist.locations)}'
+        reasons.append(f'In-person session: {", ".join(therapist.locations)}')
     add('logistics', logistics, text)
     return components, reasons, unmet
 
@@ -344,12 +351,12 @@ def label_for(total: float, config: dict[str, Any]) -> tuple[str, str]:
     return last['key'], last['text']
 
 
-REASON_ORDER = ['Työskentelee myös', 'Työskentelee ', 'Käyttää strukturoitua', 'Tutkiva', 'Tarjoaa konkreettisia',
-                'Painottaa keskustelua', 'Etävastaanotto', 'Lähivastaanotto', 'Aika sopii', 'Haastaa', 'Rauhallinen',
-                'Käyttää välitehtäviä', 'Vastaanotto']
-REASON_RANK = {'Työskentelee myös': 9, 'Työskentelee ': 0, 'Käyttää strukturoitua': 1, 'Tutkiva': 1, 'Tarjoaa konkreettisia': 2,
-               'Painottaa keskustelua': 2, 'Etävastaanotto': 3, 'Lähivastaanotto': 3, 'Aika sopii': 4, 'Haastaa': 10,
-               'Rauhallinen': 10, 'Käyttää välitehtäviä': 11, 'Vastaanotto': 12}
+REASON_ORDER = ['Also works with', 'Works with ', 'Uses a structured', 'An exploratory', 'Offers concrete',
+                'Focuses on conversation', 'Remote session', 'In-person session', 'The time fits', 'Challenges', 'A calm',
+                'Uses between-session', 'Sessions in']
+REASON_RANK = {'Also works with': 9, 'Works with ': 0, 'Uses a structured': 1, 'An exploratory': 1, 'Offers concrete': 2,
+               'Focuses on conversation': 2, 'Remote session': 3, 'In-person session': 3, 'The time fits': 4, 'Challenges': 10,
+               'A calm': 10, 'Uses between-session': 11, 'Sessions in': 12}
 
 
 def _order_reasons(reasons: list[str]) -> list[str]:
@@ -379,7 +386,8 @@ def evaluate(client: ClientMatchInput, therapists: list[Therapist], slots: list[
         key, text = label_for(total, config)
         first_name = therapist.name.split()[0]
         ordered = _order_reasons(reasons)
-        why = (f'{first_name} täyttää kaikki ehdot. ' + '. '.join(ordered[:3]) + '.' if ordered else f'{first_name} täyttää kaikki ehdot.')
+        why = (f'{first_name} meets all the criteria. ' + '. '.join(ordered[:3]) + '.' if ordered
+               else f'{first_name} meets all the criteria.')
         ranked.append(Scored(therapist, total, key, text, components, ordered, unmet, slot, why))
     ranked.sort(key=lambda s: (-s.total, s.slot.start, s.therapist.id))
     return Evaluation(ranked=ranked, excluded=excluded, config_version=config['version'])

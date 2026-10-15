@@ -3,16 +3,17 @@ import type { FormEvent } from 'react';
 import { api } from '../api';
 import type { ViewScope } from '../api';
 import { useValituki } from '../context';
+import { daysBetween } from '../format';
 import { LogoMark } from '../components/Logo';
 import { MicIcon, MicOffIcon, PhoneIcon, SendIcon, SpeakerIcon, SpeakerOffIcon } from '../icons';
 import type { ChatMessage, ClientView, GuidedView, Mutation, ValitukiView } from '../types';
 import { useClientUI } from './ClientApp';
 
-/* VOINTIPUHELU – when the client chose calls (contactChannel 'phone'), Mieliluotsi calls on the check-in days: it asks how
-   they are and does a short thought exercise by speech. The call runs the same guided tools as the chat (check-in,
-   "Ajatusten tutkiminen") through the same API, so the answers, the safety rules and the AI reflections are the same – only
-   the medium is the voice. The browser speaks (speechSynthesis, a Finnish voice) and listens (SpeechRecognition, fi-FI)
-   where it can; the answer buttons and the text field work everywhere. */
+/* WELLBEING CALL – when the client chose calls (contactChannel 'phone'), Mieliluotsi calls on the check-in days: it asks
+   how they are and does a short thought exercise by speech. The call runs the same guided tools as the chat (check-in,
+   "Exploring a thought") through the same API, so the answers, the safety rules and the AI reflections are the same – only
+   the medium is the voice. The browser speaks (speechSynthesis, the most natural English voice it has) and listens
+   (SpeechRecognition, en-GB) where it can; the answer buttons and the text field work everywhere. */
 
 type Phase = 'ringing' | 'live' | 'ended';
 type Line = { id: number; who: 'luotsi' | 'me'; text: string };
@@ -28,30 +29,66 @@ const CALL_SKIPS: Record<string, string[]> = {
   checkin: ['changes', 'note'],
   thought_record: ['emotions', 'behaviour', 'traps', 'evidenceFor'],
 };
-const MOOD_LABELS = ['Tosi huonosti', 'Huonosti', 'Kohtalaisesti', 'Hyvin', 'Tosi hyvin'];
-const ANXIETY_LABELS = ['Ei lainkaan', 'Vähän', 'Jonkin verran', 'Paljon', 'Todella paljon'];
+// The scale words come from the backend (view.meta.labels.moodScale / anxietyScale); these are only the fallback.
+const MOOD_LABELS = ['Very bad', 'Bad', 'Okay', 'Good', 'Very good'];
+const ANXIETY_LABELS = ['Not at all', 'A little', 'Somewhat', 'A lot', 'Very much'];
+// Spoken numbers in English and in Finnish (the client may answer in either).
 const NUMBER_WORDS: Record<string, number> = {
+  zero: 0, nought: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
   nolla: 0, yksi: 1, yks: 1, ykkönen: 1, kaksi: 2, kaks: 2, kakkonen: 2, kolme: 3, kolmonen: 3, neljä: 4, nelonen: 4, viisi: 5,
   viis: 5, vitonen: 5, kuusi: 6, kuus: 6, seitsemän: 7, seittemän: 7, kahdeksan: 8, kaheksan: 8, yhdeksän: 9, yheksän: 9,
   kymmenen: 10, kymppi: 10,
 };
+// What speech recognition often writes for a lone English number word – trusted only when it is the whole answer.
+const NUMBER_SOUNDALIKES: Record<string, number> = { won: 1, to: 2, too: 2, for: 4, fore: 4, sex: 6, ate: 8 };
 
 function parseNumber(text: string, min: number, max: number): number | null {
   const digits = text.match(/\d+/);
+  const words = text.toLowerCase().split(/[^a-zåäö]+/).filter(Boolean);
   const candidates = digits ? [Number(digits[0])]
-    : text.toLowerCase().split(/[^a-zåäö]+/).map((w) => NUMBER_WORDS[w]).filter((n) => n !== undefined);
+    : words.length === 1 && NUMBER_SOUNDALIKES[words[0]] !== undefined ? [NUMBER_SOUNDALIKES[words[0]]]
+      : words.map((w) => NUMBER_WORDS[w]).filter((n) => n !== undefined);
   return candidates.find((n) => n >= min && n <= max) ?? null;
 }
 
+/** One of `alternatives` as a whole word or phrase – also when it ends in ä or ö, which \b would not see as a letter. */
+function wordRe(alternatives: string, atStart = false): RegExp {
+  return new RegExp(`${atStart ? '^' : '(?<!\\p{L})'}(${alternatives})(?!\\p{L})`, 'u');
+}
+const NO_FI = [wordRe('ei|en|nyt ei|myöhemmin', true), wordRe('ei nyt|myöhemmin|en halua')];
+const YES_FI = wordRe('kyllä|joo|juu|jep|okei|ok|sopii|voidaan|tehdään|mennään|hyvä|selvä|toki');
+const YES_FI_PLAIN = wordRe('kyllä|joo|juu|okei|sopii|selvä|toki');  // "no joo", "no kyllä" is a Finnish yes
+const YES_EN_PHRASE = wordRe('no problem|no worries|not busy');
+const NO_EN = [wordRe('no|nope|nah|not now|not really|later', true),
+  wordRe("not now|not right now|not today|not a good time|not good|bad time|later|don't want|do not want|can't|cannot|busy|no thanks")];
+const YES_EN = wordRe("yes|yeah|yep|yup|sure|okay|ok|fine|alright|all right|go ahead|let's|lets|of course|certainly|good|great|why not");
+
+/** A spoken or typed yes or no, in English or in Finnish; a "not now" or "later" is a no. */
 function parseYesNo(text: string): boolean | null {
   const t = text.toLowerCase().trim();
-  if (/^(ei|en|nyt ei|myöhemmin)\b/.test(t) || /\b(ei nyt|myöhemmin|en halua)\b/.test(t)) return false;
-  if (/\b(kyllä|joo|juu|jep|okei|ok|sopii|voidaan|tehdään|mennään|hyvä|selvä|toki)\b/.test(t)) return true;
+  if (NO_FI.some((re) => re.test(t))) return false;
+  if (YES_EN_PHRASE.test(t) || YES_FI_PLAIN.test(t)) return true;
+  if (NO_EN.some((re) => re.test(t))) return false;
+  if (YES_FI.test(t) || YES_EN.test(t)) return true;
   return null;
 }
 
+/** The option the client named: the whole label, or a word that starts like the label's first real word ("stop" for
+    "I'll stop here"; short words such as "I", "a" or "the" are passed over). */
+function matchOption<T extends { label: string }>(text: string, options: T[]): T | undefined {
+  const said = text.toLowerCase();
+  const words = said.split(/[^\p{L}\p{N}'-]+/u).filter(Boolean);
+  return options.find((o) => {
+    const label = o.label.toLowerCase();
+    if (said.includes(label) || said.includes(label.replace(/-/g, ' '))) return true;
+    const parts = label.split(/[ ,–]/).filter(Boolean);
+    const key = parts.find((w) => w.replace(/[^\p{L}]/gu, '').length >= 4) ?? parts[0];
+    return Boolean(key) && words.some((w) => w.startsWith(key));
+  });
+}
+
 function hhmm(time: string | null): string {
-  return (time ?? '18:30').replace(':', '.');
+  return time ?? '18:30';
 }
 
 /* The browser's speech recognition, where it has one (Chrome, Edge, Safari). */
@@ -64,17 +101,23 @@ interface Recognition {
 type RecognitionCtor = new () => Recognition;
 const isNatural = (v: SpeechSynthesisVoice | null) => Boolean(v && /natural|neural|online|premium|enhanced|siri/i.test(v.name));
 
-/** The most natural-sounding Finnish voice the browser has: a neural one (Edge: Microsoft Noora/Harri/Selma Online
-    (Natural)), then a downloaded premium or enhanced voice (macOS: Satu), then Google's, then Satu/Onni, then any Finnish
-    voice – the macOS Eloquence voices last. */
-function bestFinnishVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
-  const finnish = voices.filter((v) => v.lang.toLowerCase().replace('_', '-').startsWith('fi'));
+/** The most natural-sounding English voice the browser has, British English first: a neural one (Edge: Microsoft
+    Sonia/Libby/Ryan Online (Natural)), then a downloaded premium or enhanced voice (macOS: Serena, Daniel, Kate), then
+    Google's (Chrome: Google UK English), then any other English voice (en-US, en-IE, en-AU…) – the macOS Eloquence and
+    novelty voices last. */
+function bestEnglishVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
+  const lang = (v: SpeechSynthesisVoice) => v.lang.toLowerCase().replace('_', '-');
+  const english = voices.filter((v) => lang(v).startsWith('en'));
   const score = (v: SpeechSynthesisVoice) => (/natural|neural/i.test(v.name) ? 40 : 0) + (/online/i.test(v.name) ? 10 : 0)
     + (/premium/i.test(v.name) ? 30 : 0) + (/enhanced|siri/i.test(v.name) ? 20 : 0) + (/google/i.test(v.name) ? 15 : 0)
-    + (/satu|onni|noora|harri|selma/i.test(v.name) ? 5 : 0) + (v.lang === 'fi-FI' ? 1 : 0)
-    // macOS's Eloquence voices (Eddy, Flo, Grandma…) come first in the list but sound the most synthetic.
-    - (/eddy|flo|grandma|grandpa|reed|rocko|sandy|shelley/i.test(v.name) ? 20 : 0);
-  return [...finnish].sort((a, b) => score(b) - score(a))[0] ?? null;
+    + (lang(v) === 'en-gb' ? 25 : 0)
+    + (/sonia|libby|ryan|maisie|thomas|serena|daniel|kate|arthur|martha|google uk/i.test(v.name) ? 5 : 0)
+    // macOS's Eloquence voices (Eddy, Flo, Grandma…) come first in the list but sound the most synthetic; its novelty
+    // voices (Albert, Bubbles, Zarvox…) are not meant for talking at all.
+    - (/eddy|flo|grandma|grandpa|reed|rocko|sandy|shelley/i.test(v.name) ? 20 : 0)
+    - (/albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|junior|ralph|fred|kathy/i
+      .test(v.name) ? 60 : 0);
+  return [...english].sort((a, b) => score(b) - score(a))[0] ?? null;
 }
 
 const speechWindow = window as unknown as { SpeechRecognition?: RecognitionCtor; webkitSpeechRecognition?: RecognitionCtor };
@@ -115,12 +158,12 @@ export default function PhoneCall({ onClose }: { onClose: () => void }) {
   const transcriptRef = useRef<HTMLDivElement>(null);
   const id = client.id;
 
-  // A Finnish voice, when the browser has one – without it the call is shown as text only.
+  // An English voice, when the browser has one – without it the call is shown as text only.
   useEffect(() => {
     if (!('speechSynthesis' in window)) return undefined;
     const pick = () => {
       const voices = window.speechSynthesis.getVoices();
-      voice.current = bestFinnishVoice(voices);
+      voice.current = bestEnglishVoice(voices);
       setHasVoice(Boolean(voice.current));
     };
     pick();
@@ -162,7 +205,7 @@ export default function PhoneCall({ onClose }: { onClose: () => void }) {
       sentences.forEach((sentence) => {
         const utterance = new SpeechSynthesisUtterance(sentence);
         utterance.voice = voice.current;
-        utterance.lang = voice.current?.lang ?? 'fi-FI';
+        utterance.lang = voice.current?.lang ?? 'en-GB';
         // Natural (neural) voices sound best at their own pace; a basic voice is calmer a little slower.
         utterance.rate = isNatural(voice.current) ? 1 : 0.94;
         utterance.pitch = 1;
@@ -200,7 +243,7 @@ export default function PhoneCall({ onClose }: { onClose: () => void }) {
     if (!RecognitionImpl || !micRef.current || ended.current || !askingRef.current) return;
     stopListening();
     const rec = new RecognitionImpl();
-    rec.lang = 'fi-FI';
+    rec.lang = 'en-GB';
     rec.interimResults = true;
     rec.continuous = false;
     rec.maxAlternatives = 1;
@@ -270,12 +313,12 @@ export default function PhoneCall({ onClose }: { onClose: () => void }) {
       const n = parseNumber(text, spec.min, spec.max);
       if (n !== null) return give({ value: n }, text);
     } else if (spec.kind === 'choices') {
-      const option = spec.options.find((o) => text.toLowerCase().includes(o.label.toLowerCase().split(/[ ,–]/)[0]));
+      const option = matchOption(text, spec.options);
       if (option) return give({ value: option.value }, option.label);
     } else {
       return give({ value: text }, text);
     }
-    setHint(`Kuulin: ”${text}”. Sano uudelleen tai valitse alta.`);
+    setHint(`I heard: “${text}”. Say it again or choose below.`);
     window.setTimeout(listen, 400);
   }
 
@@ -323,14 +366,14 @@ export default function PhoneCall({ onClose }: { onClose: () => void }) {
       const fresh = unseen(c);
       if (c.safety.lockActive || fresh.some((m) => m.safetyLevel >= 3)) {
         await say(spoken(fresh, null));
-        finish('Puhelu keskeytettiin turvallisuussyistä. Hätätilanteessa soita 112.');
+        finish('The call was stopped for safety reasons. In an emergency, call 112.');
         return 'stop';
       }
       const g = c.guided;
       if (g && g.tool !== tool) {
         // The exercise led on to another (e.g. a behavioural experiment): it is continued in the app, not on this call.
         await say([...spoken(fresh, g.stepKey).filter((line) => line !== g.questionText),
-          `Voit jatkaa harjoitusta ”${g.title}” sovelluksen Keskustelussa, kun sinulle sopii.`]);
+          `You can continue the exercise “${g.title}” in the app's Chat whenever it suits you.`]);
         return 'done';
       }
       if (!g || !g.stepKey) {
@@ -353,44 +396,49 @@ export default function PhoneCall({ onClose }: { onClose: () => void }) {
         : { sessionId: g.id, stepKey: g.stepKey, value: 'value' in answer ? answer.value : null };
       const next = await mutate((s) => api.answerPractice(s, id, body));
       if (next) current = next;
-      else await say('Anteeksi, en saanut vastauksesta kiinni. Sanotko uudelleen?');
+      else await say("Sorry, I didn't catch that. Could you say it again?");
     }
     return 'stop';
   }
 
   async function script() {
-    const ready = await question(`Hei ${client.firstName}, täällä Mieliluotsi. Onko nyt hyvä hetki jutella pari minuuttia?`,
+    const ready = await question(`Hi ${client.firstName}, this is Mieliluotsi. Is now a good time to talk for a couple of minutes?`,
       { kind: 'yesno' });
     if (ended.current || 'hangup' in ready) return;
     if ('yes' in ready && !ready.yes) {
-      await say('Selvä, ei haittaa. Voit pyytää puhelua sovelluksesta, kun sinulle sopii. Hei hei!');
-      return finish('Puhelu siirrettiin myöhemmäksi.');
+      await say('All right, no problem. You can ask for a call in the app whenever it suits you. Bye for now!');
+      return finish('The call was moved to later.');
     }
-    let did = 'vointisi';
+    let did = "how you're feeling";
     if (latest.current.client?.checkIn.needsBaseline) {
-      const mood = await question('Aloitetaan voinnista. Miten voit tänään asteikolla yhdestä viiteen? Yksi on tosi huonosti ja viisi '
-        + 'tosi hyvin.', { kind: 'scale', min: 1, max: 5, labels: MOOD_LABELS });
+      const scale = latest.current.meta.labels;
+      const moodLabels = MOOD_LABELS.map((word, i) => scale.moodScale[String(i + 1)] ?? word);
+      const anxietyLabels = ANXIETY_LABELS.map((word, i) => scale.anxietyScale[String(i + 1)] ?? word);
+      const mood = await question("Let's start with how you're feeling. How are you today, on a scale from one to five? One is "
+        + `${moodLabels[0].toLowerCase()} and five is ${moodLabels[4].toLowerCase()}.`, { kind: 'scale', min: 1, max: 5, labels: moodLabels });
       if (ended.current || !('value' in mood)) return;
-      const anxiety = await question('Entä kuinka paljon ahdistusta tai jännitystä tunnet tänään, yhdestä viiteen?',
-        { kind: 'scale', min: 1, max: 5, labels: ANXIETY_LABELS });
+      const anxiety = await question('And how much anxiety or nervousness do you feel today, from one to five?',
+        { kind: 'scale', min: 1, max: 5, labels: anxietyLabels });
       if (ended.current || !('value' in anxiety)) return;
       const saved = await mutate((s) => api.recordBaseline(s, id, { mood: Number(mood.value), anxiety: Number(anxiety.value) }));
-      if (!saved) return finish('Vointia ei saatu tallennettua.');
+      if (!saved) return finish("How you're feeling could not be saved.");
       unseen(saved.client as ClientView);
-      await say('Kiitos. Tästä tulee oma lähtötasosi – jatkossa vointiasi verrataan siihen, ei muihin ihmisiin.');
+      await say('Thank you. This becomes your own baseline – from now on, how you feel is compared with it, not with other people.');
     } else if (await guided('checkin') === 'stop') {
       return;
     }
-    const exercise = await question('Tehdäänkö vielä lyhyt ajatusharjoitus? Se vie pari minuuttia.', { kind: 'yesno' });
+    const exercise = await question('Shall we also do a short thought exercise? It takes a couple of minutes.', { kind: 'yesno' });
     if (ended.current || 'hangup' in exercise) return;
     if ('yes' in exercise && exercise.yes) {
       if (await guided('thought_record') === 'stop') return;
-      did = 'vointisi ja ajatusharjoituksen';
+      did = "how you're feeling and the thought exercise";
     }
     const after = latest.current.client?.checkIn;
-    const next = after?.nextLabel ? `${after.nextLabel} kello ${hhmm(after.callTime)}` : 'sovittuna päivänä';
-    await say(`Kiitos ${client.firstName}. Tallensin ${did} sovellukseen. Soitan seuraavan kerran ${next}. Hei hei!`);
-    finish(`Tallennettu: ${did}.`);
+    // "tomorrow at 18:30", but "on Wed 21 Oct at 18:30"
+    const onDay = after?.nextDate && daysBetween(latest.current.meta.currentDate, after.nextDate) > 1 ? 'on ' : '';
+    const next = after?.nextLabel ? `${onDay}${after.nextLabel} at ${hhmm(after.callTime)}` : 'on the agreed day';
+    await say(`Thank you, ${client.firstName}. I've saved ${did} in the app. I'll call you again ${next}. Bye for now!`);
+    finish(`Saved: ${did}.`);
   }
 
   function finish(text: string) {
@@ -415,7 +463,7 @@ export default function PhoneCall({ onClose }: { onClose: () => void }) {
   function hangUp() {
     const resolve = resolver.current;
     resolver.current = null;
-    finish('Puhelu lopetettiin. Keskeneräisen kohdan voit jatkaa Keskustelussa.');
+    finish('Call ended. You can continue where you left off in Chat.');
     resolve?.({ hangup: true });
   }
 
@@ -447,32 +495,32 @@ export default function PhoneCall({ onClose }: { onClose: () => void }) {
     if (!next && 'speechSynthesis' in window) window.speechSynthesis.cancel();
   }
 
-  const clock = `${Math.floor(seconds / 60)}.${String(seconds % 60).padStart(2, '0')}`;
-  const status = phase === 'ringing' ? 'soittaa…' : speaking ? 'Mieliluotsi puhuu' : listening ? 'Kuuntelen…' : asking ? 'Vastaa puhumalla tai valitse' : clock;
+  const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+  const status = phase === 'ringing' ? 'calling…' : speaking ? 'Mieliluotsi is speaking' : listening ? 'Listening…' : asking ? 'Answer by speaking or choose' : clock;
 
   return (
-    <section className={`call call-${phase}`} role="dialog" aria-modal="true" aria-label="Vointipuhelu Mieliluotsilta">
+    <section className={`call call-${phase}`} role="dialog" aria-modal="true" aria-label="Wellbeing call from Mieliluotsi">
       <header className="call-head">
         <span className={`call-avatar ${speaking ? 'is-speaking' : ''}`} aria-hidden="true"><LogoMark size={phase === 'ringing' ? 64 : 34} /></span>
         <div className="call-who">
           <p className="call-name">Mieliluotsi</p>
-          <p className="call-status" aria-live="polite">{phase === 'ringing' ? 'Vointipuhelu · soittaa…' : phase === 'ended' ? `Puhelu päättyi · ${clock}` : status}</p>
+          <p className="call-status" aria-live="polite">{phase === 'ringing' ? 'Wellbeing call · calling…' : phase === 'ended' ? `Call ended · ${clock}` : status}</p>
         </div>
         {phase === 'live' && <span className="call-clock">{clock}</span>}
       </header>
 
       {phase === 'ringing' && (
         <div className="call-incoming">
-          <p className="call-lead">Mieliluotsi soittaa sovitusti: kysyy vointiasi ja tekee kanssasi lyhyen ajatusharjoituksen.</p>
+          <p className="call-lead">Mieliluotsi is calling as agreed: to ask how you are and do a short thought exercise with you.</p>
           <div className="call-answer-row">
-            <button type="button" className="call-round call-decline" onClick={() => { hangUpQuietly(); onClose(); }} aria-label="Myöhemmin">
+            <button type="button" className="call-round call-decline" onClick={() => { hangUpQuietly(); onClose(); }} aria-label="Later">
               <PhoneIcon size={26} />
             </button>
-            <button type="button" className="call-round call-accept" onClick={answerCall} aria-label="Vastaa">
+            <button type="button" className="call-round call-accept" onClick={answerCall} aria-label="Answer">
               <PhoneIcon size={26} />
             </button>
           </div>
-          <div className="call-answer-labels"><span>Myöhemmin</span><span>Vastaa</span></div>
+          <div className="call-answer-labels"><span>Later</span><span>Answer</span></div>
         </div>
       )}
 
@@ -488,8 +536,8 @@ export default function PhoneCall({ onClose }: { onClose: () => void }) {
               {hint && <p className="call-hint">{hint}</p>}
               {asking.kind === 'yesno' && (
                 <div className="call-chips">
-                  <button type="button" onClick={() => give({ yes: true }, 'Kyllä')}>Kyllä</button>
-                  <button type="button" onClick={() => give({ yes: false }, 'Ei nyt')}>Ei nyt</button>
+                  <button type="button" onClick={() => give({ yes: true }, 'Yes')}>Yes</button>
+                  <button type="button" onClick={() => give({ yes: false }, 'Not now')}>Not now</button>
                 </div>
               )}
               {asking.kind === 'scale' && (
@@ -503,15 +551,15 @@ export default function PhoneCall({ onClose }: { onClose: () => void }) {
               {asking.kind === 'choices' && (
                 <div className="call-chips">
                   {asking.options.map((o) => <button key={o.value} type="button" onClick={() => give({ value: o.value }, o.label)}>{o.label}</button>)}
-                  {asking.skippable && <button type="button" onClick={() => give({ skip: true }, 'Ohitetaan')}>Ohita</button>}
+                  {asking.skippable && <button type="button" onClick={() => give({ skip: true }, "Let's skip this")}>Skip</button>}
                 </div>
               )}
               {asking.kind === 'text' && (
                 <form className="call-type" onSubmit={submitTyped}>
-                  <input value={typed} onChange={(e) => setTyped(e.target.value)} aria-label="Kirjoita vastaus"
-                    placeholder={RecognitionImpl && micOn ? 'Puhu tai kirjoita vastaus…' : 'Kirjoita vastaus…'} />
-                  <button type="submit" aria-label="Lähetä" disabled={!typed.trim()}><SendIcon size={16} /></button>
-                  {asking.skippable && <button type="button" className="call-skip" onClick={() => give({ skip: true }, 'Ohitetaan')}>Ohita</button>}
+                  <input value={typed} onChange={(e) => setTyped(e.target.value)} aria-label="Write your answer"
+                    placeholder={RecognitionImpl && micOn ? 'Say or write your answer…' : 'Write your answer…'} />
+                  <button type="submit" aria-label="Send" disabled={!typed.trim()}><SendIcon size={16} /></button>
+                  {asking.skippable && <button type="button" className="call-skip" onClick={() => give({ skip: true }, "Let's skip this")}>Skip</button>}
                 </form>
               )}
             </div>
@@ -520,15 +568,15 @@ export default function PhoneCall({ onClose }: { onClose: () => void }) {
           {phase === 'live' && (
             <div className="call-controls">
               <button type="button" className={`call-ctrl ${micOn ? 'is-on' : ''}`} onClick={toggleMic} disabled={!RecognitionImpl}
-                aria-pressed={micOn} title={RecognitionImpl ? 'Mikrofoni' : 'Puheentunnistus ei ole käytettävissä tässä selaimessa'}>
-                {micOn ? <MicIcon size={20} /> : <MicOffIcon size={20} />}<span>{micOn ? 'Mikki' : 'Mykistetty'}</span>
+                aria-pressed={micOn} title={RecognitionImpl ? 'Microphone' : 'Speech recognition is not available in this browser'}>
+                {micOn ? <MicIcon size={20} /> : <MicOffIcon size={20} />}<span>{micOn ? 'Mic' : 'Muted'}</span>
               </button>
-              <button type="button" className="call-round call-decline call-end" onClick={hangUp} aria-label="Lopeta puhelu">
+              <button type="button" className="call-round call-decline call-end" onClick={hangUp} aria-label="End call">
                 <PhoneIcon size={24} />
               </button>
               <button type="button" className={`call-ctrl ${speakerOn ? 'is-on' : ''}`} onClick={toggleSpeaker} disabled={!hasVoice}
-                aria-pressed={speakerOn} title={hasVoice ? 'Kaiutin' : 'Suomenkielistä puheääntä ei löytynyt tästä selaimesta'}>
-                {speakerOn && hasVoice ? <SpeakerIcon size={20} /> : <SpeakerOffIcon size={20} />}<span>Kaiutin</span>
+                aria-pressed={speakerOn} title={hasVoice ? 'Speaker' : 'No English voice was found in this browser'}>
+                {speakerOn && hasVoice ? <SpeakerIcon size={20} /> : <SpeakerOffIcon size={20} />}<span>Speaker</span>
               </button>
             </div>
           )}
@@ -536,10 +584,10 @@ export default function PhoneCall({ onClose }: { onClose: () => void }) {
           {phase === 'ended' && (
             <div className="call-ended">
               <p>{outcome}</p>
-              <button type="button" className="cx-btn cx-btn-dark" onClick={onClose}>Sulje</button>
+              <button type="button" className="cx-btn cx-btn-dark" onClick={onClose}>Close</button>
             </div>
           )}
-          <p className="call-fine">Ei hätäpuhelu – hätätilanteessa soita 112.</p>
+          <p className="call-fine">Not an emergency call – in an emergency, call 112.</p>
         </>
       )}
     </section>

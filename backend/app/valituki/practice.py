@@ -6,9 +6,12 @@ data/valituki/cbt.json) and what is stored. A language model may only phrase the
 propose examples – validated by the output guard – and the client decides what to keep. Every free-text answer passes
 the deterministic Safety Engine first; a level-3 signal interrupts the tool before anything else happens.
 
-Tools: checkin · thought_record ("Ajatusten tutkiminen") · experiment ("Käyttäytymiskoe") + experiment_review ·
-exposure ("Altistusporras") + exposure_attempt. Results: CheckIn, ThoughtRecord, Experiment, ExposureLadder and
-PracticeTask ("Tehtävät"). Journal entries are private unless the client shares an entry with their therapist.
+Tools: checkin · thought_record ("Exploring a thought") · experiment ("Behavioural experiment") + experiment_review ·
+exposure ("Exposure ladder") + exposure_attempt. Results: CheckIn, ThoughtRecord, Experiment, ExposureLadder and
+PracticeTask ("Tasks"). Journal entries are private unless the client shares an entry with their therapist.
+
+Typed answers are understood in English and in Finnish: scale numbers ("8/10", "eight", "kahdeksan"), option labels and
+their Finnish names, weekdays and the avoidance and thinking-trap phrase rules.
 """
 from __future__ import annotations
 
@@ -39,7 +42,11 @@ from app.valituki.store import add_days, days_between, next_id, now
 AGENT = 'SupportAgent'
 CBT_TOOLS = ('thought_record', 'experiment', 'exposure')
 PARENT = {'experiment_review': 'experiment', 'exposure_attempt': 'exposure'}
-AVOIDANCE_WORDS = r'(valt|jatin|jain pois|siir(ra|si|ta|re)|puolestani|perun|perua|lykka|en mennyt|jatan|en uskalla)'
+AVOIDANCE_WORDS = (r'(valt|jatin|jain pois|siir(ra|si|ta|re)|puolestani|perun|perua|lykka|en mennyt|jatan|en uskalla'
+                   r"|\bavoid|\bput(ting)? (it |this |things |the [a-z]+ )?off\b|\bputs? off\b|postpon|procrastinat|\bdelay"
+                   r"|\bcancel|\bcall(ed|ing)? (it )?off\b|\bskip(ped|ping)?\b|\bstay(ed|ing)? away\b|\bdidn ?'?t go\b"
+                   r"|\b(don|didn) ?'?t dare\b|\btoo (scared|afraid) to\b|\bon my behalf\b|\binstead of me\b"
+                   r"|\b(present|speak|do it|talk) for me\b|\bget out of\b|\bback(ed|ing)? out\b|\bpretend(ed)? to be (ill|sick)\b)")
 MAX_TEXT = 600
 
 
@@ -56,7 +63,7 @@ def _cbt() -> dict[str, Any]:
 def flow(tool: str) -> dict[str, Any]:
     flows = _cbt()['flows']
     if tool not in flows:
-        raise PracticeError('Tuntematon harjoitus.')
+        raise PracticeError('Unknown exercise.')
     return flows[tool]
 
 
@@ -81,7 +88,7 @@ def emotion_label(value: str) -> str:
 
 
 def emotions_text(values: list[str]) -> str:
-    """'Ahdistus ja jännitys' – the first emotion capitalised, the rest in running text."""
+    """'Anxiety and nervousness' – the first emotion capitalised, the rest in running text."""
     labels = [emotion_label(v) for v in values]
     return join_fi(labels[:1] + [label[:1].lower() + label[1:] for label in labels[1:]])
 
@@ -96,13 +103,13 @@ def detect_traps(thought: str) -> list[str]:
 def alternative_examples(traps: list[str]) -> list[str]:
     by_id = {t['id']: t['alternative'] for t in _cbt()['traps']}
     examples = [by_id[t] for t in traps if t in by_id][:2]
-    return examples or ['Tilanne on minulle vaikea, mutta olen selvinnyt vaikeista tilanteista ennenkin.']
+    return examples or ["This situation is hard for me, but I've got through hard situations before."]
 
 
 def ladder_template(goal: str) -> dict[str, Any]:
     normalized = normalize(goal or '')
     templates = _cbt()['ladderTemplates']
-    return next((t for t in templates if t['match'] and any(m in normalized for m in t['match'])),
+    return next((t for t in templates if t['match'] and any(re.search(m, normalized) for m in t['match'])),
                 next(t for t in templates if t['id'] == 'generic'))
 
 
@@ -115,6 +122,17 @@ def short(value: Any, limit: int = 60) -> str:
     return text_value if len(text_value) <= limit else text_value[:limit - 1].rstrip() + '…'
 
 
+def _count(number: int, word: str) -> str:
+    """'1 time', '3 times', '2 check-ins'."""
+    return f'{number} {word}' + ('' if number == 1 else 's')
+
+
+def _in_sentence(label: str) -> str:
+    """A due label inside a sentence: 'today', 'tomorrow', 'overdue · Tue 14 Oct' (a weekday keeps its capital)."""
+    first = label.split(' ', 1)[0]
+    return label[:1].lower() + label[1:] if first in ('Today', 'Tomorrow', 'Overdue') else label
+
+
 # --- permissions ---------------------------------------------------------------------------------------------------------
 
 def _aftercare(state: ValitukiState, client_id: str):
@@ -125,32 +143,32 @@ def _aftercare(state: ValitukiState, client_id: str):
 def tool_allowed(state: ValitukiState, client: ClientProfile, tool: str, *, continuation: bool = False) -> tuple[bool, str]:
     """Whether the client may use a tool now – and in plain words why not. Review steps of agreed tasks may always finish."""
     if client.journeyState not in journey.ACTIVE_STATES:
-        return False, 'Harjoitukset ovat käytössä, kun Mieliluotsi on otettu käyttöön.'
+        return False, 'The exercises are available once you have started using Mieliluotsi.'
     if client.safetyLock and not client.safetyLock.dismissedAt:
-        return False, 'Turvallisuusohjeet ovat näkyvissä – kuittaa ne ensin.'
+        return False, 'The safety instructions are showing – please acknowledge them first.'
     if tool == 'checkin':
         return True, ''
     base = PARENT.get(tool, tool)
     meta = content.cbt_tool(base)
     if meta is None:
-        return False, 'Tuntematon harjoitus.'
+        return False, 'Unknown exercise.'
     if continuation and tool in PARENT:
         return True, ''
     blocked = set(meta.get('avoidWhen', [])) & activities.situation(state, client)
     if 'elevated_distress' in blocked:
-        return False, 'Ei juuri nyt: vointi on ollut tavallista kuormittuneempi. Palaa tähän myöhemmin tai terapeutin kanssa.'
+        return False, 'Not right now: you have been under more strain than usual. Come back to this later or with your therapist.'
     if blocked:
-        return False, 'Ei juuri nyt.'
+        return False, 'Not right now.'
     if client.mode == 'therapy_support':
         config = therapy.active_config(state, client.id)
         if config is None:
-            return False, 'Terapeuttisi määrittää, mitä harjoituksia Mieliluotsissa käytetään tapaamisten välillä.'
+            return False, 'Your therapist decides which exercises are used in Mieliluotsi between sessions.'
         if base not in config.allowedTools:
-            return False, 'Ei terapeuttisi sallima Mieliluotsissa – käy tämä läpi tapaamisissa.'
+            return False, 'Your therapist has not allowed this in Mieliluotsi – go through it in your sessions.'
     if client.mode == 'aftercare_support':
         plan = _aftercare(state, client.id)
         if plan and plan.allowedTools and base not in plan.allowedTools:
-            return False, 'Ei mukana ylläpitosuunnitelmassasi.'
+            return False, 'Not part of your maintenance plan.'
     return True, ''
 
 
@@ -229,7 +247,7 @@ def _days(state: ValitukiState) -> list[ChatOption]:
     options = []
     for offset in range(7):
         day = add_days(state.currentDate, offset)
-        label = 'Tänään' if offset == 0 else 'Huomenna' if offset == 1 else fmt_slot(day)
+        label = 'Today' if offset == 0 else 'Tomorrow' if offset == 1 else fmt_slot(day)
         options.append(ChatOption(value=day, label=label))
     return options
 
@@ -237,16 +255,16 @@ def _days(state: ValitukiState) -> list[ChatOption]:
 def _next_step_options(state: ValitukiState, client: ClientProfile) -> list[ChatOption]:
     options = []
     if tool_allowed(state, client, 'experiment')[0]:
-        options.append(ChatOption(value='experiment', label='Testaan ennusteen käyttäytymiskokeella'))
+        options.append(ChatOption(value='experiment', label="I'll test the prediction with a behavioural experiment"))
     if tool_allowed(state, client, 'exposure')[0]:
-        options.append(ChatOption(value='exposure', label='Harjoittelen tilannetta askel kerrallaan'))
+        options.append(ChatOption(value='exposure', label="I'll practise the situation one step at a time"))
     allowed = {a.id for a in activities.allowed_library(state, client)}
-    for activity_id, label in (('act-paced-breathing', 'Rauhoittava hengitys 4–6 ennen tilannetta'),
-                               ('act-worry-time', 'Huolihetki illalla')):
+    for activity_id, label in (('act-paced-breathing', 'Calm breathing 4–6 before the situation'),
+                               ('act-worry-time', 'Worry time in the evening')):
         if activity_id in allowed:
             options.append(ChatOption(value=f'activity:{activity_id}', label=label))
             break
-    options.append(ChatOption(value='none', label='Riittää tältä erää'))
+    options.append(ChatOption(value='none', label="That's enough for now"))
     return options
 
 
@@ -292,10 +310,11 @@ def _widget(state: ValitukiState, client: ClientProfile, session: GuidedSession,
             widget.options = [ChatOption(value=str(i), label=f'{s["text"]} ({s["expected"]}/10)')
                               for i, s in enumerate(session.answers.get('ladder') or [])]
         elif source == 'attempt_next':
-            options = [ChatOption(value='repeat', label='Toistan saman askeleen')]
+            options = [ChatOption(value='repeat', label="I'll repeat the same step")]
             if session.context.get('nextStepText'):
-                options.append(ChatOption(value='next', label=f'Siirryn seuraavaan: {short(session.context["nextStepText"], 50)}'))
-            options.append(ChatOption(value='pause', label='Mietin vielä'))
+                upcoming = short(session.context['nextStepText'], 50)
+                options.append(ChatOption(value='next', label=f"I'll move on to the next one: {upcoming}"))
+            options.append(ChatOption(value='pause', label="I'll think about it"))
             widget.options = options
     return widget
 
@@ -373,7 +392,7 @@ def start(state: ValitukiState, client: ClientProfile, tool: str, provider, acto
         _close(state, current, 'stopped')
         current.answers = {}
         if current.tool != 'checkin':
-            say(state, client, 'Keskeneräinen harjoitus keskeytettiin, eikä sitä tallennettu.', kind='notice')
+            say(state, client, 'The unfinished exercise was interrupted and was not saved.', kind='notice')
     if tool == 'checkin' and client.mode == 'therapy_support':
         config = therapy.active_config(state, client.id)
         if config:
@@ -388,8 +407,8 @@ def start(state: ValitukiState, client: ClientProfile, tool: str, provider, acto
         say(state, client, intro_text, sessionId=session.id)
     if tool in CBT_TOOLS:
         records.act(state, agent=AGENT, type='start_practice', client_id=client.id, visibility='private',
-                    title=f'Aloitti ohjatun harjoituksen: {title(tool)}',
-                    detail='Säännöt ohjaavat harjoituksen vaiheita. Voit ohittaa kysymyksiä tai lopettaa milloin tahansa.')
+                    title=f'Started a guided exercise: {title(tool)}',
+                    detail='Rules guide the steps of the exercise. You can skip questions or stop at any time.')
     _ask(state, client, session, provider, actor=actor)
     return session
 
@@ -397,7 +416,7 @@ def start(state: ValitukiState, client: ClientProfile, tool: str, provider, acto
 def _require_active(state: ValitukiState, client: ClientProfile, session_id: Optional[str]) -> GuidedSession:
     session = active_session(state, client.id)
     if session is None or (session_id and session.id != session_id):
-        raise PracticeError('Tämä harjoitus ei ole enää käynnissä.')
+        raise PracticeError('This exercise is no longer in progress.')
     return session
 
 
@@ -406,14 +425,14 @@ def answer(state: ValitukiState, client: ClientProfile, value: Any, provider, ac
     session = _require_active(state, client, session_id)
     step = _current(session)
     if step is None:
-        raise PracticeError('Harjoitus on jo valmis.')
+        raise PracticeError('The exercise is already finished.')
     if step_key and step['key'] != step_key:
-        raise PracticeError('Kysymykseen on jo vastattu.')
+        raise PracticeError('This question has already been answered.')
     now(state, at)
     if skip:
         if not step.get('skippable'):
-            raise PracticeError('Tähän kysymykseen tarvitaan vastaus.')
-        parsed, display = None, step.get('skipLabel') or 'Ohitan tämän'
+            raise PracticeError('This question needs an answer.')
+        parsed, display = None, step.get('skipLabel') or "I'll skip this"
     else:
         parsed, display = _parse(state, client, session, step, value, from_text=from_text)
     free_text = ' '.join(_texts_of(parsed))
@@ -428,8 +447,8 @@ def answer(state: ValitukiState, client: ClientProfile, value: Any, provider, ac
         session.answers = {}
         say(state, client, SAFETY_REPLY, safetyLevel=3, textSource='fixed', sessionId=session.id)
         records.audit(state, actor=records.agent_actor('SafetyAgent'), action='practice_safety_interrupt', client_id=client.id,
-                      detail='Deterministinen sääntö laukaisi tason 3 harjoituksen aikana – harjoitus keskeytettiin, kielimallia ei '
-                             'kutsuttu.')
+                      detail='A deterministic rule triggered level 3 during an exercise – the exercise was interrupted and no '
+                             'language model was called.')
         return {'safety': {'level': 3}, 'sessionId': session.id, 'status': session.status}
     session.answers[step['key']] = parsed
     session.updatedAt = now(state)
@@ -453,10 +472,10 @@ def stop(state: ValitukiState, client: ClientProfile, actor: str, session_id: Op
     session = _require_active(state, client, session_id)
     _close(state, session, 'stopped')
     session.answers = {}
-    say(state, client, 'Selvä. Voit tehdä check-inin myöhemmin.' if session.tool == 'checkin' else text('stopped'), kind='notice',
+    say(state, client, 'All right. You can do the check-in later.' if session.tool == 'checkin' else text('stopped'), kind='notice',
         sessionId=session.id)
     records.audit(state, actor=actor, action='practice_stopped', client_id=client.id,
-                  detail=f'Harjoitus lopetettiin: {title(session.tool)}')
+                  detail=f'Exercise stopped: {title(session.tool)}')
 
 
 def expire_checkin(state: ValitukiState, client: ClientProfile) -> None:
@@ -475,6 +494,36 @@ def _texts_of(value: Any) -> list[str]:
     return []
 
 
+# Typed answers are understood in English and in Finnish (the labels are English). Phrase rules run on normalised text.
+NUMBER_WORDS = {'zero': 0, 'nolla': 0, 'one': 1, 'yksi': 1, 'two': 2, 'kaksi': 2, 'three': 3, 'kolme': 3, 'four': 4, 'nelja': 4,
+                'five': 5, 'viisi': 5, 'six': 6, 'kuusi': 6, 'seven': 7, 'seitseman': 7, 'eight': 8, 'kahdeksan': 8,
+                'nine': 9, 'yhdeksan': 9, 'ten': 10, 'kymmenen': 10}
+NUMBER_RULE = re.compile(r'\b(' + '|'.join(NUMBER_WORDS) + r')\b')
+# The Finnish 1–5 scale words: normalised answer → number.
+SCALE5_FI = {
+    'mood': {'tosi huonosti': 1, 'huonosti': 2, 'kohtalaisesti': 3, 'ihan ok': 3, 'hyvin': 4, 'tosi hyvin': 5},
+    'anxiety': {'ei lainkaan': 1, 'ei yhtaan': 1, 'vahan': 2, 'jonkin verran': 3, 'paljon': 4, 'hyvin paljon': 5},
+}
+SCALE5_FI['track'] = SCALE5_FI['anxiety']
+WEEKDAY_RULES = (r'maanantai\w*|monday|mon', r'tiistai\w*|tuesday|tues?', r'keskiviikko\w*|wednesday|wed',
+                 r'torstai\w*|thursday|thu|thurs', r'perjantai\w*|friday|fri', r'lauantai\w*|saturday|sat',
+                 r'sunnuntai\w*|sunday|sun')
+# Answers to the button questions in Finnish or in free-form English: (phrase rule, option value or label).
+TYPED_CHOICES: dict[str, tuple[tuple[str, str], ...]] = {
+    'days': ((r'\b(tanaan|today|tonight|this evening)\b', 'Today'), (r'\b(huomenna|tomorrow)\b', 'Tomorrow')),
+    'attempt_next': ((r'\b(toista\w*|uudelleen|uudestaan|repeat|again|same)\b', 'repeat'),
+                     (r'\b(seuraava\w*|next|move on)\b', 'next'),
+                     (r'\b(mietin|myohemmin|ei viela|think|not yet|later|pause|wait)\b', 'pause')),
+    'next_steps': ((r'\b(koe|kokee\w*|ennuste\w*|experiment|test|prediction)\b', 'experiment'),
+                   (r'\b(hengit\w*|breath\w*)\b', 'activity:act-paced-breathing'),
+                   (r'\b(huoli\w*|worry|worries)\b', 'activity:act-worry-time'),
+                   (r'\b(askel\w*|porra\w*|portaa\w*|harjoittel\w*|step|steps|ladder|exposure|practi[sc]e)\b', 'exposure'),
+                   (r'\b(riittaa|ei mitaan|ei kiitos|ei nyt|enough|nothing|no thanks|not now|none)\b', 'none')),
+    'domains': ((r'\b(uni|unet|nukku\w*|sleep\w*)\b', 'sleep'), (r'\b(jaksami\w*|vasymy\w*|energy|tired\w*)\b', 'energy'),
+                (r'\b(tyo\w*|work\w*|job)\b', 'work'), (r'\b(sosiaali\w*|ihmissuht\w*|ystav\w*|social|friends)\b', 'social')),
+}
+
+
 def _int_in(text_value: Any, low: int, high: int) -> Optional[int]:
     if isinstance(text_value, bool):
         return None
@@ -482,13 +531,28 @@ def _int_in(text_value: Any, low: int, high: int) -> Optional[int]:
         number = int(text_value)
     else:
         match = re.search(r'-?\d+', str(text_value or ''))
-        if not match:
-            return None
-        number = int(match.group())
+        if match:
+            number = int(match.group())
+        else:
+            # A number in words ("eight", "kahdeksan") counts only in a short answer, not inside a longer message.
+            normalized = normalize(str(text_value or ''))
+            word = NUMBER_RULE.search(normalized) if len(normalized.split()) <= 5 else None
+            if not word:
+                return None
+            number = NUMBER_WORDS[word.group(1)]
     return number if low <= number <= high else None
 
 
-def _match_option(options: list[ChatOption], raw: str) -> Optional[ChatOption]:
+def _typed_rules(step: dict[str, Any]) -> tuple[tuple[str, str], ...]:
+    """The phrase rules for typed answers to this step: data aliases (cbt.json) or the built-in choice rules."""
+    if step['widget'] == 'traps':
+        return tuple((rf'\b{re.escape(normalize(alias))}\b', t['id']) for t in _cbt()['traps'] for alias in t.get('aliases', []))
+    if step.get('options') == 'emotions':
+        return tuple((rf'\b{re.escape(normalize(alias))}\b', e['value']) for e in _cbt()['emotions'] for alias in e.get('aliases', []))
+    return TYPED_CHOICES.get(step.get('options') or '', ())
+
+
+def _match_option(options: list[ChatOption], raw: str, rules: tuple[tuple[str, str], ...] = ()) -> Optional[ChatOption]:
     wanted = normalize(raw)
     if not wanted:
         return None
@@ -497,52 +561,73 @@ def _match_option(options: list[ChatOption], raw: str) -> Optional[ChatOption]:
             return option
     if wanted.isdigit() and 1 <= int(wanted) <= len(options):
         return options[int(wanted) - 1]
-    return next((o for o in options if wanted in normalize(o.label) or normalize(o.label).startswith(wanted)), None)
+    found = next((o for o in options if wanted in normalize(o.label)), None)
+    for pattern, target in rules:
+        if found is None and re.search(pattern, wanted):
+            goal = normalize(target)
+            found = next((o for o in options if goal in (normalize(o.value), normalize(o.label))), None)
+    return found
+
+
+def _day_option(options: list[ChatOption], raw: str) -> Optional[ChatOption]:
+    """"Friday" / "perjantaina" → the first offered day that is that weekday."""
+    wanted = normalize(raw)
+    weekday = next((i for i, rule in enumerate(WEEKDAY_RULES) if re.search(rf'\b({rule})\b', wanted)), None)
+    if weekday is None:
+        return None
+    return next((o for o in options if re.fullmatch(r'\d{4}-\d\d-\d\d', o.value) and date.fromisoformat(o.value).weekday() == weekday),
+                None)
 
 
 def _parse(state: ValitukiState, client: ClientProfile, session: GuidedSession, step: dict[str, Any], value: Any, *,
            from_text: bool) -> tuple[Any, str]:
     kind = step['widget']
     widget = _widget(state, client, session, step, {})
+    rules = _typed_rules(step)
     if kind == 'text':
         cleaned = str(value or '').strip()[:MAX_TEXT]
         if not cleaned:
-            raise PracticeError('Kirjoita vastaus tai ohita kysymys.')
+            raise PracticeError('Write an answer or skip the question.')
         return cleaned, cleaned
     if kind == 'scale':
         number = _int_in(value, widget.min, widget.max)
         if number is None:
-            raise PracticeError(f'Valitse luku {widget.min}–{widget.max}.')
+            raise PracticeError(f'Choose a number {widget.min}–{widget.max}.')
         return number, f'{number}/{widget.max}'
     if kind == 'scale5':
         number = _int_in(value, 1, 5)
         if number is None and isinstance(value, str):
+            number = SCALE5_FI.get(step.get('scale', 'mood'), {}).get(normalize(value))
+        if number is None and isinstance(value, str):
             option = _match_option(widget.options, value)
             number = int(option.value) if option else None
         if number is None:
-            raise PracticeError('Valitse vaihtoehto 1–5.')
+            raise PracticeError('Choose an option 1–5.')
         return number, f'{number}/5 · {widget.options[number - 1].label}'
     if kind == 'choices':
-        option = _match_option(widget.options, str(value or ''))
+        option = _match_option(widget.options, str(value or ''), rules)
+        if option is None and step.get('options') == 'days':
+            option = _day_option(widget.options, str(value or ''))
         if option is None:
-            raise PracticeError('Valitse jokin vaihtoehdoista.')
+            raise PracticeError('Choose one of the options.')
         return option.value, option.label
     if kind in ('multi', 'traps'):
-        raw = value if isinstance(value, list) else [part for part in re.split(r',|\bja\b|\n', str(value or '')) if part.strip()]
+        raw = value if isinstance(value, list) else [
+            part for part in re.split(r',|;|\n|\b(?:ja|and)\b', str(value or ''), flags=re.IGNORECASE) if part.strip()]
         chosen: list[str] = []
         for item in raw:
-            option = _match_option(widget.options, str(item))
+            option = _match_option(widget.options, str(item), rules)
             if option and option.value not in chosen:
                 chosen.append(option.value)
             elif kind == 'multi' and step.get('options') == 'emotions' and str(item).strip():
                 chosen.append(str(item).strip()[:40])  # an emotion in the client's own words
         if not chosen:
-            raise PracticeError('Valitse vähintään yksi vaihtoehto tai ohita kysymys.')
+            raise PracticeError('Choose at least one option or skip the question.')
         labels = {o.value: o.label for o in widget.options}
         return chosen, ', '.join(labels.get(c, c) for c in chosen)
     if kind == 'ladder':
         if from_text or not isinstance(value, list):
-            raise PracticeError('Muokkaa porrasta ja tallenna se.')
+            raise PracticeError('Edit the ladder and save it.')
         steps = []
         for item in value[:8]:
             step_text = str((item or {}).get('text', '')).strip()[:140]
@@ -550,9 +635,9 @@ def _parse(state: ValitukiState, client: ClientProfile, session: GuidedSession, 
             if step_text and expected is not None:
                 steps.append({'text': step_text, 'expected': expected})
         if len(steps) < 2:
-            raise PracticeError('Portaassa tarvitaan vähintään kaksi askelta.')
-        return steps, f'Porras: {len(steps)} askelta'
-    raise PracticeError('Tuntematon vastaustapa.')
+            raise PracticeError('The ladder needs at least two steps.')
+        return steps, f'Ladder: {len(steps)} steps'
+    raise PracticeError('Unknown answer type.')
 
 
 def _display_value(key: Optional[str], value: Any) -> Any:
@@ -577,61 +662,61 @@ def demo_reflection(ctx: dict[str, Any]) -> str:
     if key is None or value in (None, '', []) or tool == 'checkin':
         return ''
     if key == 'situation':
-        return 'Kiitos, että kerroit. Käydään tilanne läpi rauhassa.'
+        return "Thank you for telling me. Let's go through the situation calmly."
     if key == 'thought':
-        return 'Kiitos, että kerroit sen. Tuollainen ajatus voi tuntua hyvin todelta, kun tilanne jännittää.'
+        return 'Thank you for sharing that. A thought like that can feel very true when a situation makes you nervous.'
     if key == 'emotions':
-        named = 'ne' if len(value) > 1 else 'sen'
-        return (f'{emotions_text(value)} – kiitos, että nimesit {named}. '
-                'Jo tunteen nimeäminen auttaa usein ottamaan siihen hieman etäisyyttä.')
+        named = 'them' if len(value) > 1 else 'it'
+        return (f'{emotions_text(value)} – thank you for naming {named}. '
+                'Just naming a feeling often helps you step back from it a little.')
     if key in ('intensityBefore', 'goalAnxiety'):
         number = int(value)
         if key == 'goalAnxiety':
-            return (f'{number}/10 on paljon. Siksi porras aloitetaan jostain selvästi helpommasta.' if number >= 5
-                    else f'{number}/10 – hyvä lähtökohta.')
+            return (f"{number}/10 is a lot. That's why the ladder starts from something clearly easier." if number >= 5
+                    else f'{number}/10 – a good starting point.')
         if number >= 7:
-            return f'{number}/10 on voimakas tunne. On hyvä, että pysähdyt sen äärelle.'
-        return f'{number}/10 – tunne on selvästi läsnä.' if number >= 4 else f'{number}/10 – kiitos, että arvioit sen.'
+            return f"{number}/10 is a strong feeling. It's good that you're pausing with it."
+        return f'{number}/10 – the feeling is clearly there.' if number >= 4 else f'{number}/10 – thank you for rating it.'
     if key == 'behaviour':
         if re.search(AVOIDANCE_WORDS, normalize(str(value))):
-            return ('Se on hyvin ymmärrettävää – välttäminen helpottaa hetkeksi. '
-                    'Pidemmän päälle se voi kuitenkin pitää jännityksen yllä.')
-        return 'Kiitos, että kerroit myös sen.'
+            return ("That's very understandable – avoiding brings relief for a moment. "
+                    'In the longer run, though, it can keep the nervousness going.')
+        return 'Thank you for telling me that too.'
     if key == 'traps':
-        return 'Hyvä huomio! Kun ajatusloukun tunnistaa, sen otetta on helpompi löysätä.'
+        return "Well spotted! Once you recognise a thinking trap, it's easier to loosen its grip."
     if key == 'evidenceFor':
-        return 'Ymmärrän, miksi ajatus tuntuu todelta. Katsotaan sitä nyt myös toisesta suunnasta.'
+        return "I understand why the thought feels true. Let's now look at it from another direction too."
     if key == 'evidenceAgainst':
-        return 'Tuo on lempeä ja viisas vastaus. Ystävälle osaa usein sanoa juuri sen, mitä itse tarvitsisi kuulla.'
+        return "That's a kind and wise answer. We can often tell a friend exactly what we would need to hear ourselves."
     if key == 'alternative':
-        return 'Hieno ajatus! Se ei poista jännitystä kokonaan, mutta voi tehdä siitä kestettävämmän.'
+        return "That's a great thought! It won't take the nervousness away completely, but it can make it easier to bear."
     if key == 'intensityAfter':
         before = answers.get('intensityBefore')
         if isinstance(before, int) and value < before:
-            return f'Tunne laski {before}/10 → {value}/10. Jo hetken pysähtyminen voi keventää oloa.'
+            return f'The feeling eased from {before}/10 to {value}/10. Even pausing for a moment can lighten how you feel.'
         if isinstance(before, int) and value == before:
-            return f'Tunne pysyi {value}/10 – sekin on tavallista. Uusi ajatus vahvistuu usein harjoittelemalla.'
-        return f'Tunne on nyt {value}/10. Kiitos, että kokeilit.'
+            return f"The feeling stayed at {value}/10 – that's common too. A new thought often grows stronger with practice."
+        return f'The feeling is now {value}/10. Thank you for trying.'
     if key == 'prediction':
-        return 'Kiitos. Kirjataan ennuste ylös, jotta sitä voi myöhemmin verrata siihen, mitä oikeasti tapahtui.'
+        return "Thank you. Let's write the prediction down so you can later compare it with what really happened."
     if key == 'beliefBefore':
-        return f'Uskot ennusteeseen nyt {value}/10.'
+        return f'Right now you believe the prediction {value}/10.'
     if key == 'plan':
-        return 'Hyvä koe – pieni ja konkreettinen.'
+        return 'A good experiment – small and concrete.'
     if key == 'outcome':
-        return 'Kiitos, että kirjasit, mitä oikeasti tapahtui.'
+        return 'Thank you for writing down what really happened.'
     if key == 'goal':
-        return 'Kiitos. Tästä tulee portaan ylin askel – sinne ei tarvitse mennä heti.'
+        return "Thank you. This will be the top step of your ladder – you don't need to go there straight away."
     if key == 'ladder':
-        return f'Selvä – portaassa on {len(value)} askelta.'
+        return f'All right – your ladder has {len(value)} steps.'
     if key == 'firstStep':
-        return 'Hyvä valinta aloitukseksi.'
+        return 'A good choice to start with.'
     if key == 'after':
         peak = answers.get('peak')
         if isinstance(peak, int) and value < peak:
-            return (f'Ahdistus nousi {peak}/10:een ja laski {value}/10:een. Juuri näin altistus toimii: jännitys laskee, kun '
-                    'tilanteessa pysyy.')
-        return 'Kiitos, että teit askeleen – jo tekeminen on harjoittelua.'
+            return (f'Your anxiety rose to {peak}/10 and eased to {value}/10. This is exactly how exposure works: the nervousness '
+                    'eases when you stay in the situation.')
+        return 'Thank you for taking the step – doing it is already practice.'
     return ''
 
 
@@ -707,10 +792,10 @@ def _finish_thought_record(state: ValitukiState, client: ClientProfile, session:
     _close(state, session, 'completed')
     session.resultId = record.id
     task = _complete_linked_task(state, client, session)
-    emotions = emotions_text(record.emotions) or 'Tunne'
-    _summary(state, client, session, 'thought_record', record.id, 'Ajatuspäiväkirja', [
-        ('Tilanne', record.situation), ('Ajatus', record.thought), ('Tunne', emotions), ('Toiminta', record.behaviour),
-        ('Ajatusloukku', join_fi([trap_label(t) for t in record.traps])), ('Vaihtoehtoinen ajatus', record.alternative)],
+    emotions = emotions_text(record.emotions) or 'Feeling'
+    _summary(state, client, session, 'thought_record', record.id, 'Thought diary', [
+        ('Situation', record.situation), ('Thought', record.thought), ('Feeling', emotions), ('What I did', record.behaviour),
+        ('Thinking trap', join_fi([trap_label(t) for t in record.traps])), ('Balanced thought', record.alternative)],
         change={'label': emotions, 'before': record.intensityBefore, 'after': record.intensityAfter, 'max': 10})
     _event(state, client, 'THOUGHT_RECORD_COMPLETED', actor, {'recordId': record.id, 'before': record.intensityBefore,
                                                               'after': record.intensityAfter, 'taskId': task.id if task else None})
@@ -719,16 +804,16 @@ def _finish_thought_record(state: ValitukiState, client: ClientProfile, session:
         start(state, client, 'experiment', provider, actor, prefill={'prediction': record.thought},
               context={'thoughtRecordId': record.id, 'situation': record.situation}, started_from='chain')
     elif next_step == 'exposure' and tool_allowed(state, client, 'exposure')[0]:
-        # The ladder's goal is asked in the client's own short words ("Esityksen pitäminen tiimille"), not copied from
+        # The ladder's goal is asked in the client's own short words ("Giving a presentation to the team"), not copied from
         # the situation.
         start(state, client, 'exposure', provider, actor, context={'thoughtRecordId': record.id, 'situation': record.situation},
               started_from='chain')
     elif next_step.startswith('activity:'):
         activity = content.activity(next_step.split(':', 1)[1])
         if activity:
-            create_task(state, client, kind='activity', title_text=activity.title, detail='Sovittu ajatusten tutkimisen jälkeen.',
+            create_task(state, client, kind='activity', title_text=activity.title, detail='Agreed after exploring a thought.',
                         source_id=activity.id)
-            say(state, client, f'Lisäsin tehtäviisi: {activity.title}. Harjoituksen ohjeet löytyvät Harjoitukset-sivulta. '
+            say(state, client, f"I added this to your tasks: {activity.title}. You'll find the instructions on the Exercises page. "
                                + text('thought_record_done'))
     else:
         say(state, client, text('thought_record_done'))
@@ -742,15 +827,15 @@ def _finish_experiment(state: ValitukiState, client: ClientProfile, session: Gui
                             beliefBefore=a.get('beliefBefore'), plan=a.get('plan') or '', plannedFor=a.get('when'),
                             mode=client.mode, createdAt=stamp, updatedAt=stamp, createdBy=actor, source='guided_chat')
     state.experiments.append(experiment)
-    task = create_task(state, client, kind='experiment', title_text=f'Käyttäytymiskoe: {short(experiment.plan, 80)}',
-                       detail=f'Ennuste: {short(experiment.prediction, 100)}', due=experiment.plannedFor, source_id=experiment.id)
+    task = create_task(state, client, kind='experiment', title_text=f'Behavioural experiment: {short(experiment.plan, 80)}',
+                       detail=f'Prediction: {short(experiment.prediction, 100)}', due=experiment.plannedFor, source_id=experiment.id)
     experiment.taskId = task.id
     _close(state, session, 'completed')
     session.resultId = experiment.id
-    _summary(state, client, session, 'experiment', experiment.id, 'Käyttäytymiskoe suunniteltu', [
-        ('Ennuste', experiment.prediction), ('Usko ennusteeseen', f'{experiment.beliefBefore}/10' if experiment.beliefBefore is not None
-                                              else None), ('Koe', experiment.plan),
-        ('Milloin', fmt_slot(experiment.plannedFor) if experiment.plannedFor else None)])
+    _summary(state, client, session, 'experiment', experiment.id, 'Behavioural experiment planned', [
+        ('Prediction', experiment.prediction),
+        ('Belief in the prediction', f'{experiment.beliefBefore}/10' if experiment.beliefBefore is not None else None),
+        ('Experiment', experiment.plan), ('When', fmt_slot(experiment.plannedFor) if experiment.plannedFor else None)])
     _event(state, client, 'EXPERIMENT_PLANNED', actor, {'experimentId': experiment.id, 'taskId': task.id})
     say(state, client, text('experiment_done'))
 
@@ -771,9 +856,9 @@ def _finish_experiment_review(state: ValitukiState, client: ClientProfile, sessi
     _complete_linked_task(state, client, session)
     _close(state, session, 'completed')
     session.resultId = experiment.id
-    _summary(state, client, session, 'experiment', experiment.id, 'Käyttäytymiskokeen tulos', [
-        ('Ennuste', experiment.prediction), ('Mitä tapahtui', experiment.outcome), ('Mitä opin', experiment.learned)],
-        change={'label': 'Usko ennusteeseen', 'before': experiment.beliefBefore, 'after': experiment.beliefAfter, 'max': 10})
+    _summary(state, client, session, 'experiment', experiment.id, 'Behavioural experiment result', [
+        ('Prediction', experiment.prediction), ('What happened', experiment.outcome), ('What I learned', experiment.learned)],
+        change={'label': 'Belief in the prediction', 'before': experiment.beliefBefore, 'after': experiment.beliefAfter, 'max': 10})
     _event(state, client, 'EXPERIMENT_REVIEWED', actor, {'experimentId': experiment.id, 'before': experiment.beliefBefore,
                                                          'after': experiment.beliefAfter})
     say(state, client, text('experiment_review_done'))
@@ -791,13 +876,13 @@ def _finish_exposure(state: ValitukiState, client: ClientProfile, session: Guide
     first = steps[min(first_index, len(steps) - 1)]
     first.status = 'doing'
     task = create_task(state, client, kind='exposure_step', title_text=first.text,
-                       detail=f'Altistusporras: {short(ladder.goal, 80)} · odotettu jännitys {first.expected}/10', due=a.get('when'),
+                       detail=f'Exposure ladder: {short(ladder.goal, 80)} · expected nervousness {first.expected}/10', due=a.get('when'),
                        source_id=ladder.id, step_id=first.id)
     _close(state, session, 'completed')
     session.resultId = ladder.id
-    _summary(state, client, session, 'exposure', ladder.id, 'Altistusporras', [
-        ('Tavoite', ladder.goal), ('Askeleet', [f'{s.text} ({s.expected}/10)' for s in steps]),
-        ('Ensimmäinen askel', f'{first.text} – {fmt_slot(task.dueDate)}')])
+    _summary(state, client, session, 'exposure', ladder.id, 'Exposure ladder', [
+        ('Goal', ladder.goal), ('Steps', [f'{s.text} ({s.expected}/10)' for s in steps]),
+        ('First step', f'{first.text} – {fmt_slot(task.dueDate)}')])
     _event(state, client, 'EXPOSURE_LADDER_CREATED', actor, {'ladderId': ladder.id, 'taskId': task.id, 'steps': len(steps)})
     say(state, client, text('exposure_done'))
 
@@ -830,22 +915,22 @@ def _finish_exposure_attempt(state: ValitukiState, client: ClientProfile, sessio
             step.status = 'done'
         upcoming.status = 'doing'
         follow = create_task(state, client, kind='exposure_step', title_text=upcoming.text,
-                             detail=f'Altistusporras: {short(ladder.goal, 80)} · odotettu jännitys {upcoming.expected}/10',
+                             detail=f'Exposure ladder: {short(ladder.goal, 80)} · expected nervousness {upcoming.expected}/10',
                              due=a.get('when'), source_id=ladder.id, step_id=upcoming.id)
     elif choice == 'repeat':
         follow = create_task(state, client, kind='exposure_step', title_text=step.text,
-                             detail=f'Toisto · altistusporras: {short(ladder.goal, 80)}', due=a.get('when'), source_id=ladder.id,
+                             detail=f'Repeat · exposure ladder: {short(ladder.goal, 80)}', due=a.get('when'), source_id=ladder.id,
                              step_id=step.id)
     if all(s.status == 'done' for s in ladder.steps):
         ladder.status = 'completed'
-    _summary(state, client, session, 'exposure_attempt', ladder.id, f'Askel tehty: {step.text}', [
-        ('Porras', ladder.goal), ('Huomasin', attempt.note),
-        ('Seuraavaksi', f'{follow.title} – {fmt_slot(follow.dueDate)}' if follow else 'Mietit vielä – porras odottaa')],
-        change={'label': 'Ahdistus', 'before': attempt.before, 'peak': attempt.peak, 'after': attempt.after, 'max': 10})
+    _summary(state, client, session, 'exposure_attempt', ladder.id, f'Step done: {step.text}', [
+        ('Ladder', ladder.goal), ('What I noticed', attempt.note),
+        ('Next', f'{follow.title} – {fmt_slot(follow.dueDate)}' if follow else "You're still thinking – the ladder will wait")],
+        change={'label': 'Anxiety', 'before': attempt.before, 'peak': attempt.peak, 'after': attempt.after, 'max': 10})
     _event(state, client, 'EXPOSURE_STEP_COMPLETED', actor, {'ladderId': ladder.id, 'stepId': step.id, 'before': attempt.before,
                                                              'peak': attempt.peak, 'after': attempt.after,
                                                              'taskId': task.id if task else None})
-    say(state, client, text('exposure_attempt_done') + (' Koko porras on nyt tehty – upeaa sinnikkyyttä.'
+    say(state, client, text('exposure_attempt_done') + (' The whole ladder is now done – wonderful perseverance.'
                                                          if ladder.status == 'completed' else ''))
 
 
@@ -854,21 +939,21 @@ def _finish_exposure_attempt(state: ValitukiState, client: ClientProfile, sessio
 def get_task(state: ValitukiState, client: ClientProfile, task_id: str) -> PracticeTask:
     task = next((t for t in state.practiceTasks if t.id == task_id and t.clientId == client.id), None)
     if task is None:
-        raise PracticeError('Tehtävää ei löytynyt.')
+        raise PracticeError('Task not found.')
     return task
 
 
 def complete_task(state: ValitukiState, client: ClientProfile, task_id: str, provider, actor: str, *,
                   started_from: str = 'task') -> dict[str, Any]:
-    """"Tein tämän" / "Kerro, miten meni": reviews run as a short guided conversation; simple tasks are marked done."""
+    """"I did this" / "Tell me how it went": reviews run as a short guided conversation; simple tasks are marked done."""
     task = get_task(state, client, task_id)
     if task.status != 'open':
-        raise PracticeError('Tehtävä on jo kirjattu.')
+        raise PracticeError('This task has already been recorded.')
     if task.kind == 'exposure_step':
         ladder = next((item for item in state.ladders if item.id == task.sourceId), None)
         step = next((s for s in ladder.steps if s.id == task.stepId), None) if ladder else None
         if ladder is None or step is None:
-            raise PracticeError('Portaan askelta ei löytynyt.')
+            raise PracticeError('The ladder step was not found.')
         upcoming = _next_step(ladder, step)
         start(state, client, 'exposure_attempt', provider, actor, started_from=started_from,
               context={'taskId': task.id, 'ladderId': ladder.id, 'stepId': step.id, 'stepText': step.text,
@@ -877,7 +962,7 @@ def complete_task(state: ValitukiState, client: ClientProfile, task_id: str, pro
     if task.kind == 'experiment':
         experiment = next((e for e in state.experiments if e.id == task.sourceId), None)
         if experiment is None:
-            raise PracticeError('Koetta ei löytynyt.')
+            raise PracticeError('The experiment was not found.')
         start(state, client, 'experiment_review', provider, actor, started_from=started_from,
               context={'taskId': task.id, 'experimentId': experiment.id, 'plan': experiment.plan})
         return {'started': 'experiment_review'}
@@ -899,7 +984,7 @@ def complete_task(state: ValitukiState, client: ClientProfile, task_id: str, pro
 def postpone_task(state: ValitukiState, client: ClientProfile, task_id: str) -> PracticeTask:
     task = get_task(state, client, task_id)
     if task.status != 'open':
-        raise PracticeError('Tehtävä on jo kirjattu.')
+        raise PracticeError('This task has already been recorded.')
     task.dueDate = add_days(max(task.dueDate or state.currentDate, state.currentDate), 1)
     task.reminderSentAt = None
     task.updatedAt = now(state)
@@ -910,12 +995,13 @@ def postpone_task(state: ValitukiState, client: ClientProfile, task_id: str) -> 
 def skip_task(state: ValitukiState, client: ClientProfile, task_id: str) -> PracticeTask:
     task = get_task(state, client, task_id)
     if task.status != 'open':
-        raise PracticeError('Tehtävä on jo kirjattu.')
+        raise PracticeError('This task has already been recorded.')
     task.status = 'skipped'
     task.updatedAt = now(state)
     close_offers(state, client, task_id=task.id)
-    records.act(state, agent=AGENT, type='task_skipped', client_id=client.id, visibility='private', title=f'Ohitit tehtävän: {task.title}',
-                detail='Ohittaminen on aina sallittua. Voit palata harjoitukseen myöhemmin.')
+    records.act(state, agent=AGENT, type='task_skipped', client_id=client.id, visibility='private',
+                title=f'You skipped a task: {task.title}',
+                detail='Skipping is always allowed. You can come back to the exercise later.')
     return task
 
 
@@ -926,17 +1012,17 @@ def remind_due_tasks(state: ValitukiState, client: ClientProfile, at: Optional[s
         task.reminderSentAt = now(state, at)
         if task.kind == 'homework':
             body = text('homework_due', title=task.title)
-            options = [(f'task_done:{task.id}', 'Aloita nyt'), ('dismiss', 'Myöhemmin')]
+            options = [(f'task_done:{task.id}', 'Start now'), ('dismiss', 'Later')]
         else:
             body = text('task_due', title=task.title)
-            label = 'Kerro, miten meni' if task.kind in ('exposure_step', 'experiment') else 'Tein tämän'
-            options = [(f'task_done:{task.id}', label), (f'task_later:{task.id}', 'Siirrä huomiseen'), (f'task_skip:{task.id}', 'Ohita')]
+            label = 'Tell me how it went' if task.kind in ('exposure_step', 'experiment') else 'I did this'
+            options = [(f'task_done:{task.id}', label), (f'task_later:{task.id}', 'Move to tomorrow'), (f'task_skip:{task.id}', 'Skip')]
         offer(state, client, body, options, group=f'task:{task.id}', data={'taskId': task.id})
         records.notify(state, audience='client', client_id=client.id, kind='practice', agent=AGENT, action_view='chat',
-                       title='Tänään sovittu harjoitus', body=task.title)
+                       title="Today's agreed exercise", body=task.title)
         records.act(state, agent=AGENT, type='remind_task', client_id=client.id, rule_id='TASK-DUE-001', visibility='private',
-                    title=f'Muistutti sovitusta harjoituksesta: {short(task.title, 70)}',
-                    detail='Harjoituksen voi tehdä, siirtää tai ohittaa – ohittaminen on aina sallittua.')
+                    title=f'Reminded you of an agreed exercise: {short(task.title, 70)}',
+                    detail='The exercise can be done, postponed or skipped – skipping is always allowed.')
 
 
 # --- offers --------------------------------------------------------------------------------------------------------------
@@ -944,12 +1030,12 @@ def remind_due_tasks(state: ValitukiState, client: ClientProfile, at: Optional[s
 def act_on_offer(state: ValitukiState, client: ClientProfile, message_id: str, option: str, provider, actor: str) -> dict[str, Any]:
     message = next((m for m in state.chat if m.id == message_id and m.clientId == client.id and m.kind == 'offer'), None)
     if message is None or message.widget is None:
-        raise PracticeError('Viestiä ei löytynyt.')
+        raise PracticeError('Message not found.')
     if message.answered:
-        raise PracticeError('Tähän on jo vastattu.')
+        raise PracticeError('This has already been answered.')
     chosen = next((o for o in message.widget.options if o.value == option), None)
     if chosen is None:
-        raise PracticeError('Tuntematon valinta.')
+        raise PracticeError('Unknown choice.')
     message.answered = True
     say(state, client, chosen.label, role='client', kind='answer', value=option)
     data = message.widget.data
@@ -961,13 +1047,13 @@ def act_on_offer(state: ValitukiState, client: ClientProfile, message_id: str, o
         return complete_task(state, client, option.split(':', 1)[1], provider, actor, started_from='offer')
     if option.startswith('task_later:'):
         task = postpone_task(state, client, option.split(':', 1)[1])
-        say(state, client, f'Siirretty: {fmt_slot(task.dueDate)}. Muistutan silloin.')
+        say(state, client, f"Moved to {fmt_slot(task.dueDate)}. I'll remind you then.")
         return {'postponed': task.dueDate}
     if option.startswith('task_skip:'):
         skip_task(state, client, option.split(':', 1)[1])
-        say(state, client, 'Selvä, ohitetaan tämä kerta. Voit palata harjoitukseen milloin tahansa.')
+        say(state, client, "All right, let's skip it this time. You can come back to the exercise at any time.")
         return {'skipped': True}
-    say(state, client, 'Selvä. Voit palata tähän milloin tahansa.')
+    say(state, client, 'All right. You can come back to this at any time.')
     return {'dismissed': True}
 
 
@@ -976,7 +1062,7 @@ def offer_after_checkin(state: ValitukiState, client: ClientProfile, mood: int, 
         return
     if not ((anxiety or 0) >= 4 or mood <= 2) or not tool_allowed(state, client, 'thought_record')[0]:
         return
-    offer(state, client, text('checkin_offer'), [('start:thought_record', 'Tutkitaan tilannetta'), ('dismiss', 'Ei nyt')],
+    offer(state, client, text('checkin_offer'), [('start:thought_record', "Let's explore it"), ('dismiss', 'Not now')],
           group='checkin', data={'prefill': {'situation': note} if note else {}})
 
 
@@ -985,31 +1071,32 @@ def offer_after_checkin(state: ValitukiState, client: ClientProfile, mood: int, 
 def _collection(state: ValitukiState, kind: str) -> list:
     collections = {'thought_record': state.thoughtRecords, 'experiment': state.experiments, 'exposure': state.ladders}
     if kind not in collections:
-        raise PracticeError('Tuntematon merkintä.')
+        raise PracticeError('Unknown entry.')
     return collections[kind]
 
 
 def set_shared(state: ValitukiState, client: ClientProfile, kind: str, item_id: str, shared: bool, actor: str) -> None:
     item = next((i for i in _collection(state, kind) if i.id == item_id and i.clientId == client.id), None)
     if item is None:
-        raise PracticeError('Merkintää ei löytynyt.')
+        raise PracticeError('Entry not found.')
     item.shared = bool(shared)
     item.updatedAt = now(state)
     records.audit(state, actor=actor, action='practice_sharing', client_id=client.id,
-                  detail=f'{PRACTICE_KINDS.get(kind, kind)} {item_id}: ' + ('jaettu terapeutille' if shared else 'vain asiakkaalle'))
+                  detail=f'{PRACTICE_KINDS.get(kind, kind)} {item_id}: '
+                         + ('shared with the therapist' if shared else 'visible to the client only'))
 
 
 def remove_item(state: ValitukiState, client: ClientProfile, kind: str, item_id: str, actor: str) -> None:
     collection = _collection(state, kind)
     item = next((i for i in collection if i.id == item_id and i.clientId == client.id), None)
     if item is None:
-        raise PracticeError('Merkintää ei löytynyt.')
+        raise PracticeError('Entry not found.')
     collection.remove(item)
     for task in state.practiceTasks:
         if task.clientId == client.id and task.sourceId == item_id and task.status == 'open':
             task.status = 'skipped'
     records.audit(state, actor=actor, action='practice_removed', client_id=client.id,
-                  detail=f'{PRACTICE_KINDS.get(kind, kind)} poistettiin asiakkaan pyynnöstä.')
+                  detail=f"{PRACTICE_KINDS.get(kind, kind)} removed at the client's request.")
 
 
 # --- replay (seed, simulation and demo scenes run the same engine) ----------------------------------------------------------
@@ -1054,7 +1141,7 @@ def replay(state: ValitukiState, client: ClientProfile, tool: str, answers: dict
 
 def demo_cbt(state: ValitukiState, client: ClientProfile, actor: str) -> None:
     """The live demo's CBT moment: the client writes about the coming situation → Mieliluotsi offers to look at it together →
-    "Ajatusten tutkiminen" → an exposure ladder with the first step as a task."""
+    "Exploring a thought" → an exposure ladder with the first step as a task."""
     from app.valituki import client_actions
     from app.valituki.ai import DemoAIProvider
     from app.valituki.store import begin_action
@@ -1106,25 +1193,25 @@ def _due_label(due: Optional[str], today: str) -> str:
         return ''
     delta = days_between(today, due)
     if delta == 0:
-        return 'Tänään'
+        return 'Today'
     if delta == 1:
-        return 'Huomenna'
+        return 'Tomorrow'
     if delta < 0:
-        return f'Myöhässä · {fmt_slot(due)}'
+        return f'Overdue · {fmt_slot(due)}'
     return fmt_slot(due)
 
 
 def _assigned_label(state: ValitukiState, assigned_by: str) -> str:
     if assigned_by.startswith('therapist:'):
         therapist = next((t for t in state.therapists if t.id == assigned_by.split(':', 1)[1]), None)
-        return f'Terapeutti {therapist.name.split()[0]}' if therapist else 'Terapeutti'
-    return 'Mieliluotsi' if assigned_by.startswith('agent') else 'Sinä'
+        return f'Therapist {therapist.name.split()[0]}' if therapist else 'Therapist'
+    return 'Mieliluotsi' if assigned_by.startswith('agent') else 'You'
 
 
 def task_row(state: ValitukiState, task: PracticeTask) -> dict[str, Any]:
-    action = {'exposure_step': 'Kerro, miten meni', 'experiment': 'Kerro, miten meni', 'homework': 'Aloita'}.get(task.kind, 'Tein tämän')
-    return {'id': task.id, 'kind': task.kind, 'kindLabel': {'exposure_step': 'Altistus', 'experiment': 'Käyttäytymiskoe',
-                                                            'activity': 'Harjoitus', 'homework': 'Välitehtävä'}[task.kind],
+    action = {'exposure_step': 'Tell me how it went', 'experiment': 'Tell me how it went', 'homework': 'Start'}.get(task.kind, 'I did this')
+    return {'id': task.id, 'kind': task.kind, 'kindLabel': {'exposure_step': 'Exposure', 'experiment': 'Behavioural experiment',
+                                                            'activity': 'Exercise', 'homework': 'Between-session task'}[task.kind],
             'title': task.title, 'detail': task.detail, 'dueDate': task.dueDate, 'dueLabel': _due_label(task.dueDate, state.currentDate),
             'overdue': bool(task.dueDate and task.status == 'open' and task.dueDate < state.currentDate), 'status': task.status,
             'actionLabel': action, 'assignedBy': task.assignedBy, 'assignedByLabel': _assigned_label(state, task.assignedBy),
@@ -1155,12 +1242,12 @@ def _experiment_row(item: Experiment) -> dict[str, Any]:
 
 
 def completed_items(state: ValitukiState, client: ClientProfile) -> list[dict[str, Any]]:
-    """"Suoritetut harjoitukset" – newest first, each with its tag."""
+    """"Completed exercises" – newest first, each with its tag."""
     items: list[dict[str, Any]] = []
     for record in state.thoughtRecords:
         if record.clientId == client.id:
             items.append({'id': record.id, 'kind': 'thought_record', 'tag': PRACTICE_KINDS['thought_record'], 'at': record.createdAt,
-                          'title': short(record.situation, 70) or 'Ajatusten tutkiminen', 'detail': record.alternative or record.thought,
+                          'title': short(record.situation, 70) or 'Exploring a thought', 'detail': record.alternative or record.thought,
                           'change': {'before': record.intensityBefore, 'after': record.intensityAfter}})
     for item in state.experiments:
         if item.clientId == client.id and item.status == 'done':
@@ -1173,14 +1260,15 @@ def completed_items(state: ValitukiState, client: ClientProfile) -> list[dict[st
         for step in ladder.steps:
             for attempt in step.attempts:
                 items.append({'id': attempt.id, 'kind': 'exposure', 'tag': PRACTICE_KINDS['exposure'], 'at': f'{attempt.date}T20:00',
-                              'title': step.text, 'detail': attempt.note or f'Porras: {short(ladder.goal, 60)}',
+                              'title': step.text, 'detail': attempt.note or f'Ladder: {short(ladder.goal, 60)}',
                               'change': {'before': attempt.peak, 'after': attempt.after}})
     for completion in state.activityCompletions:
         if completion.clientId == client.id and completion.status == 'completed':
             activity = content.activity(completion.activityId)
             items.append({'id': completion.id, 'kind': 'activity', 'tag': PRACTICE_KINDS['activity'], 'at': completion.createdAt,
                           'title': activity.title if activity else completion.activityId,
-                          'detail': f'Oma arvio {completion.rating}/5' if completion.rating else (activity.description if activity else ''),
+                          'detail': (f'Your rating {completion.rating}/5' if completion.rating
+                                     else activity.description if activity else ''),
                           'change': None})
     return sorted(items, key=lambda i: i['at'], reverse=True)
 
@@ -1252,7 +1340,7 @@ def client_view(state: ValitukiState, client: ClientProfile) -> dict[str, Any]:
 
 
 def week_summary(state: ValitukiState, client: ClientProfile, series: list[dict[str, Any]]) -> dict[str, Any]:
-    """"Viikkosi" – a Wysa-style weekly review built only from the client's own answers (deterministic)."""
+    """"Your week" – a Wysa-style weekly review built only from the client's own answers (deterministic)."""
     today = date.fromisoformat(state.currentDate)
     start_day = today - timedelta(days=today.weekday())
     days = [(start_day + timedelta(days=i)).isoformat() for i in range(7)]
@@ -1270,26 +1358,27 @@ def week_summary(state: ValitukiState, client: ClientProfile, series: list[dict[
     came_up: list[str] = []
     high = [p for p in checkins if (p.get('anxiety') or 0) >= 4]
     if checkins:
-        came_up.append(f'Ahdistus oli koholla {len(high)}/{len(checkins)} check-inissä.' if high
-                       else f'Teit {len(checkins)} check-iniä – ahdistus pysyi maltillisena.')
+        came_up.append(f'Your anxiety was raised in {len(high)}/{len(checkins)} check-ins.' if high
+                       else f'You did {_count(len(checkins), "check-in")} – your anxiety stayed moderate.')
     week_stats = stats(state, client.id, since=week_start)
     if week_stats['traps']:
         top = week_stats['traps'][0]
         if top['count'] > 1:
-            came_up.append(f'Tunnistit ajatusloukun ”{top["label"]}” {top["count"]} kertaa.')
+            came_up.append(f'You recognised the thinking trap “{top["label"]}” {_count(top["count"], "time")}.')
         else:
-            names = [f'”{t["label"]}”' for t in week_stats['traps'][:2]]
-            came_up.append(f'Tunnistit ajatusloukun {names[0]}.' if len(names) == 1 else f'Tunnistit ajatusloukut {join_fi(names)}.')
+            names = [f'“{t["label"]}”' for t in week_stats['traps'][:2]]
+            came_up.append(f'You recognised the thinking trap {names[0]}.' if len(names) == 1
+                           else f'You recognised the thinking traps {join_fi(names)}.')
     if records_ and week_stats['avgDrop'] is not None:
-        came_up.append(f'Ajatusten tutkiminen laski tunteen voimakkuutta keskimäärin {str(week_stats["avgDrop"]).replace(".", ",")} '
-                       'pistettä (0–10).')
+        came_up.append(f'Exploring a thought eased the strength of the feeling by {week_stats["avgDrop"]} points on average '
+                       '(0–10).')
     for _ladder, step, attempt in attempts[-1:]:
-        came_up.append(f'Teit altistusaskeleen ”{short(step.text, 60)}” – ahdistus {attempt.peak}/10 → {attempt.after}/10.')
-    steps = [f'{t.title} ({_due_label(t.dueDate, state.currentDate).lower()})' for t in state.practiceTasks
+        came_up.append(f'You did the exposure step “{short(step.text, 60)}” – anxiety {attempt.peak}/10 → {attempt.after}/10.')
+    steps = [f'{t.title} ({_in_sentence(_due_label(t.dueDate, state.currentDate))})' for t in state.practiceTasks
              if t.clientId == client.id and t.status == 'open'][:3]
     words = next((r.alternative for r in sorted(state.thoughtRecords, key=lambda r: r.createdAt, reverse=True)
                   if r.clientId == client.id and r.alternative), None)
-    weekdays = ['ma', 'ti', 'ke', 'to', 'pe', 'la', 'su']
+    weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     return {
         'start': days[0], 'end': days[-1], 'sessions': len(sessions),
         'days': [{'date': d, 'weekday': weekdays[i], 'mood': by_day.get(d, {}).get('mood'), 'anxiety': by_day.get(d, {}).get('anxiety'),
@@ -1315,22 +1404,22 @@ def therapist_summary(state: ValitukiState, client: ClientProfile, since: Option
 
 
 def handover_facts(state: ValitukiState, client: ClientProfile) -> Optional[dict[str, Any]]:
-    """The "Mitä olen harjoitellut" handover section: aggregated only – journal entries are never included."""
+    """The "What I have practised" handover section: aggregated only – journal entries are never included."""
     summary = stats(state, client.id)
     ladders = [lad for lad in state.ladders if lad.clientId == client.id]
     if not (summary['thoughtRecords'] or summary['experiments'] or ladders):
         return None
     parts = []
     if summary['thoughtRecords']:
-        drop = f', tunne laski keskimäärin {str(summary["avgDrop"]).replace(".", ",")} pistettä (0–10)' if summary['avgDrop'] else ''
-        parts.append(f'Ajatusten tutkiminen {summary["thoughtRecords"]} kertaa{drop}')
+        drop = f', the feeling eased by {summary["avgDrop"]} points on average (0–10)' if summary['avgDrop'] else ''
+        parts.append(f'Exploring a thought {_count(summary["thoughtRecords"], "time")}{drop}')
     if summary['traps']:
-        parts.append('tunnistetut ajatusloukut: ' + join_fi([f'{t["label"]} ({t["count"]})' for t in summary['traps'][:3]]))
+        parts.append('thinking traps recognised: ' + join_fi([f'{t["label"]} ({t["count"]})' for t in summary['traps'][:3]]))
     if summary['experiments']:
-        parts.append(f'käyttäytymiskokeita {summary["experiments"]} (tehty {summary["experimentsDone"]})')
+        parts.append(f'behavioural experiments: {summary["experiments"]} ({summary["experimentsDone"]} done)')
     for ladder in ladders[:2]:
         done = len([s for s in ladder.steps if s.status == 'done'])
-        parts.append(f'altistusporras ”{short(ladder.goal, 60)}”: {done}/{len(ladder.steps)} askelta tehty')
+        parts.append(f'exposure ladder “{short(ladder.goal, 60)}”: {done}/{len(ladder.steps)} steps done')
     return {'text': '; '.join(parts) + '.', 'stats': summary,
             'ladders': [{'goal': lad.goal, 'done': len([s for s in lad.steps if s.status == 'done']), 'total': len(lad.steps)}
                         for lad in ladders]}

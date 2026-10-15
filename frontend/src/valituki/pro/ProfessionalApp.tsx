@@ -10,10 +10,10 @@ import Impact from './Impact';
 import Queue from './Queue';
 
 const TABS: { key: ProTab; label: string; icon: ReactNode }[] = [
-  { key: 'jono', label: 'Terapiajono', icon: <ListIcon size={17} /> },
-  { key: 'loki', label: 'Mitä Mieliluotsi teki?', icon: <ClockIcon size={17} /> },
-  { key: 'terapeutit', label: 'Terapeutit', icon: <UsersIcon size={17} /> },
-  { key: 'vaikuttavuus', label: 'Vaikuttavuus', icon: <BarsIcon size={17} /> },
+  { key: 'jono', label: 'Waiting list', icon: <ListIcon size={17} /> },
+  { key: 'loki', label: 'What did Mieliluotsi do?', icon: <ClockIcon size={17} /> },
+  { key: 'terapeutit', label: 'Therapists', icon: <UsersIcon size={17} /> },
+  { key: 'vaikuttavuus', label: 'Impact', icon: <BarsIcon size={17} /> },
 ];
 
 export default function ProfessionalApp() {
@@ -23,11 +23,11 @@ export default function ProfessionalApp() {
     <div className="pro">
       <header className="pro-head">
         <div className="pro-brand"><Logo size={32} /></div>
-        <p className="pro-kicker"><span className="pro-kicker-dot" aria-hidden="true" />Hoitotiimin näkymä · {pro.coordinatorName}</p>
-        <h1 className="pro-title">Älykäs terapiajono</h1>
-        <p className="pro-lede">Jonosta ei tule passiivista odottamista. Mieliluotsi nostaa muutokset tarkistettaviksi – ammattilainen päättää.</p>
+        <p className="pro-kicker"><span className="pro-kicker-dot" aria-hidden="true" />Care team view · {pro.coordinatorName}</p>
+        <h1 className="pro-title">Smart therapy waiting list</h1>
+        <p className="pro-lede">The waiting list no longer means passive waiting. Mieliluotsi raises changes for review – a professional decides.</p>
       </header>
-      <nav className="pro-tabs" aria-label="Ammattilaisen näkymät">
+      <nav className="pro-tabs" aria-label="Professional views">
         {TABS.map((tab) => (
           <button key={tab.key} type="button" aria-current={proTab === tab.key && !proClientId ? 'page' : undefined}
             onClick={() => { setProTab(tab.key); setProClientId(null); }}>

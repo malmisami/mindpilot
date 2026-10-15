@@ -19,9 +19,9 @@ def on_slot_opened(state: ValitukiState, event: AgentEvent, provider) -> None:
     created = adapters.therapist_directory.sync_calendars(state, therapist.id)
     first = min((s.start for s in created), default=None)
     records.act(state, agent=AGENT, type='detect_capacity', event=event, visibility='professional', rule_id='CAP-001',
-                title=f'Havaitsi vapautuneen asiakaspaikan: {therapist.name}',
-                detail=f'{event.payload.get("reason", "")} Ensimmäinen uusi aika {fmt_slot(first)}. Matching ajetaan kaikille, '
-                       'joille terapeutin etsintä on käynnissä.')
+                title=f'Detected a client place that opened up: {therapist.name}',
+                detail=f'{event.payload.get("reason", "")} First new time: {fmt_slot(first)}. Matching runs for everyone whose '
+                       'therapist search is under way.')
     matching_flow.run(state, event, provider, therapist_id=therapist.id)
 
 
@@ -31,16 +31,16 @@ def on_matches_generated(state: ValitukiState, event: AgentEvent, provider) -> N
         return
     if count == 0:
         records.act(state, agent=AGENT, type='run_matching', event=event, visibility='professional', rule_id='MATCH-RUN-001',
-                    title='Ajoi matchingin – kaikki ehdot täyttäviä vapaita terapeutteja ei löytynyt',
-                    detail='Matching ajetaan uudelleen, kun kapasiteettia vapautuu.')
+                    title='Ran the matching – no free therapists who meet all the criteria were found',
+                    detail='Matching runs again when capacity opens.')
         return
     shown = min(count, int(content.matching_config()['shownCandidates']))
     top = ', '.join(event.payload.get('top', []))
     records.act(state, agent=AGENT, type='run_matching', event=event, rule_id='MATCH-RUN-001',
-                title=f'Ajoi terapeuttimatchingin – löysi {count_word(shown)} sopivaa vaihtoehtoa' if shown > 1
-                else 'Ajoi terapeuttimatchingin – löysi yhden sopivan vaihtoehdon',
-                detail=f'{top}. Kovat ehdot (kieli, etävastaanotto, kapasiteetti, osaaminen…) ensin, sitten läpinäkyvä '
-                       'painotettu sopivuus. Selitykset muotoiltiin vain matchingin perusteista.',
+                title=f'Ran the therapist matching – found {count_word(shown)} suitable options' if shown > 1
+                else 'Ran the therapist matching – found one suitable option',
+                detail=f'{top}. Hard criteria (language, remote session, capacity, competence…) first, then a transparent '
+                       'weighted fit. The explanations were phrased from the matching criteria only.',
                 ai_task='generateMatchExplanation')
 
 
@@ -50,22 +50,24 @@ def on_match_feedback(state: ValitukiState, event: AgentEvent, provider) -> None
     therapist = get_therapist(state, feedback.therapistId)
     if not feedback.negative:
         records.act(state, agent=AGENT, type='store_feedback', event=event, rule_id='MATCH-FEEDBACK-001',
-                    title='Tallensi yhteistyöpalautteen', detail='Palaute auttaa arvioimaan matchingin laatua. Kiitos!')
+                    title='Saved the feedback on the collaboration',
+                    detail='The feedback helps assess the quality of the matching. Thank you!')
         return
     task = base.create_task(
         state, client, agent=AGENT, type='matching_review', priority='normal', title='Matching review requested',
-        reason=f'Yhteistyöpalaute (terapeutti {therapist.name}) oli kielteinen (kuulluksi tuleminen {feedback.heard}/5, tavoitteiden '
-               f'ymmärtäminen {feedback.goalsUnderstood}/5, työskentelytapa {feedback.styleFit}/5).',
-        suggested='Keskustele asiakkaan kanssa. Terapeuttia ei vaihdeta automaattisesti.',
+        reason=f'The feedback on the collaboration (therapist {therapist.name}) was negative (feeling heard {feedback.heard}/5, '
+               f'goals understood {feedback.goalsUnderstood}/5, way of working {feedback.styleFit}/5).',
+        suggested='Talk with the client. The therapist is not changed automatically.',
         data={'feedbackId': feedback.id, 'note': feedback.note or None, 'wantContinue': feedback.wantContinue,
               'wantDiscussAlternative': feedback.wantDiscussAlternative})
     feedback.reviewTaskId = task.id
     records.notify(state, audience='coordinator', client_id=client.id, kind='review', event=event, agent=AGENT,
                    title=f'Matching review requested: {client.displayName}',
-                   body='Yhteistyöpalaute oli kielteinen. Ei automaattista vaihtoa.')
+                   body='The feedback on the collaboration was negative. No automatic change.')
     records.notify(state, audience='client', client_id=client.id, kind='contact', event=event, agent=AGENT, action_view='matching',
-                   title='Kiitos palautteesta',
-                   body='Terapeuttia ei vaihdeta automaattisesti. Hoitotiimi ottaa yhteyttä ja käy tilanteen kanssasi läpi.')
+                   title='Thank you for the feedback',
+                   body='The therapist is not changed automatically. The care team will contact you and go through the situation with you.')
     records.act(state, agent=AGENT, type='request_matching_review', event=event, rule_id='MATCH-FEEDBACK-001',
-                title='Pyysi ammattilaista arvioimaan matchingin uudelleen',
-                detail='Kielteinen palaute ei vaihda terapeuttia automaattisesti – päätös tehdään yhdessä ammattilaisen kanssa.')
+                title='Asked a professional to review the matching',
+                detail='Negative feedback does not change the therapist automatically – the decision is made together with a '
+                       'professional.')

@@ -37,9 +37,9 @@ interface ClientUI {
   pending: string | null;
   /** Show `label` as the client's pending message while `action` runs. */
   withPending: <T>(label: string, action: () => Promise<T>) => Promise<T>;
-  /** Answer "Miten voit tänään?" – the open check-in question, or a new check-in that starts with this answer. */
+  /** Answer "How are you today?" – the open check-in question, or a new check-in that starts with this answer. */
   answerMood: (mood: number) => Promise<void>;
-  /** "Kerro, miten meni" / "Tein tämän" / "Aloita" on an agreed task. */
+  /** "Tell me how it went" / "I did this" / "Start" on an agreed task. */
   doTask: (taskId: string) => Promise<void>;
   /** The client chose calls (contactChannel 'phone'): Mieliluotsi calls – now, on request. */
   phoneMode: boolean;
@@ -55,11 +55,11 @@ export function useClientUI(): ClientUI {
 }
 
 const TABS: { key: ClientTab; label: string; icon: ReactNode }[] = [
-  { key: 'koti', label: 'Koti', icon: <HomeIcon size={21} /> },
-  { key: 'keskustelu', label: 'Keskustelu', icon: <ChatIcon size={21} /> },
-  { key: 'harjoitukset', label: 'Harjoitukset', icon: <GridIcon size={21} /> },
-  { key: 'edistyminen', label: 'Edistyminen', icon: <TrendIcon size={21} /> },
-  { key: 'polku', label: 'Hoitopolku', icon: <RouteIcon size={21} /> },
+  { key: 'koti', label: 'Home', icon: <HomeIcon size={21} /> },
+  { key: 'keskustelu', label: 'Chat', icon: <ChatIcon size={21} /> },
+  { key: 'harjoitukset', label: 'Exercises', icon: <GridIcon size={21} /> },
+  { key: 'edistyminen', label: 'Progress', icon: <TrendIcon size={21} /> },
+  { key: 'polku', label: 'Care pathway', icon: <RouteIcon size={21} /> },
 ];
 
 export default function ClientApp() {
@@ -75,7 +75,7 @@ export default function ClientApp() {
   const dockSide = useDockSide();
   const dockRoomy = useDockRoomy();
   const client = view.client;
-  // A page (Tietoni, Viestit) belongs to the client it was opened for; switching the demo client closes it.
+  // A page (My data, Messages) belongs to the client it was opened for; switching the demo client closes it.
   const page = opened.clientId === client?.id ? opened.page : null;
   const setPage = (next: PageState) => setOpened({ page: next, clientId: client?.id ?? null });
 
@@ -96,7 +96,7 @@ export default function ClientApp() {
   const canCall = Boolean(client && client.checkIn.channel === 'phone' && client.intake.status === 'completed');
   if (calling && !canCall) setCalling(false);
 
-  if (!client) return <p className="muted">Valitse demoasiakas demo-ohjauksesta.</p>;
+  if (!client) return <p className="muted">Choose a demo client in the demo control.</p>;
   const current = client;
   const inIntake = current.intake.status !== 'completed' && ['INVITED', 'INTAKE'].includes(current.journeyState);
   const locked = current.safety.lockActive;
@@ -145,7 +145,7 @@ export default function ClientApp() {
   async function doTask(taskId: string) {
     const task = current.practice.tasks.find((t) => t.id === taskId);
     const result = await run((s) => api.clientTaskAction(s, current.id, taskId, 'done'),
-      (r) => (r.started ? '' : `Kirjattu: ${task?.title ?? 'harjoitus'}.`));
+      (r) => (r.started ? '' : `Saved: ${task?.title ?? 'exercise'}.`));
     if (result && result.started) openTab('keskustelu');
   }
 
@@ -157,29 +157,29 @@ export default function ClientApp() {
   return (
     <ClientUIContext.Provider value={ui}>
       <div className="client-stage">
-        <div className="phone cx" aria-label={`Asiakkaan sovellus: ${current.displayName}`}>
+        <div className="phone cx" aria-label={`Client app: ${current.displayName}`}>
           <div className="phone-inner">
             {inIntake ? (
               <header className="app-bar">
                 <Logo size={24} />
                 <button type="button" className="help-btn" onClick={() => setSheet({ type: 'help' })}>
-                  <LifebuoyIcon size={17} /> Apua nyt
+                  <LifebuoyIcon size={17} /> Help now
                 </button>
               </header>
             ) : (
               <header className="cx-bar">
                 <button type="button" className="cx-sos" onClick={() => setSheet({ type: 'help' })}>
-                  <LifebuoyIcon size={16} /> Apua nyt
+                  <LifebuoyIcon size={16} /> Help now
                 </button>
                 {/* The logo in the middle – in the chat its header right below shows the mark and the name. */}
                 {clientTab === 'keskustelu' ? <span /> : <Logo size={22} />}
                 <div className="cx-bar-actions">
-                  <button type="button" className="cx-icon-btn" aria-label={`Viestit Mieliluotsilta${current.unreadCount ? ` – ${current.unreadCount} uutta` : ''}`}
+                  <button type="button" className="cx-icon-btn" aria-label={`Messages from Mieliluotsi${current.unreadCount ? ` – ${current.unreadCount} new` : ''}`}
                     onClick={() => openPage('notices')}>
                     <BellIcon size={20} />
                     {current.unreadCount > 0 && <span className="cx-badge" aria-hidden="true" />}
                   </button>
-                  <button type="button" className="cx-avatar" aria-label="Tietoni ja suostumukset" onClick={() => openPage('profile')}>{initial}</button>
+                  <button type="button" className="cx-avatar" aria-label="My data and consents" onClick={() => openPage('profile')}>{initial}</button>
                 </div>
               </header>
             )}
@@ -196,31 +196,31 @@ export default function ClientApp() {
               </div>
             )}
             {!inIntake && (
-              <nav className="cx-nav" aria-label="Asiakkaan navigaatio">
+              <nav className="cx-nav" aria-label="Client navigation">
                 {TABS.map((tab) => (
                   <button key={tab.key} type="button" aria-current={clientTab === tab.key && !page ? 'page' : undefined} onClick={() => openTab(tab.key)}>
                     <span className="cx-nav-icon">
                       {tab.icon}
-                      {tab.key === 'keskustelu' && current.guided && <span className="cx-badge cx-badge-live" aria-label="Harjoitus kesken" />}
+                      {tab.key === 'keskustelu' && current.guided && <span className="cx-badge cx-badge-live" aria-label="Exercise in progress" />}
                     </span>
                     <span className="cx-nav-label">{tab.label}</span>
                   </button>
                 ))}
               </nav>
             )}
-            {page === 'profile' && <Page title="Tietoni" onBack={() => setPage(null)}><DataTab /></Page>}
-            {page === 'notices' && <Page title="Viestit Mieliluotsilta" onBack={() => setPage(null)}><NoticesPage /></Page>}
+            {page === 'profile' && <Page title="My data" onBack={() => setPage(null)}><DataTab /></Page>}
+            {page === 'notices' && <Page title="Messages from Mieliluotsi" onBack={() => setPage(null)}><NoticesPage /></Page>}
             {sheet?.type === 'activity' && <ActivitySheet activityId={sheet.activityId} onClose={() => setSheet(null)} />}
             {sheet?.type === 'contact' && <ContactSheet initialReason={sheet.reason} onClose={() => setSheet(null)} />}
             {sheet?.type === 'help' && (
               <HelpSheet safety={view.meta.safety} busy={busy} onClose={() => setSheet(null)}
                 onContact={() => setSheet({ type: 'contact' })}
-                onHelpNow={() => { setSheet(null); void run((s) => api.helpNow(s, current.id), () => 'Turvallisuusohjeet näytettiin. Hoitotiimin työjonoon syntyi hälytys.'); }} />
+                onHelpNow={() => { setSheet(null); void run((s) => api.helpNow(s, current.id), () => "Safety instructions shown. An alert was added to the care team's work queue."); }} />
             )}
             {calling && !locked && <PhoneCall onClose={() => { setCalling(false); setCallDoneOn(today); }} />}
             {locked && (
               <SafetyScreen safety={view.meta.safety} busy={busy}
-                onDismiss={() => run((s) => api.dismissSafety(s, current.id), () => 'Ohjeet kuitattu. Ne löytyvät aina "Apua nyt" -painikkeesta.')} />
+                onDismiss={() => run((s) => api.dismissSafety(s, current.id), () => 'Instructions acknowledged. You can always find them behind the "Help now" button.')} />
             )}
           </div>
         </div>
@@ -237,7 +237,7 @@ function Page({ title, onBack, children }: { title: string; onBack: () => void; 
   return (
     <section className="cx-page" aria-label={title}>
       <header className="cx-page-bar">
-        <button type="button" ref={backRef} className="cx-icon-btn" aria-label="Takaisin" onClick={onBack}><ArrowLeftIcon size={20} /></button>
+        <button type="button" ref={backRef} className="cx-icon-btn" aria-label="Back" onClick={onBack}><ArrowLeftIcon size={20} /></button>
         <span className="cx-page-title">{title}</span>
       </header>
       <div className="cx-page-scroll">{children}</div>

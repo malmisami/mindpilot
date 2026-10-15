@@ -19,7 +19,7 @@ def _component(row, key):
 
 def _thought_record(state, client):
     practice.start(state, client, 'thought_record', DemoAIProvider(), 'client:cl-aino',
-                   prefill={'situation': 'Tiistaina pitää esitellä.'})
+                   prefill={'situation': 'On Tuesday I have to present.'})
     practice.run_script(state, client, {'thought_record': {**DEMO['thought_record'], 'nextStep': 'none'}}, actor='client:cl-aino')
 
 
@@ -37,7 +37,7 @@ def test_the_approach_follows_the_goals_and_the_working_style(state):
 
 def test_before_the_intake_the_referral_decides_the_goals(state):
     cbt = _row(modality.rank(state, client_of(state)), 'cbt')
-    assert _component(cbt, 'goals')['detail'].startswith('Lähete')
+    assert _component(cbt, 'goals')['detail'].startswith('Referral: ')
     assert not _component(cbt, 'workingStyle')['known']
 
 
@@ -54,3 +54,14 @@ def test_only_data_the_client_allows_in_matching_is_used(state):
     client = run_intake(state)
     insights.for_client(state, client.id, kind='working_style')[0].sharing.matching = False
     assert not _component(_row(modality.rank(state, client), 'cbt'), 'workingStyle')['known']
+
+
+def test_finnish_and_english_approach_names_both_count_the_therapists(state):
+    cbt = modality.config()['modalities'][0]
+    therapist = next(t for t in state.therapists if t.active)
+    counts = []
+    for name in ('Kognitiivinen käyttäytymisterapia (KKT)', 'Cognitive behavioural therapy (CBT)', 'Psychodynamic psychotherapy'):
+        for item in state.therapists:
+            item.therapeuticApproaches = [name] if item.id == therapist.id else ['Family therapy']
+        counts.append(_row(modality.rank(state, client_of(state)), 'cbt')['therapists'])
+    assert cbt['label'] == 'Cognitive behavioural therapy' and counts == [1, 1, 0]

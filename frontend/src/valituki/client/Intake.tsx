@@ -33,17 +33,17 @@ function Welcome() {
   const labels = view.meta.labels.consents;
   return (
     <div className="screen intake-welcome iw">
-      <h1 className="display iw-hello">Hei {client.firstName}</h1>
-      <p className="lead">Olet terapian jonossa. Normaalisti tästä alkaisi odotus – nyt tuki voi alkaa heti.</p>
+      <h1 className="display iw-hello">Hi {client.firstName}</h1>
+      <p className="lead">You are on the therapy waiting list. Normally this is where the wait would begin – now support can start straight away.</p>
       <div className="card wait-card wait-hero">
-        <p className="wait-hero-label"><ClockIcon size={16} /> Arvioitu odotus terapiaan</p>
+        <p className="wait-hero-label"><ClockIcon size={16} /> Estimated wait for therapy</p>
         <p className="wait-hero-value">{client.waiting.estimatedWait}</p>
-        <p className="wait-hero-meta">Hait apua {fmtShort(client.waiting.soughtHelpAt)} · {client.waiting.service}</p>
+        <p className="wait-hero-meta">You sought help on {fmtShort(client.waiting.soughtHelpAt)} · {client.waiting.service}</p>
       </div>
-      <p className="iw-text">Kerroit jo tilanteestasi lähetteessä ja arviointikäynnillä, joten samoja asioita ei kysytä uudelleen.
-        Luvallasi Mieliluotsi käyttää näitä tietoja. Voit tarkistaa ja muokata niitä Tietoni-sivulla.</p>
+      <p className="iw-text">You already described your situation in your referral and at your assessment visit, so you won't be asked the same
+        things again. With your permission, Mieliluotsi uses this information. You can check and edit it on the My data page.</p>
       <div className="card consent-card iw-consent">
-        <h3 className="card-title">Tietojesi käyttö</h3>
+        <h3 className="card-title">How your information is used</h3>
         {(Object.keys(labels) as (keyof ConsentScope)[]).map((key) => (
           <label key={key} className="switch-row" title={labels[key].description}>
             <span className="switch-title">{labels[key].title}</span>
@@ -51,17 +51,17 @@ function Welcome() {
           </label>
         ))}
         <details className="iw-more">
-          <summary>Mitä nämä tarkoittavat?</summary>
+          <summary>What do these mean?</summary>
           <dl>{(Object.keys(labels) as (keyof ConsentScope)[]).map((key) => (
             <div key={key}><dt>{labels[key].title}</dt><dd>{labels[key].description}</dd></div>
           ))}</dl>
-          <p>Voit muuttaa näitä milloin tahansa Tietoni-sivulla.</p>
+          <p>You can change these at any time on the My data page.</p>
         </details>
       </div>
-      <p className="iw-notice"><InfoIcon size={14} /> Ei terapeutti eikä päivystys – hätätilanteessa soita 112.</p>
+      <p className="iw-notice"><InfoIcon size={14} /> Not a therapist or an emergency service – in an emergency, call 112.</p>
       <button type="button" className="btn btn-primary btn-lg btn-block" disabled={busy}
         onClick={() => run((s) => api.intakeStart(s, client.id, consent))}>
-        Jatka <ArrowRightIcon size={18} />
+        Continue <ArrowRightIcon size={18} />
       </button>
     </div>
   );
@@ -112,7 +112,7 @@ function Conversation() {
   const step = Math.min(total, intake.answeredCount + 1);
   return (
     <div className="chat-screen">
-      <div className="chat-progress" aria-label={`Kysymys ${step}/${total}`}>
+      <div className="chat-progress" aria-label={`Question ${step}/${total}`}>
         {intake.plan.map((q, i) => <span key={q.key} className={i < intake.answeredCount ? 'done' : i === intake.answeredCount ? 'current' : ''} />)}
       </div>
       <div className="chat-log" aria-live="polite">
@@ -128,16 +128,16 @@ function Conversation() {
       <div className="composer">
         <div className="composer-row">
           <textarea value={text} onChange={(e) => setText(e.target.value)} rows={Math.min(5, Math.max(2, Math.ceil(text.length / 36)))}
-            placeholder="Kirjoita omin sanoin…" aria-label="Vastauksesi"
+            placeholder="Write in your own words…" aria-label="Your answer"
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void submit(); } }} disabled={busy} />
-          <button type="button" className="send-btn" aria-label="Lähetä" disabled={busy || !text.trim()} onClick={submit}><SendIcon size={18} /></button>
+          <button type="button" className="send-btn" aria-label="Send" disabled={busy || !text.trim()} onClick={submit}><SendIcon size={18} /></button>
         </div>
         <div className="composer-actions">
           {pending && pending.key !== 'reason' && (
-            <button type="button" className="link-btn" disabled={busy} onClick={() => run((s) => api.intakeSkip(s, client.id))}>Ohita kysymys</button>
+            <button type="button" className="link-btn" disabled={busy} onClick={() => run((s) => api.intakeSkip(s, client.id))}>Skip question</button>
           )}
           {intake.canFinish && (
-            <button type="button" className="link-btn" disabled={busy} onClick={() => run((s) => api.intakeFinish(s, client.id))}>Siirry yhteenvetoon</button>
+            <button type="button" className="link-btn" disabled={busy} onClick={() => run((s) => api.intakeFinish(s, client.id))}>Go to the summary</button>
           )}
         </div>
       </div>
@@ -191,11 +191,11 @@ function Review() {
       <article key={proposal.id} className={`proposal prop-${proposal.category} ${proposal.included ? '' : 'prop-excluded'}`}>
         <header className="prop-head">
           <span className="prop-title">{proposal.title}</span>
-          {proposal.editedByClient ? <Pill tone="brand" icon={<EditIcon size={12} />}>Muokkasit</Pill>
-            : <Pill tone="violet" icon={<SparkleIcon size={12} />}>Tulkinta</Pill>}
+          {proposal.editedByClient ? <Pill tone="brand" icon={<EditIcon size={12} />}>You edited</Pill>
+            : <Pill tone="violet" icon={<SparkleIcon size={12} />}>Interpretation</Pill>}
         </header>
         {editing ? (
-          <textarea className="prop-edit" rows={3} value={drafts[proposal.id] ?? proposal.text} aria-label={`Muokkaa: ${proposal.title}`}
+          <textarea className="prop-edit" rows={3} value={drafts[proposal.id] ?? proposal.text} aria-label={`Edit: ${proposal.title}`}
             onChange={(e) => setDrafts({ ...drafts, [proposal.id]: e.target.value })} />
         ) : (
           <p className="prop-text">{proposal.text}</p>
@@ -203,8 +203,8 @@ function Review() {
         {!editing && <ProposalChips proposal={proposal} />}
         {proposal.userWords.length > 0 && (
           <div className="prop-quote">
-            <p className="prop-quote-label"><QuoteIcon size={13} /> Sanoit keskustelussa</p>
-            {proposal.userWords.map((w) => <p key={w} className="prop-quote-text">”{w}”</p>)}
+            <p className="prop-quote-label"><QuoteIcon size={13} /> You said in the conversation</p>
+            {proposal.userWords.map((w) => <p key={w} className="prop-quote-text">“{w}”</p>)}
           </div>
         )}
       </article>
@@ -213,24 +213,24 @@ function Review() {
 
   return (
     <div className="screen review-screen">
-      <p className="eyebrow">Alkukeskustelun yhteenveto</p>
-      <h1 className="display-sm">Ymmärsinkö tilanteesi oikein?</h1>
-      <p className="muted">Nämä ovat vasta ehdotuksia. Mitään ei tallenneta eikä käytetä ennen kuin hyväksyt ne.</p>
+      <p className="eyebrow">Summary of the first conversation</p>
+      <h1 className="display-sm">Did I understand your situation correctly?</h1>
+      <p className="muted">These are only suggestions. Nothing is saved or used until you approve them.</p>
       <div className="proposals">{[...main, ...more].map(card)}</div>
       <div className="stack-sm sticky-actions">
         {editing ? (
           <>
-            <button type="button" className="btn btn-primary btn-lg btn-block" disabled={busy} onClick={saveEdits}>Tallenna muutokset</button>
-            <button type="button" className="btn btn-quiet btn-block" onClick={() => { setDrafts({}); setEditing(false); }}>Peruuta</button>
+            <button type="button" className="btn btn-primary btn-lg btn-block" disabled={busy} onClick={saveEdits}>Save changes</button>
+            <button type="button" className="btn btn-quiet btn-block" onClick={() => { setDrafts({}); setEditing(false); }}>Cancel</button>
           </>
         ) : (
           <>
             <button type="button" className="btn btn-primary btn-lg btn-block" disabled={busy}
-              onClick={() => run((s) => api.intakeConfirm(s, client.id), () => 'Hyväksyit tulkinnat. Therapy Fit Profile luotiin vain hyväksymistäsi tiedoista.')}>
-              <CheckIcon size={18} /> Kyllä, tämä kuvaa tilannettani
+              onClick={() => run((s) => api.intakeConfirm(s, client.id), () => 'You approved the interpretations. Your Therapy Fit Profile was created only from the information you approved.')}>
+              <CheckIcon size={18} /> Yes, this describes my situation
             </button>
             <button type="button" className="btn btn-secondary btn-block" disabled={busy} onClick={() => setEditing(true)}>
-              <EditIcon size={17} /> Haluan muokata
+              <EditIcon size={17} /> I want to edit
             </button>
           </>
         )}
@@ -240,7 +240,7 @@ function Review() {
 }
 
 /* When Mieliluotsi may call (contactChannel 'phone') – the same times as CALL_TIMES in backend/app/valituki/intake.py. */
-const CALL_TIMES = [{ value: '09:00', label: 'klo 9.00' }, { value: '15:00', label: 'klo 15.00' }, { value: '18:30', label: 'klo 18.30' }];
+const CALL_TIMES = [{ value: '09:00', label: 'at 09:00' }, { value: '15:00', label: 'at 15:00' }, { value: '18:30', label: 'at 18:30' }];
 
 function Rhythm() {
   const { view, run, busy } = useValituki();
@@ -256,35 +256,35 @@ function Rhythm() {
   const phone = channel === 'phone';
   return (
     <div className="screen rhythm-screen">
-      <p className="eyebrow">Viimeinen askel</p>
-      <h1 className="display-sm">Miten Mieliluotsi tukee sinua?</h1>
+      <p className="eyebrow">Last step</p>
+      <h1 className="display-sm">How will Mieliluotsi support you?</h1>
       <section className="card">
-        <h3 className="card-title">Miten haluat, että pidämme yhteyttä?</h3>
+        <h3 className="card-title">How would you like us to keep in touch?</h3>
         <div className="radio-cards">
           <button type="button" className="radio-card" aria-pressed={!phone} onClick={() => setChannel('app')}>
-            <strong><ChatIcon size={16} /> Sovelluksessa kirjoittaen</strong>
-            <span className="muted small">Vastaat vointikyselyihin ja teet harjoituksia kirjoittamalla, kun sinulle sopii.</span>
+            <strong><ChatIcon size={16} /> In the app, in writing</strong>
+            <span className="muted small">You answer wellbeing check-ins and do exercises in writing, whenever it suits you.</span>
           </button>
           <button type="button" className="radio-card" aria-pressed={phone} onClick={() => setChannel('phone')}>
-            <strong><PhoneIcon size={16} /> Puhelulla – Mieliluotsi soittaa</strong>
-            <span className="muted small">Sovittuina päivinä Mieliluotsi soittaa, kysyy vointiasi ja tekee kanssasi lyhyen ajatusharjoituksen
-              puhuen.</span>
+            <strong><PhoneIcon size={16} /> By phone – Mieliluotsi calls you</strong>
+            <span className="muted small">On the agreed days Mieliluotsi calls you, asks how you are and does a short thought exercise with you
+              by voice.</span>
           </button>
         </div>
         {phone && (
           <div className="rhythm-call-time">
-            <p className="field-label">Mihin aikaan saan soittaa?</p>
-            <Segmented label="Puheluaika" value={callTime} onChange={setCallTime} options={CALL_TIMES} />
+            <p className="field-label">What time may I call?</p>
+            <Segmented label="Call time" value={callTime} onChange={setCallTime} options={CALL_TIMES} />
           </div>
         )}
       </section>
       <section className="card">
-        <h3 className="card-title">{phone ? 'Kuinka usein saan soittaa?' : 'Kuinka usein saan kysyä kuulumisiasi?'}</h3>
+        <h3 className="card-title">{phone ? 'How often may I call?' : 'How often may I check in on you?'}</h3>
         <div className="radio-cards">
           {[...options].sort((a, b) => b.perWeek - a.perWeek).map((option) => (
             <button key={option.perWeek} type="button" className="radio-card" aria-pressed={perWeek === option.perWeek} onClick={() => setPerWeek(option.perWeek)}>
               <strong>{option.label}</strong>
-              {option.perWeek === 3 && <span className="muted small">Suositus odotusajalle – muutokset huomataan ajoissa</span>}
+              {option.perWeek === 3 && <span className="muted small">Recommended while you wait – changes are noticed in time</span>}
             </button>
           ))}
         </div>
@@ -292,9 +292,9 @@ function Rhythm() {
       <button type="button" className="btn btn-primary btn-lg btn-block" disabled={busy}
         onClick={() => run((s) => api.intakeComplete(s, client.id, { checkInDays: days, communicationStyle: demo?.communicationStyle ?? 'brief',
           contactChannel: channel, callTime: phone ? callTime : undefined }),
-        () => (phone ? 'Mieliluotsi on käytössä. Ensimmäinen vointipuhelu tulee pian – voit myös pyytää sitä heti.'
-          : 'Mieliluotsi on käytössä. Agentit loivat tukisuunnitelman ja valitsivat päivän ensimmäisen askeleen.'))}>
-        Aloita Mieliluotsi <ArrowRightIcon size={18} />
+        () => (phone ? 'Mieliluotsi is now on. Your first wellbeing call is coming soon – you can also ask for it right away.'
+          : 'Mieliluotsi is now on. The agents created a support plan and chose the first step for today.'))}>
+        Start Mieliluotsi <ArrowRightIcon size={18} />
       </button>
     </div>
   );

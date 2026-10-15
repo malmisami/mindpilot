@@ -23,13 +23,13 @@ function profileRows(client: ClientView): ProfileRow[] {
   const moods = checkins.slice(-7).map((p) => p.mood ?? 0);
   const name = client.firstName;
   return [
-    { key: 'goals', icon: <TargetIcon size={14} />, label: 'Tavoitteet', hint: `Mitä ${name} toivoo terapian muuttavan`, value: profile?.goals.primary[0]?.text ?? null, ...sharing(groups.goal ?? []) },
-    { key: 'wellbeing', icon: <PulseIcon size={14} />, label: 'Vointi odotusaikana', hint: 'Mieliala ja ahdistus check-ineistä odotuksen aikana',
-      value: checkins.length ? `${checkins.length} check-iniä · mieliala ka. ${fmtNum(moods.reduce((a, b) => a + b, 0) / moods.length)}/5` : null,
+    { key: 'goals', icon: <TargetIcon size={14} />, label: 'Goals', hint: `What ${name} hopes therapy will change`, value: profile?.goals.primary[0]?.text ?? null, ...sharing(groups.goal ?? []) },
+    { key: 'wellbeing', icon: <PulseIcon size={14} />, label: 'Wellbeing while waiting', hint: 'Mood and anxiety from check-ins while waiting',
+      value: checkins.length ? `${checkins.length} ${checkins.length === 1 ? 'check-in' : 'check-ins'} · mood avg. ${fmtNum(moods.reduce((a, b) => a + b, 0) / moods.length)}/5` : null,
       pro: client.memory.consent.storeHistory, match: false },
-    { key: 'helpful', icon: <LeafIcon size={14} />, label: 'Mikä auttaa', hint: `Keinot, jotka ${name} on todennut toimiviksi`,
+    { key: 'helpful', icon: <LeafIcon size={14} />, label: 'What helps', hint: `Things ${name} has found helpful`,
       value: (groups.helpful ?? []).map((i) => i.text).join(' ') || null, ...sharing(groups.helpful ?? []) },
-    { key: 'challenge', icon: <AlertIcon size={14} />, label: 'Vaikeat hetket', hint: 'Tilanteet, joissa olo on vaikeimmillaan',
+    { key: 'challenge', icon: <AlertIcon size={14} />, label: 'Difficult moments', hint: 'Situations when things feel hardest',
       value: (groups.challenge ?? []).map((i) => i.text).join(' ') || null, ...sharing(groups.challenge ?? []) },
   ];
 }
@@ -42,14 +42,14 @@ function modalitySignature(modality: BackstageModality): string {
   return modality.rows.map((r) => `${r.id}:${r.total}`).join(',');
 }
 
-const MODALITY_CHANGES: [string, string][] = [['workingStyle', 'Työskentelytapatoiveet'], ['goals', 'Tavoitteet']];
+const MODALITY_CHANGES: [string, string][] = [['workingStyle', 'Working style wishes'], ['goals', 'Goals']];
 
 /** What moved the therapy approach table: the working style first, then the goals. */
 function modalityChange(before: BackstageModality, after: BackstageModality): string {
   const old = new Map(before.rows.flatMap((r) => r.components.map((c) => [`${r.id}.${c.key}`, c.score] as const)));
   const moved = MODALITY_CHANGES.find(([key]) => after.rows.some((r) => r.components.some((c) => c.key === key
     && old.get(`${r.id}.${key}`) !== c.score)));
-  return moved ? moved[1] : 'Terapiamuodon sopivuus';
+  return moved ? moved[1] : 'Therapy approach fit';
 }
 
 /** At or below this window width the panel is under the phone (the same breakpoint as in styles/app.css). */
@@ -100,11 +100,11 @@ export default function Backstage({ client }: { client: ClientView }) {
         if (r.match) next.push({ label: r.label, target: 'match' });
       }
       if (seen.matchSig !== matchSig && !next.some((f) => f.target === 'match')) {
-        next.push({ target: 'match', label: match.chosen && match.chosen !== seen.chosen ? `Valinta: ${match.chosen}`
-          : match.ran && !seen.ran ? 'Terapeutin vapaa aika' : 'Pisteytys päivittyi' });
+        next.push({ target: 'match', label: match.chosen && match.chosen !== seen.chosen ? `Choice: ${match.chosen}`
+          : match.ran && !seen.ran ? "Therapist's free slot" : 'Scores updated' });
       }
       // The client approves the summary: the profile is shared with the therapist.
-      if (shared && shared !== seen.shared) next.push({ label: 'Hyväksytty jaettavaksi', target: 'profile' });
+      if (shared && shared !== seen.shared) next.push({ label: 'Approved for sharing', target: 'profile' });
       if (seen.modSig !== modSig) next.push({ label: modalityChange(seen.modality, modality), target: 'modality' });
       // Every table that changed gets its chip even when many rows changed at once.
       const firsts = next.filter((f, i) => next.findIndex((g) => g.target === f.target) === i);
@@ -199,11 +199,11 @@ export default function Backstage({ client }: { client: ClientView }) {
   }, [dockSlot]);
 
   return (
-    <aside className="backstage" ref={asideRef} aria-label="Mieliluotsi taustalla">
+    <aside className="backstage" ref={asideRef} aria-label="Mieliluotsi behind the scenes">
       <header className="bs-bar">
         <span className="bs-bar-icon" aria-hidden="true"><EyeOffIcon size={17} /></span>
         <span className="bs-bar-text">
-          <strong>Taustalla – käyttäjä ei näe tätä</strong>
+          <strong>Behind the scenes – the user does not see this</strong>
         </span>
       </header>
       <MatchCard match={match} fresh={fresh.has('match')} />
@@ -220,10 +220,10 @@ function ProfileCard({ client, rows, fresh }: { client: ClientView; rows: Profil
   const filled = rows.filter((r) => r.value).length;
   const handover = client.matching.handover;
   return (
-    <section className={`bp-doc ${[...fresh].some((k) => k !== 'match' && k !== 'modality') ? 'is-fresh' : ''}`} aria-label="Profiili terapeutille">
+    <section className={`bp-doc ${[...fresh].some((k) => k !== 'match' && k !== 'modality') ? 'is-fresh' : ''}`} aria-label="Profile for the therapist">
       <div className="bp-head">
-        <p className="bs-title"><LayersIcon size={15} /> Profiili terapeutille</p>
-        <span className="bp-meter" title={`${filled}/${rows.length} osiota`} aria-label={`${filled}/${rows.length} osiota`}>
+        <p className="bs-title"><LayersIcon size={15} /> Profile for the therapist</p>
+        <span className="bp-meter" title={`${filled}/${rows.length} sections`} aria-label={`${filled}/${rows.length} sections`}>
           {rows.map((r) => <i key={r.key} className={r.value ? 'on' : ''} />)}
         </span>
       </div>
@@ -235,16 +235,16 @@ function ProfileCard({ client, rows, fresh }: { client: ClientView; rows: Profil
               <span className="bp-label">{r.label}</span> <span className="bp-value">{r.value ?? r.hint}</span>
             </span>
             <span className="bp-flags">
-              <span className={r.value && r.pro ? 'on' : ''} title={r.value && r.pro ? 'Näkyy terapeutille' : 'Ei näy terapeutille'}><EyeIcon size={13} /></span>
-              <span className={r.value && r.match ? 'on' : ''} title={r.value && r.match ? 'Käytetään matchingissa' : 'Ei käytetä matchingissa'}><PuzzleIcon size={13} /></span>
+              <span className={r.value && r.pro ? 'on' : ''} title={r.value && r.pro ? 'Visible to the therapist' : 'Not visible to the therapist'}><EyeIcon size={13} /></span>
+              <span className={r.value && r.match ? 'on' : ''} title={r.value && r.match ? 'Used in matching' : 'Not used in matching'}><PuzzleIcon size={13} /></span>
             </span>
           </li>
         ))}
       </ul>
       <p className="bp-legend">
-        <span><EyeIcon size={12} /> näkyy terapeutille</span><span><PuzzleIcon size={12} /> käytetään matchingissa</span>
+        <span><EyeIcon size={12} /> visible to the therapist</span><span><PuzzleIcon size={12} /> used in matching</span>
         {handover?.status === 'approved' && (
-          <span className="bp-shared"><CheckIcon size={12} /> yhteenveto jaettu: {handover.therapistName}</span>
+          <span className="bp-shared"><CheckIcon size={12} /> summary shared: {handover.therapistName}</span>
         )}
       </p>
     </section>
@@ -256,13 +256,13 @@ function ProfileCard({ client, rows, fresh }: { client: ClientView; rows: Profil
 // The columns a person reads at a glance: what fits the client. Language, place and time are hard criteria (they
 // exclude) or practicalities, so they stay in the total but get no column of their own.
 const COLUMNS: { key: string; label: string }[] = [
-  { key: 'goalCompetence', label: 'Osaaminen' }, { key: 'workingStyle', label: 'Työtapa' }, { key: 'userPreferences', label: 'Toiveet' },
+  { key: 'goalCompetence', label: 'Expertise' }, { key: 'workingStyle', label: 'Working style' }, { key: 'userPreferences', label: 'Wishes' },
 ];
 
 function Dots({ score, label }: { score: number; label: string }) {
   const filled = Math.round(score * 4);
   return (
-    <span className="bm-dots" title={`${label}: ${Math.round(score * 100)} %`} aria-label={`${label} ${filled}/4`}>
+    <span className="bm-dots" title={`${label}: ${Math.round(score * 100)}%`} aria-label={`${label} ${filled}/4`}>
       {[0, 1, 2, 3].map((i) => <i key={i} className={i < filled ? 'on' : ''} />)}
     </span>
   );
@@ -294,20 +294,20 @@ function MatchCard({ match, fresh }: { match: BackstageMatch; fresh: boolean }) 
   const highlighted = chosen ?? match.candidates[0];
 
   return (
-    <section className={`bm-card ${fresh ? 'is-fresh' : ''}`} aria-label="Sopivin terapeutti">
+    <section className={`bm-card ${fresh ? 'is-fresh' : ''}`} aria-label="Best-fitting therapist">
       <div className="bp-head">
-        <p className="bs-title"><PuzzleIcon size={15} /> Sopivin terapeutti</p>
-        <span className={`bm-state ${match.ran ? 'is-run' : ''}`}>{match.ran ? 'matching ajettu' : 'esikatselu'}</span>
+        <p className="bs-title"><PuzzleIcon size={15} /> Best-fitting therapist</p>
+        <span className={`bm-state ${match.ran ? 'is-run' : ''}`}>{match.ran ? 'matching run' : 'preview'}</span>
       </div>
-      <div className="bm-grid" ref={gridRef} role="table" aria-label="Pisteytys osa-alueittain">
+      <div className="bm-grid" ref={gridRef} role="table" aria-label="Scores by area">
         <div className="bm-row bm-row-head" role="row">
-          <span role="columnheader">Terapeutti</span>
+          <span role="columnheader">Therapist</span>
           {COLUMNS.map((c) => <span key={c.key} role="columnheader">{c.label}</span>)}
-          <span role="columnheader">Sopivuus</span>
+          <span role="columnheader">Fit</span>
         </div>
         {match.candidates.map((cand) => (
           <div key={cand.name} data-name={cand.name} role="row" className={`bm-row ${cand === highlighted ? 'is-top' : ''}`}>
-            <span role="cell" className="bm-name">{cand.name}{cand.status === 'selected' && <em>valittu</em>}</span>
+            <span role="cell" className="bm-name">{cand.name}{cand.status === 'selected' && <em>chosen</em>}</span>
             {COLUMNS.map((col) => {
               const c = cand.components.find((x) => x.key === col.key);
               return <span key={col.key} role="cell" className="bm-cell">{c ? <Dots score={c.score} label={c.label} /> : '–'}</span>;
@@ -320,12 +320,12 @@ function MatchCard({ match, fresh }: { match: BackstageMatch; fresh: boolean }) 
       </div>
       <div className="bm-foot">
         <p className="bm-scale">
-          <span className="bm-legend-dots"><Dots score={1} label="Vahva osuma" /> vahva osuma ·</span>
-          sopivuus 0–100 säännöillä, ei tekoälyllä
+          <span className="bm-legend-dots"><Dots score={1} label="Strong match" /> strong match ·</span>
+          fit 0–100 by rules, not by AI
         </p>
         {match.excluded.length > 0 && (
           <details className="bm-out">
-            <summary title="Rajattu pois kovilla ehdoilla"><ChevronDownIcon size={12} /> Rajattu pois: {match.excluded.length}</summary>
+            <summary title="Excluded by hard criteria"><ChevronDownIcon size={12} /> Excluded: {match.excluded.length}</summary>
             <ul>
               {match.excluded.map((e) => <li key={e.name}><b>{e.name}</b> {e.reason}</li>)}
             </ul>
@@ -338,9 +338,9 @@ function MatchCard({ match, fresh }: { match: BackstageMatch; fresh: boolean }) 
 
 /* ---------- Therapy approach: which way of working fits the client ---------- */
 
-/** What a fit is made of, for the tooltip: "Tavoitteet 94 % · Työtapa 94 %". */
+/** What a fit is made of, for the tooltip: "Goals 94% · Working style 94%". */
 function fitBreakdown(row: BackstageModality['rows'][number]): string {
-  return row.components.map((c) => (c.known ? `${c.label} ${Math.round(c.score * 100)} %` : `${c.label}: ei vielä tietoa`))
+  return row.components.map((c) => (c.known ? `${c.label} ${Math.round(c.score * 100)}%` : `${c.label}: no information yet`))
     .join(' · ');
 }
 
@@ -351,19 +351,19 @@ function ModalityCard({ modality, fresh }: { modality: BackstageModality; fresh:
   const gridRef = useRef<HTMLDivElement>(null);
   useRowFlip(gridRef, modality.rows.map((r) => r.id).join('|'));
   return (
-    <section className={`bm-card bm-modality ${fresh ? 'is-fresh' : ''}`} aria-label="Sopivin terapiamuoto ja työtapa">
+    <section className={`bm-card bm-modality ${fresh ? 'is-fresh' : ''}`} aria-label="Best-fitting therapy approach and working style">
       <div className="bp-head">
-        <p className="bs-title"><SlidersIcon size={15} /> Sopivin terapiamuoto ja työtapa</p>
-        <span className="bm-state">ehdotus</span>
+        <p className="bs-title"><SlidersIcon size={15} /> Best-fitting therapy approach and working style</p>
+        <span className="bm-state">suggestion</span>
       </div>
-      <div className="bm-grid" ref={gridRef} role="table" aria-label="Terapiamuotojen sopivuus">
+      <div className="bm-grid" ref={gridRef} role="table" aria-label="Fit of therapy approaches">
         <div className="bm-row bm-row-head" role="row">
-          <span role="columnheader">Terapiamuoto</span>
-          <span role="columnheader">Sopivuus</span>
+          <span role="columnheader">Therapy approach</span>
+          <span role="columnheader">Fit</span>
         </div>
         {modality.rows.map((row, i) => (
           <div key={row.id} data-name={row.id} role="row" className={`bm-row ${i === 0 ? 'is-top' : ''}`}
-            title={row.therapists ? `Tarjolla ${row.therapists} terapeutilla` : 'Ei tarjolla nyt'}>
+            title={row.therapists ? `Offered by ${row.therapists} ${row.therapists === 1 ? 'therapist' : 'therapists'}` : 'Not available now'}>
             <span role="cell" className="bm-name">{row.label}</span>
             <span role="cell" className="bm-total" title={fitBreakdown(row)}
               aria-label={`${Math.round(row.total)}: ${fitBreakdown(row)}`}>
@@ -372,7 +372,7 @@ function ModalityCard({ modality, fresh }: { modality: BackstageModality; fresh:
           </div>
         ))}
       </div>
-      <p className="bm-scale">sopivin ylimpänä · sopivuus 0–100 säännöillä tavoitteista ja työtapatoiveista</p>
+      <p className="bm-scale">best fit at the top · fit 0–100 by rules, from goals and working style wishes</p>
     </section>
   );
 }

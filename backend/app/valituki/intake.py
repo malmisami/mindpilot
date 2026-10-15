@@ -1,7 +1,7 @@
-"""Conversational intake: "Kerro omin sanoin, miksi hait apua."
+"""Conversational intake: "Tell me in your own words why you sought help."
 
-Flow: service consents → the client's own words → up to six focused follow-up questions (one at a time) → "Ymmärsinkö
-tilanteesi oikein?" proposal cards → explicit approval (or editing) → check-in rhythm and today's wellbeing (the baseline)
+Flow: service consents → the client's own words → up to six focused follow-up questions (one at a time) → "Did I understand
+your situation correctly?" proposal cards → explicit approval (or editing) → check-in rhythm and today's wellbeing (the baseline)
 → BASELINE_COMPLETED. AI interpretations stay proposals (IntakeProposal) until the client approves them; nothing is
 stored as an insight or used in matching before that. Every free-text answer passes the Safety Engine first.
 """
@@ -12,7 +12,7 @@ from typing import Any, Optional
 from app.valituki import fit_profile, insights, interpret, journey, records
 from app.valituki.agents import orchestrator, safety_agent
 from app.valituki.ai import AIProvider, DemoAIProvider
-from app.valituki.labels import fmt_date
+from app.valituki.labels import fmt_date, plural
 from app.valituki.models import (
     CheckIn,
     ClientProfile,
@@ -27,10 +27,10 @@ from app.valituki.safety import SAFETY_REPLY, assess, evaluate_structured, evalu
 from app.valituki.store import next_id, now
 
 CARD_TO_INSIGHT = {
-    'working_style': ('therapist_wish', 'working_style', 'Työskentelytapa'),
-    'practical': ('preference', 'practical', 'Käytännön toiveet'),
-    'difficult_times': ('challenge', 'difficult_times', 'Vaikeimmat hetket'),
-    'helped_before': ('helpful', 'helped_before', 'Aiemmin auttanut'),
+    'working_style': ('therapist_wish', 'working_style', 'Way of working'),
+    'practical': ('preference', 'practical', 'Practical wishes'),
+    'difficult_times': ('challenge', 'difficult_times', 'Hardest moments'),
+    'helped_before': ('helpful', 'helped_before', 'What has helped before'),
 }
 
 
@@ -45,7 +45,7 @@ def session_for(state: ValitukiState, client: ClientProfile) -> Optional[IntakeS
 def _require(state: ValitukiState, client: ClientProfile, *statuses: str) -> IntakeSession:
     session = session_for(state, client)
     if session is None or session.status not in statuses:
-        raise IntakeError('Käyttöönotto ei ole tässä vaiheessa.')
+        raise IntakeError('The intake is not at this stage.')
     return session
 
 
@@ -70,7 +70,7 @@ def record_consent(state: ValitukiState, client: ClientProfile, scope: dict[str,
 
 def start(state: ValitukiState, client: ClientProfile, consent: dict[str, Any], actor: str, at: Optional[str] = None) -> IntakeSession:
     if client.journeyState != 'INVITED':
-        raise IntakeError('Mieliluotsi on jo otettu käyttöön.')
+        raise IntakeError('Mieliluotsi has already been started.')
     record_consent(state, client, consent, actor)
     journey.apply(state, client, 'INTAKE_STARTED', actor=actor, source='client', payload={'consent': client.consent.model_dump()}, at=at)
     stamp = now(state)
@@ -79,15 +79,15 @@ def start(state: ValitukiState, client: ClientProfile, consent: dict[str, Any], 
                             source='client')
     state.intakes.append(session)
     client.intakeId = session.id
-    _say(state, session, f'Hei {client.firstName}! Olen Mieliluotsi – digitaalinen tuki terapiaa odottaessa. En ole terapeutti enkä '
-                         'päivystyspalvelu, mutta kuljen rinnallasi odotuksen ajan ja kokoan kanssasi tiedot, joista on hyötyä, kun '
-                         'terapia alkaa. Voit ohittaa minkä tahansa kysymyksen.', source='fixed')
+    _say(state, session, f'Hi {client.firstName}! I am Mieliluotsi – digital support while you wait for therapy. I am not a '
+                         'therapist or an emergency service, but I will walk alongside you while you wait and gather with you the '
+                         'information that will be useful when therapy starts. You can skip any question.', source='fixed')
     _say(state, session, interpret.OPENING_QUESTION, key=interpret.OPENING_KEY, source='fixed')
     return session
 
 
 # Where the starting profile comes from when there is no separate intake conversation.
-RECORDS_LABEL = 'Esitiedot'
+RECORDS_LABEL = 'Records'
 
 
 def start_from_records(state: ValitukiState, client: ClientProfile, consent: dict[str, Any], answers: dict[str, str], actor: str,
@@ -95,7 +95,7 @@ def start_from_records(state: ValitukiState, client: ClientProfile, consent: dic
     """No separate intake conversation: with the client's consent Mieliluotsi uses what the wellbeing services region
     already knows – the referral and the assessment visit (in the demo, the persona's prepared answers) – so the client is
     not asked the same things again. The interpretations become the starting profile, which the client can check and
-    change on Tietoni; the next step is how Mieliluotsi keeps in touch (the rhythm)."""
+    change on My data; the next step is how Mieliluotsi keeps in touch (the rhythm)."""
     session = start(state, client, consent, actor, at=at)
     # Nothing is asked: no conversation messages, no pending question.
     session.messages = []
@@ -127,7 +127,7 @@ def answer(state: ValitukiState, client: ClientProfile, text: str, provider: AIP
     session = _require(state, client, 'conversation')
     text = text.strip()[:1500]
     if not text:
-        raise IntakeError('Kirjoita vastaus tai ohita kysymys.')
+        raise IntakeError('Write an answer or skip the question.')
     key = session.pendingQuestionKey or interpret.OPENING_KEY
     session.messages.append(IntakeMessage(id=next_id(state, 'im'), role='client', text=text, questionKey=key, createdAt=now(state, at)))
     session.answers[key] = text
@@ -143,7 +143,7 @@ def skip(state: ValitukiState, client: ClientProfile, provider: AIProvider, acto
     session = _require(state, client, 'conversation')
     key = session.pendingQuestionKey
     if key == interpret.OPENING_KEY:
-        raise IntakeError('Kerro lyhyesti omin sanoin, miksi hait apua – loput kysymykset voi ohittaa.')
+        raise IntakeError('Tell me briefly in your own words why you sought help – you can skip the other questions.')
     if key:
         session.askedKeys.append(key)
         session.skippedKeys.append(key)
@@ -172,7 +172,7 @@ def _advance(state: ValitukiState, client: ClientProfile, session: IntakeSession
 def finish(state: ValitukiState, client: ClientProfile, provider: AIProvider) -> dict[str, Any]:
     session = _require(state, client, 'conversation')
     if len([k for k in session.answers if session.answers[k]]) < interpret.MIN_ANSWERS_TO_FINISH:
-        raise IntakeError('Vastaa vielä ainakin yhteen kysymykseen, jotta voin koota tulkinnat.')
+        raise IntakeError('Please answer at least one more question so that I can put the interpretations together.')
     return summarise(state, client, session, provider)
 
 
@@ -191,17 +191,18 @@ def summarise(state: ValitukiState, client: ClientProfile, session: IntakeSessio
     session.pendingQuestionKey = None
     if from_records:
         records.act(state, agent='SupportAgent', type='summarise_intake', client_id=client.id, rule_id='INTAKE-001',
-                    title='Kokosi esitiedoista lähtöprofiilin',
-                    detail=f'{len(session.proposals)} tietoa lähetteestä ja arviointikäynniltä: tavoite, työskentelytapa ja '
-                           'käytännön toiveet. Asiakkaan luvalla; asiakas voi tarkistaa ja muokata ne Tietoni-sivulla.',
+                    title='Built the starting profile from the records',
+                    detail=f'{plural(len(session.proposals), "item")} from the referral and the assessment visit: goal, way of '
+                           'working and practical wishes. With the client\'s permission; the client can check and edit them on the '
+                           'My data page.',
                     ai_task='summariseClientStatement', ai_source=summary.source)
         return {'proposals': len(session.proposals), 'source': summary.source}
-    _say(state, session, 'Kiitos, että kerroit. Kokosin kertomasi pohjalta muutaman tulkinnan. Ne ovat vasta ehdotuksia – '
-                         'tallennan ne vain, jos ne kuvaavat tilannettasi.', source=summary.source)
+    _say(state, session, 'Thank you for telling me. Based on what you told me, I put together a few interpretations. They are '
+                         'only suggestions – I will save them only if they describe your situation.', source=summary.source)
     records.act(state, agent='SupportAgent', type='summarise_intake', client_id=client.id, rule_id='INTAKE-001',
-                title='Kokosi alkukeskustelusta tulkinnat tarkistettaviksi',
-                detail=f'{len(session.proposals)} ehdotusta: tavoite, työskentelytapa ja käytännön toiveet. Mitään ei tallenneta '
-                       'ennen hyväksyntää.', ai_task='summariseClientStatement', ai_source=summary.source)
+                title='Gathered interpretations from the first conversation for review',
+                detail=f'{plural(len(session.proposals), "suggestion")}: goal, way of working and practical wishes. Nothing is '
+                       'saved before approval.', ai_task='summariseClientStatement', ai_source=summary.source)
     return {'proposals': len(session.proposals), 'source': summary.source}
 
 
@@ -209,7 +210,7 @@ def update_proposal(state: ValitukiState, client: ClientProfile, proposal_id: st
     session = _require(state, client, 'review')
     proposal = next((p for p in session.proposals if p.id == proposal_id), None)
     if proposal is None:
-        raise IntakeError('Ehdotusta ei löytynyt.')
+        raise IntakeError('Suggestion not found.')
     if 'included' in changes:
         proposal.included = bool(changes['included'])
     if 'text' in changes and str(changes['text']).strip():
@@ -233,25 +234,25 @@ def update_proposal(state: ValitukiState, client: ClientProfile, proposal_id: st
 
 
 def confirm(state: ValitukiState, client: ClientProfile, actor: str, at: Optional[str] = None, *, from_records: bool = False) -> list[str]:
-    """"Kyllä, tämä kuvaa tilannettani" – the included proposals become approved insights and the Therapy Fit Profile.
+    """"Yes, this describes my situation" – the included proposals become approved insights and the Therapy Fit Profile.
     `from_records`: the client's consent at the start covers it (start_from_records) – no separate review."""
     session = _require(state, client, 'review')
     included = [p for p in session.proposals if p.included]
     if not any(p.category == 'goal' for p in included):
-        raise IntakeError('Hyväksy tai kirjoita ainakin yksi tavoite.')
+        raise IntakeError('Approve or write at least one goal.')
     created = []
-    label = f'{RECORDS_LABEL if from_records else "Alkukeskustelu"} {fmt_date(state.currentDate)}'
+    label = f'{RECORDS_LABEL if from_records else "First conversation"} {fmt_date(state.currentDate)}'
     for proposal in included:
         origin = 'user_said' if proposal.editedByClient else 'ai_interpreted'
         if proposal.category == 'goal':
             primary = proposal.structured.get('primary', {'text': proposal.text, 'topics': []})
-            goal = insights.create(state, client, category='goal', kind='primary_goal', title='Päätavoite', text=primary['text'],
+            goal = insights.create(state, client, category='goal', kind='primary_goal', title='Main goal', text=primary['text'],
                                    origin=origin, source_label=label, status='approved', actor=actor, source='intake', at=at,
                                    structured={'topics': primary.get('topics', []), 'hope': proposal.structured.get('hope', '')},
                                    user_words=proposal.userWords, edited=proposal.editedByClient)
             created.append(goal.id)
             for item in proposal.structured.get('secondary', []):
-                secondary = insights.create(state, client, category='goal', kind='secondary_goal', title='Tavoite', text=item['text'],
+                secondary = insights.create(state, client, category='goal', kind='secondary_goal', title='Goal', text=item['text'],
                                             origin=origin, source_label=label, status='approved', actor=actor, source='intake',
                                             structured={'topics': item.get('topics', [])})
                 created.append(secondary.id)
@@ -266,15 +267,15 @@ def confirm(state: ValitukiState, client: ClientProfile, actor: str, at: Optiona
     session.confirmedAt = now(state)
     if from_records:
         records.audit(state, actor=actor, action='intake_from_records', client_id=client.id,
-                      detail=f'Asiakkaan luvalla {len(included)} tietoa esitiedoista (lähete ja arviointikäynti) otettiin profiiliin – '
-                             'samoja asioita ei kysytty uudelleen.')
+                      detail=f'With the client\'s permission, {plural(len(included), "item")} from the records (referral and '
+                             'assessment visit) were added to the profile – the same things were not asked again.')
     else:
-        rejected = f'; hylkäsi: {", ".join(excluded)}' if excluded else ''
+        rejected = f'; rejected: {", ".join(excluded)}' if excluded else ''
         records.audit(state, actor=actor, action='intake_confirmed', client_id=client.id,
-                      detail=f'Asiakas hyväksyi {len(included)} tulkintaa{rejected}.')
+                      detail=f'The client approved {plural(len(included), "interpretation")}{rejected}.')
     event = journey.apply(state, client, 'INSIGHTS_APPROVED', actor=actor, source='client',
-                          payload={'insightIds': created, 'reason': 'Esitiedot otettiin käyttöön asiakkaan luvalla' if from_records
-                                   else 'Alkukeskustelun tulkinnat hyväksyttiin'})
+                          payload={'insightIds': created, 'reason': 'Records were used with the client\'s permission'
+                                   if from_records else 'The interpretations of the first conversation were approved'})
     orchestrator.dispatch(state, event)
     return created
 
@@ -291,7 +292,7 @@ def complete(state: ValitukiState, client: ClientProfile, rhythm: dict[str, Any]
     session = _require(state, client, 'rhythm')
     days = sorted({int(d) for d in rhythm.get('checkInDays', []) if 0 <= int(d) <= 6})
     if not days:
-        raise IntakeError('Valitse check-in-rytmi.')
+        raise IntakeError('Choose a check-in rhythm.')
     _check_scales(mood, anxiety, required=False)
     client.checkInDays = days
     client.communicationStyle = 'warm' if rhythm.get('communicationStyle') == 'warm' else 'brief'
@@ -301,19 +302,19 @@ def complete(state: ValitukiState, client: ClientProfile, rhythm: dict[str, Any]
     stamp = now(state, at)
     baseline = _baseline_checkin(state, client, mood, anxiety, actor, stamp) if mood is not None else None
     if client.contactChannel == 'phone':
-        rhythm_text = (f'Vointipuhelu {len(days)}× viikossa klo {client.callTime.replace(":", ".")}: Mieliluotsi soittaa, kysyy '
-                       'vointia ja tekee lyhyen ajatusharjoituksen.')
+        rhythm_text = (f'Wellbeing call {len(days)}× a week at {client.callTime}: Mieliluotsi calls, asks how you are and does a '
+                       'short thought exercise with you.')
     else:
-        tone = 'lyhyet ja asialliset' if client.communicationStyle == 'brief' else 'lämpimät ja kannustavat'
-        rhythm_text = f'Check-in {len(days)}× viikossa, {tone} viestit.'
-    insights.create(state, client, category='preference', kind='engagement', title='Check-in-rytmi ja viestien sävy',
+        tone = 'short and matter-of-fact' if client.communicationStyle == 'brief' else 'warm and encouraging'
+        rhythm_text = f'Check-in {len(days)}× a week, {tone} messages.'
+    insights.create(state, client, category='preference', kind='engagement', title='Check-in rhythm and message tone',
                     text=rhythm_text,
-                    origin='user_said', source_label=f'Käyttöönotto {fmt_date(state.currentDate)}', status='approved', actor=actor,
+                    origin='user_said', source_label=f'Start {fmt_date(state.currentDate)}', status='approved', actor=actor,
                     source='intake', structured={'checkInDays': days, 'communicationStyle': client.communicationStyle,
                                                  'contactChannel': client.contactChannel, 'callTime': client.callTime})
     session.status = 'completed'
     session.completedAt = stamp
-    fit_profile.rebuild(state, client, agent='NavigationAgent', reason='Check-in-rytmi ja viestien sävy lisättiin', visible=False)
+    fit_profile.rebuild(state, client, agent='NavigationAgent', reason='Check-in rhythm and message tone added', visible=False)
     event = journey.apply(state, client, 'BASELINE_COMPLETED', actor=actor, source='client',
                           payload={'mood': int(mood) if mood is not None else None, 'checkInDays': days,
                                    'checkInId': baseline.id if baseline else None})
@@ -324,7 +325,7 @@ def complete(state: ValitukiState, client: ClientProfile, rhythm: dict[str, Any]
 
 
 def needs_baseline(state: ValitukiState, client: ClientProfile) -> bool:
-    """The intake is done but "Miten voit tänään?" is still unanswered – the home screen asks it."""
+    """The intake is done but "How are you today?" is still unanswered – the home screen asks it."""
     session = session_for(state, client)
     return bool(session and session.status == 'completed' and client.baseline is None
                 and not any(c.clientId == client.id and c.kind == 'baseline' for c in state.checkIns))
@@ -334,7 +335,7 @@ def record_baseline(state: ValitukiState, client: ClientProfile, mood: int, acto
                     at: Optional[str] = None) -> dict[str, Any]:
     """Today's wellbeing on the home screen right after the intake: the first point of the client's own baseline."""
     if not needs_baseline(state, client):
-        raise IntakeError('Lähtötaso on jo kirjattu.')
+        raise IntakeError('The baseline has already been recorded.')
     _check_scales(mood, anxiety, required=True)
     _baseline_checkin(state, client, mood, anxiety, actor, now(state, at))
     _assess_mood(state, client, int(mood), actor)
@@ -343,9 +344,9 @@ def record_baseline(state: ValitukiState, client: ClientProfile, mood: int, acto
 
 def _check_scales(mood: Optional[int], anxiety: Optional[int], *, required: bool) -> None:
     if (mood is None and required) or (mood is not None and not 1 <= int(mood) <= 5):
-        raise IntakeError('Valitse vointi asteikolla 1–5.')
+        raise IntakeError('Choose your wellbeing on a scale of 1–5.')
     if anxiety is not None and not 1 <= int(anxiety) <= 5:
-        raise IntakeError('Valitse ahdistus asteikolla 1–5.')
+        raise IntakeError('Choose your anxiety on a scale of 1–5.')
 
 
 def _baseline_checkin(state: ValitukiState, client: ClientProfile, mood: Optional[int], anxiety: Optional[int], actor: str,

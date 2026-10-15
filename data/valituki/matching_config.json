@@ -1,6 +1,6 @@
 {
   "version": "demo-2",
-  "note": "Deterministinen, läpinäkyvä täsmäytys. Painot ovat muokattavissa tässä tiedostossa. Pisteet ovat järjestysapu, eivät kliininen todennäköisyys, eikä niitä näytetä asiakkaalle numeroina. Painot vaativat validoinnin palautteen ja ammattilaisten arvion perusteella.",
+  "note": "Deterministic, transparent matching. The weights can be edited in this file. The points help to order the options; they are not a clinical probability and are never shown to the client as numbers. The weights need validation based on feedback and professionals' assessment.",
   "weights": {
     "goalCompetence": 30,
     "workingStyle": 20,
@@ -13,17 +13,17 @@
     {
       "key": "strong",
       "min": 85,
-      "text": "Vahva yhteensopivuus"
+      "text": "Strong fit"
     },
     {
       "key": "good",
       "min": 70,
-      "text": "Hyvä yhteensopivuus"
+      "text": "Good fit"
     },
     {
       "key": "possible",
       "min": 0,
-      "text": "Mahdollinen yhteensopivuus"
+      "text": "Possible fit"
     }
   ],
   "roleEligibility": {

@@ -25,4 +25,4 @@ def metrics(state: ValitukiState) -> dict[str, Any]:
     }
     rows = [{**item, 'demoValue': live.get(item['key'])} for item in cohort['impact']]
     return {'label': cohort['impactLabel'], 'metrics': rows,
-            'liveNote': 'Pienet luvut ("Tässä demossa") lasketaan demon kuvitteellisista asiakkaista.'}
+            'liveNote': 'The small figures ("In this demo") are calculated from the fictional demo clients.'}

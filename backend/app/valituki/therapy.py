@@ -1,8 +1,8 @@
 """Therapy mode: after therapy starts, the therapist defines how Mieliluotsi may support the client between sessions.
 
 Before therapy the agent runs under the approved waiting-list support protocol. After THERAPY_STARTED it switches to
-"Terapian välituki" and may only operate inside the therapist's TherapistAgentConfiguration: the primary goal, the
-allowed activities and guided CBT tools, a weekly between-session task ("välitehtävä"), the check-in frequency, the
+"Between-session support" and may only operate inside the therapist's TherapistAgentConfiguration: the primary goal, the
+allowed activities and guided CBT tools, a weekly between-session task, the check-in frequency, the
 tracked item and the topics it must not address. When therapy ends (THERAPY_ENDED) the therapist's maintenance plan
 (AftercarePlan) takes over: mood and anxiety are followed weekly and a change goes back to the care team.
 """
@@ -17,11 +17,11 @@ from app.valituki.labels import fmt_date_long as labels_date
 from app.valituki.models import AftercarePlan, ClientProfile, TherapistAgentConfiguration, TherapyEpisode, ValitukiState
 from app.valituki.store import get_therapist, next_id, now
 
-PROTOCOL_VERSION = 'Odotusajan tukiprotokolla demo-2 (hyväksytty 1.9.2026, placeholder)'
-WAITING_CAPABILITIES = ['Check-init: mieliala ja ahdistus', 'Ohjatut KKT-harjoitukset chatissa', 'Hyväksytyt omahoitoharjoitukset',
-                        'Palveluohjaus', 'Muutosten tunnistus', 'Matchingin valmistelu']
+PROTOCOL_VERSION = 'Waiting-time support protocol demo-2 (approved 1 Sep 2026, placeholder)'
+WAITING_CAPABILITIES = ['Check-ins: mood and anxiety', 'Guided CBT exercises in the chat', 'Approved self-care exercises',
+                        'Service navigation', 'Detecting changes', 'Preparing the matching']
 CBT_TOOLS = ('thought_record', 'experiment', 'exposure')
-TOOL_TITLES = {'thought_record': 'Ajatusten tutkiminen', 'experiment': 'Käyttäytymiskoe', 'exposure': 'Altistusporras'}
+TOOL_TITLES = {'thought_record': 'Exploring a thought', 'experiment': 'Behavioural experiment', 'exposure': 'Exposure ladder'}
 BETWEEN_SESSION_PREFERENCE = ['act-values', 'act-activity-planning', 'act-small-next-step', 'act-sleep-reflection',
                               'act-paced-breathing', 'act-grounding', 'act-worry-time', 'act-support-network']
 
@@ -53,12 +53,14 @@ def active_config(state: ValitukiState, client_id: str) -> Optional[TherapistAge
 def days_for(per_week: int) -> list[int]:
     options = content.rules()['checkins']['frequencyOptions']
     if str(per_week) not in options:
-        raise TherapyError('Check-in-tiheyden tulee olla 1, 2 tai 3 kertaa viikossa.')
+        raise TherapyError('The check-in frequency must be 1, 2 or 3 times a week.')
     return list(options[str(per_week)])
 
 
 def _goal_phrase(text: str) -> str:
-    phrase = re.sub(r'^haluan\s+', '', text.strip().rstrip('.'), flags=re.IGNORECASE)
+    """'I want to be able to manage my nervousness.' → 'Manage my nervousness' (Finnish goals keep working too)."""
+    phrase = re.sub(r"^(haluan|i want to|i would like to|i'd like to)\s+", '', text.strip().rstrip('.'), flags=re.IGNORECASE)
+    phrase = re.sub(r'^be able to\s+', '', phrase, flags=re.IGNORECASE)
     phrase = re.sub(r'^pystyä hallitsemaan', 'hallita', phrase)
     phrase = re.sub(r'^pystyä käsittelemään', 'käsitellä', phrase)
     return phrase[:1].upper() + phrase[1:]
@@ -81,19 +83,20 @@ def suggested_plan(state: ValitukiState, client: ClientProfile) -> dict[str, Any
             allowed.append(activity_id)
     pattern = next((i for i in insights.for_client(state, client.id, kind='pattern')), None)
     if pattern and 'anxiety' in pattern.structured.get('domains', []):
-        track = 'Toimistopäiviin liittyvä ahdistus'
+        track = 'Anxiety related to office days'
     elif goals:
-        track = 'Vointi suhteessa päätavoitteeseen'
+        track = 'Wellbeing in relation to the main goal'
     else:
-        track = 'Yleinen vointi'
+        track = 'General wellbeing'
     anxious = any({'anxiety', 'work_stress', 'panic'} & set(g.topics) for g in goals)
     used = [t for t in CBT_TOOLS if any(getattr(item, 'clientId', None) == client.id for item in
                                         {'thought_record': state.thoughtRecords, 'experiment': state.experiments,
                                          'exposure': state.ladders}[t])]
     tools = used or (list(CBT_TOOLS) if anxious else ['thought_record'])
     homework = 'thought_record' if 'thought_record' in tools else None
-    note = ('Ennen palaveria: kirjaa tilanne, ajatus ja tunne 0–10 ja etsi tasapainoisempi ajatus. Tuo merkinnät tapaamiseen, '
-            'jos haluat.' if anxious else 'Kirjaa yksi viikon tilanne: ajatus, tunne 0–10 ja tasapainoisempi ajatus.')
+    note = ('Before a meeting: write down the situation, the thought and the feeling 0–10, and look for a more balanced thought. '
+            'Bring the entries to the session if you like.' if anxious
+            else 'Write down one situation from the week: the thought, the feeling 0–10 and a more balanced thought.')
     return {'primaryGoal': _goal_phrase(goals[0].text) if goals else '', 'allowedActivityIds': allowed,
             'allowedTools': tools, 'homeworkTool': homework, 'homeworkNote': note if homework else '', 'checkInsPerWeek': 2,
             'track': track, 'doNotAddress': ''}
@@ -103,22 +106,22 @@ def configure(state: ValitukiState, client: ClientProfile, therapist_id: str, pl
               actor: str) -> TherapistAgentConfiguration:
     current = episode(state, client.id)
     if current is None or current.therapistId != therapist_id:
-        raise TherapyError('Vain asiakkaan oma terapeutti voi määrittää välituen.')
+        raise TherapyError("Only the client's own therapist can set up the between-session support.")
     if current.status != 'active':
-        raise TherapyError('Mieliluotsin voi määrittää, kun ensimmäinen tapaaminen on pidetty.')
+        raise TherapyError('Mieliluotsi can be set up once the first session has been held.')
     library = {a.id for a in content.activities()}
     allowed = [a for a in plan.get('allowedActivityIds', []) if a in library]
     if len(allowed) != len(plan.get('allowedActivityIds', [])):
-        raise TherapyError('Sallituiksi voi valita vain hyväksytyn kirjaston harjoituksia.')
+        raise TherapyError('Only exercises from the approved library can be allowed.')
     primary_goal = str(plan.get('primaryGoal', '')).strip()[:200]
     if not primary_goal:
-        raise TherapyError('Kirjaa päätavoite.')
+        raise TherapyError('Write down the main goal.')
     tools = [t for t in plan.get('allowedTools') or [] if t in CBT_TOOLS]
     if len(tools) != len(plan.get('allowedTools') or []):
-        raise TherapyError('Sallituiksi voi valita vain hyväksyttyjä KKT-työkaluja.')
+        raise TherapyError('Only approved CBT tools can be allowed.')
     homework = plan.get('homeworkTool') or None
     if homework is not None and homework not in CBT_TOOLS:
-        raise TherapyError('Välitehtäväksi voi valita vain hyväksytyn KKT-työkalun.')
+        raise TherapyError('Only an approved CBT tool can be given as a between-session task.')
     if homework and homework not in tools:
         tools.append(homework)  # a tool given as homework is always allowed
     per_week = int(plan.get('checkInsPerWeek', 2))
@@ -133,7 +136,7 @@ def configure(state: ValitukiState, client: ClientProfile, therapist_id: str, pl
         allowedActivityIds=allowed, allowedTools=tools, homeworkTool=homework,
         homeworkNote=str(plan.get('homeworkNote') or '').strip()[:300] if homework else '', checkInsPerWeek=per_week,
         checkInDays=check_days,
-        track=str(plan.get('track', '')).strip()[:120] or 'Yleinen vointi', doNotAddress=str(plan.get('doNotAddress', '')).strip()[:400],
+        track=str(plan.get('track', '')).strip()[:120] or 'General wellbeing', doNotAddress=str(plan.get('doNotAddress', '')).strip()[:400],
         version=(previous.version + 1) if previous else 1, createdAt=stamp, updatedAt=stamp, createdBy=actor, source='therapist')
     state.therapistConfigs.append(config)
     current.configurationId = config.id
@@ -154,23 +157,23 @@ def suggested_aftercare(state: ValitukiState, client: ClientProfile) -> dict[str
                       if c.clientId == client.id and (c.rating or 0) >= 4 and content.activity(c.activityId)})
     parts = []
     if any(r.clientId == client.id for r in state.thoughtRecords):
-        parts.append('jatka ajatusten tutkimista, kun jännitys nousee')
+        parts.append('keep exploring your thoughts when the nervousness rises')
     if any(lad.clientId == client.id for lad in state.ladders):
-        parts.append('pidä yllä altistusportaan askeleita – välttäminen ruokkii jännitystä')
+        parts.append('keep up the steps of the exposure ladder – avoidance feeds nervousness')
     if helpful:
-        parts.append('hyödyksi koettu: ' + ', '.join(helpful).lower())
-    maintenance = ('Terapiassa opittua: ' + '; '.join(parts) + '.') if parts else 'Jatka terapiassa opittuja keinoja omaan tahtiin.'
+        parts.append('found helpful: ' + ', '.join(helpful).lower())
+    maintenance = ('Learnt in therapy: ' + '; '.join(parts) + '.') if parts else 'Keep using what you learnt in therapy at your own pace.'
     return {'checkInsPerWeek': 1, 'allowedTools': tools, 'maintenance': maintenance,
-            'warningSigns': 'Jos uni heikkenee ja välttelet taas palavereja useamman viikon ajan, ota yhteyttä hoitotiimiin.'}
+            'warningSigns': 'If your sleep gets worse and you start avoiding meetings again for several weeks, contact the care team.'}
 
 
 def end_therapy(state: ValitukiState, client: ClientProfile, therapist_id: str, plan: dict[str, Any], actor: str) -> AftercarePlan:
-    """THERAPY_ENDED: the episode ends and the maintenance plan starts ("Seuranta terapian jälkeen")."""
+    """THERAPY_ENDED: the episode ends and the maintenance plan starts ("Follow-up after therapy")."""
     current = episode(state, client.id)
     if current is None or current.therapistId != therapist_id:
-        raise TherapyError('Vain asiakkaan oma terapeutti voi päättää terapian.')
+        raise TherapyError("Only the client's own therapist can end the therapy.")
     if current.status != 'active':
-        raise TherapyError('Terapia ei ole käynnissä.')
+        raise TherapyError('Therapy is not in progress.')
     per_week = int(plan.get('checkInsPerWeek', 1))
     check_days = days_for(per_week)
     tools = [t for t in plan.get('allowedTools') or [] if t in CBT_TOOLS]
@@ -204,35 +207,37 @@ def mode_summary(state: ValitukiState, client: ClientProfile) -> dict[str, Any]:
         plan = aftercare_plan(state, client.id)
         last = last_episode(state, client.id)
         therapist = get_therapist(state, plan.therapistId) if plan else None
-        first_name = therapist.name.split()[0] if therapist else 'Terapeutti'
-        return {'mode': 'aftercare_support', 'title': 'Seuranta terapian jälkeen', 'configured': True,
-                'controlledBy': f'Ylläpitosuunnitelma (terapeutti {therapist.name if therapist else ""})'.strip(),
+        first_name = therapist.name.split()[0] if therapist else 'Therapist'
+        ended = f' on {labels_date(last.endedAt)}' if last and last.endedAt else ''
+        return {'mode': 'aftercare_support', 'title': 'Follow-up after therapy', 'configured': True,
+                'controlledBy': f'Maintenance plan (therapist {therapist.name})' if therapist else 'Maintenance plan',
                 'therapistName': therapist.name if therapist else None, 'therapistFirstName': first_name,
-                'statement': f'Terapia päättyi {labels_date(last.endedAt) if last and last.endedAt else ""}. Mieliluotsi seuraa '
-                             'mielialaa ja ahdistusta, ja muutoksesta hoitotiimi saa tiedon.',
+                'statement': f'Therapy ended{ended}. Mieliluotsi follows your mood and anxiety, and the care team is told about '
+                             'any change.',
                 'checkIns': frequency_text(client.checkInDays), 'maintenance': plan.maintenance if plan else '',
                 'warningSigns': plan.warningSigns if plan else '',
                 'allowedTools': [{'id': t, 'title': TOOL_TITLES[t]} for t in (plan.allowedTools if plan else [])],
-                'capabilities': [f'Mieliala ja ahdistus {frequency_text(client.checkInDays)}', 'Omat KKT-harjoitukset',
-                                 'Ylläpitosuunnitelma', 'Hoitotiimi saa tiedon, jos vointi laskee', 'Turvallisuusohjeet']}
+                'capabilities': [f'Mood and anxiety {frequency_text(client.checkInDays)}', 'Your own CBT exercises',
+                                 'Maintenance plan', 'The care team is told if your wellbeing drops', 'Safety instructions']}
     if client.mode != 'therapy_support':
-        return {'mode': 'waiting_support', 'title': 'Mieliluotsi', 'controlledBy': 'Hyväksytty odotusajan tukiprotokolla',
+        return {'mode': 'waiting_support', 'title': 'Mieliluotsi', 'controlledBy': 'Approved waiting-time support protocol',
                 'protocol': PROTOCOL_VERSION, 'capabilities': WAITING_CAPABILITIES, 'configured': True,
                 'checkIns': frequency_text(client.checkInDays)}
     config = active_config(state, client.id)
     current = episode(state, client.id)
     therapist = get_therapist(state, current.therapistId) if current else None
-    first_name = therapist.name.split()[0] if therapist else 'Terapeutti'
-    base = {'mode': 'therapy_support', 'title': 'Terapian välituki',
+    first_name = therapist.name.split()[0] if therapist else 'Therapist'
+    who = f'Your therapist {first_name}' if therapist else 'Your therapist'
+    base = {'mode': 'therapy_support', 'title': 'Between-session support',
             'therapistName': therapist.name if therapist else None, 'therapistFirstName': first_name}
     if config is None:
-        return {**base, 'configured': False, 'controlledBy': f'Terapeutti {therapist.name if therapist else ""}'.strip(),
-                'statement': f'Terapeutti {first_name} määrittää, miten Mieliluotsi tukee sinua tapaamisten välillä. Siihen asti '
-                             'Mieliluotsi jatkaa vain check-inejä ja turvallisuusohjeita.',
-                'checkIns': frequency_text(client.checkInDays), 'capabilities': ['Check-init', 'Turvallisuusohjeet']}
+        return {**base, 'configured': False, 'controlledBy': f'Therapist {therapist.name}' if therapist else 'Therapist',
+                'statement': f'{who} sets how Mieliluotsi supports you between sessions. Until then, '
+                             'Mieliluotsi continues with check-ins and safety instructions only.',
+                'checkIns': frequency_text(client.checkInDays), 'capabilities': ['Check-ins', 'Safety instructions']}
     activities = [a for a in content.activities() if a.id in config.allowedActivityIds]
-    return {**base, 'configured': True, 'controlledBy': f'Terapeutti {therapist.name if therapist else ""}'.strip(),
-            'statement': f'Terapeutti {first_name} on määrittänyt tämän suunnitelman.',
+    return {**base, 'configured': True, 'controlledBy': f'Therapist {therapist.name}' if therapist else 'Therapist',
+            'statement': f'{who} has set up this plan.',
             'configuredAt': config.createdAt, 'version': config.version, 'primaryGoal': config.primaryGoal,
             'allowedActivities': [{'id': a.id, 'title': a.title} for a in activities], 'checkInsPerWeek': config.checkInsPerWeek,
             'allowedTools': [{'id': t, 'title': TOOL_TITLES[t]} for t in config.allowedTools],
@@ -240,8 +245,8 @@ def mode_summary(state: ValitukiState, client: ClientProfile) -> dict[str, Any]:
             if config.homeworkTool else None,
             'checkIns': frequency_text(config.checkInDays), 'checkInDays': [WEEKDAYS_SHORT[d] for d in config.checkInDays],
             'track': config.track, 'doNotAddress': config.doNotAddress,
-            'capabilities': ['Check-init terapeutin rytmissä', 'Vain terapeutin sallimat harjoitukset ja KKT-työkalut',
-                             f'Seuranta: {config.track}', 'Turvallisuusohjeet']}
+            'capabilities': ["Check-ins at the therapist's rhythm", 'Only the exercises and CBT tools the therapist allows',
+                             f'Tracking: {config.track}', 'Safety instructions']}
 
 
 def start_episode(state: ValitukiState, client: ClientProfile, booking) -> TherapyEpisode:

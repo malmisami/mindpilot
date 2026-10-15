@@ -24,31 +24,32 @@ def test_three_explained_matches_for_aino(state):
     assert [c.therapistId for c in shown] == ['th-anna', 'th-laura', 'th-katja']
     assert [c.label for c in shown] == ['strong', 'good', 'possible']
     anna = shown[0]
-    assert anna.reasons[:5] == ['Työskentelee ahdistuksen ja työperäisen stressin kanssa', 'Käyttää strukturoitua työskentelytapaa',
-                                'Tarjoaa konkreettisia harjoitteita', 'Etävastaanotto', 'Aika sopii toivomiisi ilta-aikoihin']
+    assert anna.reasons[:5] == ['Works with anxiety and work-related stress', 'Uses a structured way of working',
+                                'Offers concrete exercises', 'Remote session', 'The time fits your wish for evenings']
     assert anna.firstSlotStart.endswith('T18:00')
-    assert any('keskiviikkona' in u for u in shown[1].unmetPreferences)
+    assert anna.explanation.startswith('Anna meets all the criteria. Works with anxiety and work-related stress.')
+    assert any('on a Wednesday' in u for u in shown[1].unmetPreferences)
 
 
 def test_client_sees_labels_not_numeric_probabilities(state):
     _ready(state)
     candidates = view.build(state, 'cl-aino')['client']['matching']['candidates']
     assert candidates and all('totalPoints' not in c and 'components' not in c for c in candidates)
-    assert {c['labelText'] for c in candidates} <= {'Vahva yhteensopivuus', 'Hyvä yhteensopivuus', 'Mahdollinen yhteensopivuus'}
+    assert {c['labelText'] for c in candidates} <= {item['text'] for item in content.matching_config()['labels']}
 
 
 def test_unapproved_insight_cannot_be_used_for_matching(state):
     """Test 2: a proposed (unapproved) insight never reaches the matcher."""
     client = run_intake(state)
-    insights.create(state, client, category='therapist_wish', kind='working_style', title='Ehdotus', text='Tutkiva työote',
-                    origin='ai_interpreted', source_label='testi', actor='agent:test', source='test', status='proposed',
+    insights.create(state, client, category='therapist_wish', kind='working_style', title='Proposal', text='Exploratory approach',
+                    origin='ai_interpreted', source_label='test', actor='agent:test', source='test', status='proposed',
                     structured={'structure': 'exploratory', 'exercises': 'conversation'},
                     sharing=InsightSharing(professional=True, matching=True))
     match_input = matching_flow.build_input(state, client)
     assert match_input.style['structure'] == 'structured'
     assert match_input.style['exercises'] == 'concrete'
-    pattern_like = insights.create(state, client, category='goal', kind='secondary_goal', title='Ehdotus', text='Uni',
-                                   origin='observed', source_label='testi', actor='agent:test', source='test', status='proposed',
+    pattern_like = insights.create(state, client, category='goal', kind='secondary_goal', title='Proposal', text='Sleep',
+                                   origin='observed', source_label='test', actor='agent:test', source='test', status='proposed',
                                    structured={'topics': ['grief']}, sharing=InsightSharing(professional=True, matching=True))
     assert 'grief' not in matching_flow.build_input(state, client).secondary_topics
     assert pattern_like.status == 'proposed'
@@ -93,7 +94,7 @@ def test_matching_ranking_is_deterministic(state):
 
 
 def test_user_can_revoke_matching_permission(state):
-    """Test 6: the client changes "Saa käyttää terapeutin matchingissa" and the change is recorded."""
+    """Test 6: the client changes "May be used in therapist matching" and the change is recorded."""
     client = run_intake(state)
     style = insights.for_client(state, client.id, kind='working_style')[0]
     assert style.sharing.matching
@@ -113,11 +114,11 @@ def test_revoked_information_is_excluded_from_future_matching(state):
     simulation.open_next_pending(state)
     run = state.matchRuns[-1]
     assert run.inputs[client.id]['style'] == {}
-    assert any('Työskentelytapatoive' in line for line in run.inputs[client.id]['data_not_used'])
+    assert any('way of working' in line for line in run.inputs[client.id]['data_not_used'])
     for candidate in [c for c in state.matchCandidates if c.clientId == client.id]:
-        assert not any(r.startswith(('Käyttää strukturoitua', 'Tarjoaa konkreettisia')) for r in candidate.reasons)
+        assert not any(r.startswith(('Uses a structured', 'Offers concrete')) for r in candidate.reasons)
         component = next(c for c in candidate.components if c.key == 'workingStyle')
-        assert component.explanation == 'Työskentelytapatoiveita ei käytetty matchingissa'
+        assert component.explanation == 'Wishes about the way of working were not used in matching'
 
 
 def test_practical_preferences_without_matching_permission_block_automatic_matching(state):

@@ -14,7 +14,7 @@ const LegacyApp = legacyEnabled
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     {LegacyApp ? (
-      <Suspense fallback={<p role="status">Ladataan…</p>}>
+      <Suspense fallback={<p role="status">Loading…</p>}>
         <LegacyApp />
       </Suspense>
     ) : (

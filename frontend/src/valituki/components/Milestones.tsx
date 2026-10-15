@@ -18,12 +18,12 @@ export function Milestones({ items, compact = false }: { items: Milestone[]; com
         <li key={item.key} className={`ms ms-${item.tone} ms-${item.status}`} style={{ animationDelay: `${index * 60}ms` }}
           title={compact ? [item.text, item.note].filter(Boolean).join(' – ') : undefined}>
           <div className="ms-date">
-            {item.date ? <><span className="ms-day">{fmtShort(item.date)}</span></> : <span className="ms-soon">Tulossa</span>}
+            {item.date ? <><span className="ms-day">{fmtShort(item.date)}</span></> : <span className="ms-soon">Coming up</span>}
           </div>
           <div className="ms-rail" aria-hidden="true"><span className="ms-node">{ICONS[item.key]}</span></div>
           <div className="ms-card">
             <p className="ms-title">{item.title}</p>
-            {!compact && item.quote && <blockquote className="ms-quote">”{item.quote}”</blockquote>}
+            {!compact && item.quote && <blockquote className="ms-quote">“{item.quote}”</blockquote>}
             {!compact && <p className="ms-text">{item.text}</p>}
             {!compact && item.note && <p className="ms-note">{item.note}</p>}
           </div>

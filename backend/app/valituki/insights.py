@@ -1,9 +1,9 @@
-"""What Mieliluotsi remembers about the client ("Mieliluotsi muistaa minusta") and who may use it.
+"""What Mieliluotsi remembers about the client ("What Mieliluotsi remembers about me") and who may use it.
 
 Every insight has a status and per-item sharing:
-  🔒 Vain minä                          – sharing.professional = sharing.matching = False
-  👩‍⚕️ Saa näkyä ammattilaiselle          – sharing.professional = True
-  🧩 Saa käyttää terapeutin matchingissa – sharing.matching = True
+  🔒 Only me                                   – sharing.professional = sharing.matching = False
+  👩‍⚕️ May be seen by a professional            – sharing.professional = True
+  🧩 May be used in therapist matching         – sharing.matching = True
 
 Only approved insights are used anywhere; proposals (AI interpretations, detected patterns) wait for the client's explicit
 decision. Every permission change is stored as an append-only InsightPermission record and in the audit log.
@@ -52,7 +52,7 @@ def default_sharing(kind: str) -> InsightSharing:
 def get(state: ValitukiState, client: ClientProfile, insight_id: str) -> ClientInsight:
     insight = next((i for i in state.insights if i.id == insight_id and i.clientId == client.id), None)
     if insight is None:
-        raise NotFoundError('Tietoa ei löytynyt.')
+        raise NotFoundError('Information not found.')
     return insight
 
 
@@ -85,44 +85,44 @@ def create(state: ValitukiState, client: ClientProfile, *, category: str, kind: 
         createdAt=stamp, updatedAt=stamp, createdBy=actor, source=source)
     state.insights.append(insight)
     if status == 'approved':
-        _record_permission(state, client, insight, None, actor, 'Oletuslupa hyväksynnän yhteydessä')
+        _record_permission(state, client, insight, None, actor, 'Default permission on approval')
         _sync_goal(state, client, insight, actor)
     return insight
 
 
 def approve(state: ValitukiState, client: ClientProfile, insight: ClientInsight, actor: str) -> ClientInsight:
     if insight.status != 'proposed':
-        raise InsightError('Vain ehdotuksen voi hyväksyä.')
+        raise InsightError('Only a proposal can be approved.')
     stamp = now(state)
     insight.status = 'approved'
     insight.approvedAt = insight.decidedAt = stamp
     insight.updatedAt = stamp
-    _record_permission(state, client, insight, None, actor, 'Oletuslupa hyväksynnän yhteydessä')
+    _record_permission(state, client, insight, None, actor, 'Default permission on approval')
     _sync_goal(state, client, insight, actor)
     records.audit(state, actor=actor, action='insight_approved', client_id=client.id,
-                  detail=f'Asiakas hyväksyi: {insight.title} – "{insight.text}"')
+                  detail=f'The client approved: {insight.title} – "{insight.text}"')
     return insight
 
 
 def reject(state: ValitukiState, client: ClientProfile, insight: ClientInsight, actor: str) -> ClientInsight:
     if insight.status != 'proposed':
-        raise InsightError('Vain ehdotuksen voi hylätä.')
+        raise InsightError('Only a proposal can be rejected.')
     insight.status = 'rejected'
     insight.decidedAt = insight.updatedAt = now(state)
     insight.sharing = InsightSharing()
     insight.consentScope = 'private'
     records.audit(state, actor=actor, action='insight_rejected', client_id=client.id,
-                  detail=f'Asiakas ei tunnistanut havaintoa omakseen: {insight.title}. Sitä ei käytetä mihinkään.')
+                  detail=f'The client did not recognise the observation as their own: {insight.title}. It is not used for anything.')
     return insight
 
 
 def update_text(state: ValitukiState, client: ClientProfile, insight: ClientInsight, text: str, actor: str,
                 structured: Optional[dict[str, Any]] = None) -> ClientInsight:
     if insight.status not in ('approved', 'proposed'):
-        raise InsightError('Poistettua tietoa ei voi muokata.')
+        raise InsightError('Removed information cannot be edited.')
     text = text.strip()[:400]
     if not text:
-        raise InsightError('Kirjoita teksti tai poista tieto.')
+        raise InsightError('Write a text or remove the information.')
     insight.text = text
     if structured is not None:
         insight.structured = {**insight.structured, **structured}
@@ -132,21 +132,21 @@ def update_text(state: ValitukiState, client: ClientProfile, insight: ClientInsi
     insight.updatedAt = now(state)
     _sync_goal(state, client, insight, actor)
     records.audit(state, actor=actor, action='insight_edited', client_id=client.id,
-                  detail=f'Asiakas muokkasi tietoa: {insight.title} (versio {insight.version}).')
+                  detail=f'The client edited the information: {insight.title} (version {insight.version}).')
     return insight
 
 
 def set_sharing(state: ValitukiState, client: ClientProfile, insight: ClientInsight, *, professional: bool,
                 matching: bool, actor: str) -> ClientInsight:
     if insight.status != 'approved':
-        raise InsightError('Käyttöoikeuksia voi muuttaa vain hyväksytyille tiedoille.')
+        raise InsightError('Permissions can only be changed for approved information.')
     previous = insight.sharing.model_copy()
     if previous.professional == professional and previous.matching == matching:
         return insight
     insight.sharing = InsightSharing(professional=professional, matching=matching)
     insight.consentScope = scope_label(insight.sharing)
     insight.updatedAt = now(state)
-    _record_permission(state, client, insight, previous, actor, 'Asiakas muutti käyttöoikeutta')
+    _record_permission(state, client, insight, previous, actor, 'The client changed the permission')
     journey.apply(state, client, 'INSIGHT_PERMISSION_CHANGED', actor=actor, source='client',
                   payload={'insightId': insight.id, 'professional': professional, 'matching': matching,
                            'previous': previous.model_dump()})
@@ -161,13 +161,13 @@ def remove(state: ValitukiState, client: ClientProfile, insight: ClientInsight, 
     insight.sharing = InsightSharing()
     insight.consentScope = 'private'
     insight.updatedAt = now(state)
-    _record_permission(state, client, insight, previous, actor, 'Tieto poistettiin')
+    _record_permission(state, client, insight, previous, actor, 'The information was removed')
     for goal in state.goals:
         if goal.insightId == insight.id:
             goal.status = 'archived'
             goal.updatedAt = insight.updatedAt
     records.audit(state, actor=actor, action='insight_removed', client_id=client.id,
-                  detail=f'Asiakas poisti tiedon: {insight.title}. Sitä ei enää käytetä eikä jaeta.')
+                  detail=f'The client removed the information: {insight.title}. It is no longer used or shared.')
     return insight
 
 
@@ -180,8 +180,8 @@ def _record_permission(state: ValitukiState, client: ClientProfile, insight: Cli
         createdAt=stamp, updatedAt=stamp, createdBy=actor, source='client' if actor.startswith('client') else 'system'))
     if previous is not None:
         records.audit(state, actor=actor, action='insight_permission', client_id=client.id,
-                      detail=f'{insight.title}: ammattilainen {"kyllä" if insight.sharing.professional else "ei"}, '
-                             f'matching {"kyllä" if insight.sharing.matching else "ei"} ({reason.lower()}).')
+                      detail=f'{insight.title}: professional {"yes" if insight.sharing.professional else "no"}, '
+                             f'matching {"yes" if insight.sharing.matching else "no"} ({reason[:1].lower() + reason[1:]}).')
 
 
 def _sync_goal(state: ValitukiState, client: ClientProfile, insight: ClientInsight, actor: str) -> None:

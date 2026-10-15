@@ -31,7 +31,7 @@ def choose_today_activity(state: ValitukiState, client: ClientProfile, provider,
                                          reason=reason)
     client.recentSuggestions = (client.recentSuggestions + [activity.id])[-6:]
     records.act(state, agent=AGENT, type='select_activity', event=event, client_id=client.id, rule_id='ACT-SEL-001',
-                title=f'Valitsi tämän päivän askeleen: {activity.title}', detail=reason,
+                title=f"Chose today's step: {activity.title}", detail=reason,
                 ai_task='personaliseApprovedActivity', ai_source=intro.source)
 
 
@@ -59,9 +59,9 @@ def on_checkin_completed(state: ValitukiState, event: AgentEvent, provider) -> N
         'nextBy': 'puhelu' if client.contactChannel == 'phone' else 'sovellus',
     })
     records.notify(state, audience='client', client_id=client.id, kind='checkin', event=event, agent=AGENT, action_view='today',
-                   title='Kiitos check-inistä', body=summary.text)
+                   title='Thank you for the check-in', body=summary.text)
     records.act(state, agent=AGENT, type='acknowledge_checkin', event=event, rule_id='CHK-ACK-001',
-                title='Mieliluotsi kuittasi check-inin', detail=summary.text, ai_task='summariseCheckIn', ai_source=summary.source)
+                title='Mieliluotsi acknowledged the check-in', detail=summary.text, ai_task='summariseCheckIn', ai_source=summary.source)
     checkin = next((c for c in state.checkIns if c.id == event.payload.get('checkInId')), None)
     practice.say(state, client, summary.text, textSource=summary.source)
     if checkin is not None and checkin.mood is not None:
@@ -76,8 +76,8 @@ def _upsert_activity_insight(state: ValitukiState, client: ClientProfile, activi
     kind = 'activity_helpful' if helpful else 'activity_not_helpful'
     existing = next((i for i in state.insights if i.clientId == client.id and i.kind in ('activity_helpful', 'activity_not_helpful')
                      and i.structured.get('activityId') == activity_id and i.status == 'approved'), None)
-    text = (f'{activity.title} tuntui hyödylliseltä ({rating}/5).' if helpful
-            else f'{activity.title} ei tuntunut hyödylliseltä ({rating}/5).')
+    text = (f'{activity.title} felt helpful ({rating}/5).' if helpful
+            else f'{activity.title} did not feel helpful ({rating}/5).')
     if existing and existing.kind == kind:
         existing.text = text
         existing.structured = {**existing.structured, 'rating': rating}
@@ -85,8 +85,8 @@ def _upsert_activity_insight(state: ValitukiState, client: ClientProfile, activi
         return
     if existing:
         insights.remove(state, client, existing, actor)
-    insights.create(state, client, category='helpful', kind=kind, title='Toimiva keino' if helpful else 'Ei tuntunut hyödylliseltä',
-                    text=text, origin='measured', source_label=f'Oma arviosi harjoituksesta ({fmt_date(state.currentDate)})',
+    insights.create(state, client, category='helpful', kind=kind, title='Something that helps' if helpful else 'Did not feel helpful',
+                    text=text, origin='measured', source_label=f'Your own rating of the exercise ({fmt_date(state.currentDate)})',
                     status='approved', actor=actor, source='client_rating', structured={'activityId': activity_id, 'rating': rating})
 
 
@@ -98,20 +98,19 @@ def on_activity_completed(state: ValitukiState, event: AgentEvent, provider) -> 
     if rating:
         _upsert_activity_insight(state, client, event.payload['activityId'], int(rating), event.actor)
     fit_profile.rebuild(state, client, agent=AGENT,
-                        reason=f'Omahoidon kokemukset päivittyivät: {title}' + (f' ({rating}/5)' if rating else ''))
+                        reason=f'Self-care experiences updated: {title}' + (f' ({rating}/5)' if rating else ''))
     if rating and int(rating) >= 4:
         records.act(state, agent=AGENT, type='note_helpful', event=event, rule_id='ACT-HELP-001',
-                    title=f'Kirjasi toimivan keinon: {title} ({rating}/5)',
-                    detail='Mieliluotsi ehdottaa hyödylliseksi koettuja harjoituksia jatkossa useammin. '
-                           'Tieto näkyy ammattilaiselle vain, '
-                           'jos sallit sen.')
+                    title=f'Noted something that helps: {title} ({rating}/5)',
+                    detail='From now on, Mieliluotsi will suggest the exercises you found helpful more often. '
+                           'The professional sees this only if you allow it.')
 
 
 def on_activity_skipped(state: ValitukiState, event: AgentEvent, provider) -> None:
     client = next(c for c in state.clients if c.id == event.clientId)
-    fit_profile.rebuild(state, client, agent=AGENT, reason='Ohitettu harjoitus kirjattiin', visible=False)
+    fit_profile.rebuild(state, client, agent=AGENT, reason='A skipped exercise was recorded', visible=False)
     records.act(state, agent=AGENT, type='note_skip', event=event, rule_id='ACT-SKIP-001', visibility='client',
-                title='Kirjasi ohituksen', detail='Harjoituksen ohittaminen on aina sallittua. Samaa ei ehdoteta heti uudelleen.')
+                title='Noted the skip', detail='Skipping an exercise is always allowed. The same one is not suggested again straight away.')
 
 
 def _assign_homework(state: ValitukiState, client: ClientProfile, config, due: str) -> None:
@@ -125,7 +124,8 @@ def _assign_homework(state: ValitukiState, client: ClientProfile, config, due: s
 def on_plan_configured(state: ValitukiState, event: AgentEvent, provider) -> None:
     client = next(c for c in state.clients if c.id == event.clientId)
     summary = therapy.mode_summary(state, client)
-    first_name = summary.get('therapistFirstName', 'Terapeutti')
+    first_name = summary.get('therapistFirstName')
+    who = f'Your therapist {first_name}' if summary.get('therapistName') and first_name else 'Your therapist'
     client.todayActivity = None
     choose_today_activity(state, client, provider, event)
     config = therapy.active_config(state, client.id)
@@ -134,27 +134,27 @@ def on_plan_configured(state: ValitukiState, event: AgentEvent, provider) -> Non
             task.status = 'skipped'  # the previous plan's homework is replaced by the new one
         _assign_homework(state, client, config, client.nextCheckInDate or state.currentDate)
         if config.homeworkTool:
-            practice.say(state, client, f'Terapeutti {first_name} antoi välitehtävän: {practice.title(config.homeworkTool)}. '
+            practice.say(state, client, f'{who} gave you a between-session task: {practice.title(config.homeworkTool)}. '
                                         + (f'{config.homeworkNote} ' if config.homeworkNote else '')
-                                        + 'Löydät sen Harjoitukset-sivulta, ja muistutan sovittuna päivänä.')
+                                        + "You'll find it on the Exercises page, and I'll remind you on the agreed day.")
     records.notify(state, audience='client', client_id=client.id, kind='therapy', event=event, agent=AGENT, action_view='plan',
-                   title=f'Terapeutti {first_name} määritti Mieliluotsin tapaamisten välille',
-                   body=f'Päätavoite: {summary.get("primaryGoal")}. Check-in {summary.get("checkIns")}. Mieliluotsi käyttää vain '
-                        'terapeuttisi sallimia harjoituksia.')
+                   title=f'{who} set up Mieliluotsi for the time between sessions',
+                   body=f'Main goal: {summary.get("primaryGoal")}. Check-in {summary.get("checkIns")}. Mieliluotsi only uses the '
+                        'exercises your therapist has allowed.')
     records.act(state, agent=AGENT, type='apply_therapist_plan', event=event, rule_id='THERAPY-002',
-                title='Siirtyi terapeutin määrittämään suunnitelmaan',
-                detail=f'Sallitut harjoitukset: {", ".join(a["title"] for a in summary.get("allowedActivities", []))}. '
-                       f'Seurataan: {summary.get("track")}.'
-                       + (f' Ei käsitellä: {summary.get("doNotAddress")}.' if summary.get('doNotAddress') else ''))
+                title="Switched to the therapist's plan",
+                detail=f'Allowed exercises: {", ".join(a["title"] for a in summary.get("allowedActivities", []))}. '
+                       f'Tracking: {summary.get("track")}.'
+                       + (f' Not to be addressed: {summary.get("doNotAddress")}.' if summary.get('doNotAddress') else ''))
 
 
 PRACTICE_TITLES = {
-    'THOUGHT_RECORD_COMPLETED': 'Ajatusten tutkiminen tallentui ajatuspäiväkirjaan',
-    'EXPERIMENT_PLANNED': 'Käyttäytymiskoe suunniteltiin ja lisättiin tehtäviin',
-    'EXPERIMENT_REVIEWED': 'Käyttäytymiskokeen tulos kirjattiin',
-    'EXPOSURE_LADDER_CREATED': 'Altistusporras koottiin – ensimmäinen askel tehtävissä',
-    'EXPOSURE_STEP_COMPLETED': 'Altistusaskel kirjattiin portaaseen',
-    'PRACTICE_TASK_COMPLETED': 'Sovittu harjoitus merkittiin tehdyksi',
+    'THOUGHT_RECORD_COMPLETED': 'Saved “Exploring a thought” in the thought diary',
+    'EXPERIMENT_PLANNED': 'Planned a behavioural experiment and added it to your tasks',
+    'EXPERIMENT_REVIEWED': 'Recorded the result of the behavioural experiment',
+    'EXPOSURE_LADDER_CREATED': 'Built an exposure ladder – the first step is in your tasks',
+    'EXPOSURE_STEP_COMPLETED': 'Logged an exposure step on the ladder',
+    'PRACTICE_TASK_COMPLETED': 'Marked an agreed exercise as done',
 }
 
 
@@ -162,17 +162,18 @@ def on_practice_completed(state: ValitukiState, event: AgentEvent, provider) -> 
     """The client's own practice: recorded privately (never on a professional timeline); weekly homework is renewed."""
     client = next(c for c in state.clients if c.id == event.clientId)
     payload = event.payload
-    detail = 'Merkintä näkyy vain sinulle, ellet itse jaa sitä.'
+    detail = 'Only you can see this entry unless you share it yourself.'
     if isinstance(payload.get('before'), int) and isinstance(payload.get('after'), int):
-        detail = f'Muutos {payload["before"]}/10 → {payload["after"]}/10. ' + detail
+        detail = f'Change {payload["before"]}/10 → {payload["after"]}/10. ' + detail
     records.act(state, agent=AGENT, type='practice_recorded', event=event, rule_id='PRACTICE-001', visibility='private',
-                title=PRACTICE_TITLES.get(event.type, 'Harjoitus kirjattiin'), detail=detail)
+                title=PRACTICE_TITLES.get(event.type, 'Exercise recorded'), detail=detail)
     task = next((t for t in state.practiceTasks if t.id == payload.get('taskId')), None)
     config = therapy.active_config(state, client.id) if client.mode == 'therapy_support' else None
     if task is not None and task.kind == 'homework' and config is not None and config.homeworkTool == task.tool:
         _assign_homework(state, client, config, add_days(max(task.dueDate or state.currentDate, state.currentDate), 7))
         records.act(state, agent=AGENT, type='renew_homework', event=event, rule_id='THERAPY-HW-001', visibility='private',
-                    title='Välitehtävä tehty – seuraava on viikon päästä', detail=f'Terapeutin välitehtävä: {task.title}.')
+                    title='Between-session task done – the next one is in a week',
+                    detail=f"Therapist's between-session task: {task.title}.")
 
 
 def remind_tasks(state: ValitukiState, client: ClientProfile, at: Optional[str] = None) -> None:
@@ -192,7 +193,7 @@ def conversation_context(state: ValitukiState, client: ClientProfile, text: str,
         history = history[:-1]
     config = therapy.active_config(state, client.id) if client.mode == 'therapy_support' else None
     return {
-        'serviceLanguage': 'fi',
+        'serviceLanguage': 'en',
         'mode': client.mode,
         'approvedGoals': [g.text for g in insights.active_goals(state, client.id)],
         'therapistPlan': {'primaryGoal': config.primaryGoal, 'track': config.track} if config else None,

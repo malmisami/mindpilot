@@ -16,7 +16,7 @@ const AINO = 'cl-aino';
 const ANNA = 'th-anna';
 const SCOPE: ViewScope = { clientId: AINO, therapistId: ANNA };
 const STORAGE_KEY = 'vt-demo-pilot';
-const FALLBACK_MESSAGE = 'Tiistaina minun pitää esitellä projektin tilanne koko tiimille, ja jännittää jo nyt ihan hirveästi.';
+const FALLBACK_MESSAGE = 'On Tuesday I have to present the project status to the whole team, and I\'m already terribly nervous about it.';
 // The item the client takes out of the first-session summary before approving it (the same in scenes.py).
 const DROPPED_SECTION = 'tried';
 
@@ -29,80 +29,83 @@ export interface TellPart { from: number; heading?: string; text: string }
     the stage's narration beside the panel – the presenter's pitch, spoken as the client – split into the parts
     that belong to what is on the screen, so the column shows the part to read now. */
 export const STAGES: { key: StageKey; label: string; group?: 'valituki'; tell: TellPart[] }[] = [
-  { key: 'haku', label: 'Avun haku', tell: [
-    { from: 1, text: 'Tässä on tyypillinen tilanne, jossa odotusaika on 20–25 viikkoa hoidon alkamiseen. Nyt Mieliluotsilla '
-      + 'tuki alkaa heti. Ensin päätän itse, mitä tietojani käytetään ja mitä hoitotiimi ja terapeutti näkevät.' },
+  { key: 'haku', label: 'Seeking help', tell: [
+    { from: 1, text: 'Here is a typical situation: the wait before treatment starts is 20–25 weeks. Now, with Mieliluotsi, '
+      + 'support starts right away. First, I decide myself which of my information is used and what the care team and the '
+      + 'therapist can see.' },
   ] },
-  { key: 'alku', label: 'Käyttöönotto esitiedoilla', tell: [
-    { from: 2, text: 'Uutta alkukartoitusta ei tehdä. Kerroin jo tilanteestani lähetteessä ja arviointikäynnillä, joten '
-      + 'samoja asioita ei kysytä uudelleen. Luvallani Mieliluotsi käyttää näitä tietoja: tavoitteeni, toivomani '
-      + 'työskentelytapa, vaikeimmat hetket ja se, mikä on aiemmin auttanut. Voin tarkistaa ja muokata niitä Tietoni-sivulla.' },
-    { from: 3, text: 'Valitsen, miten Mieliluotsi pitää minuun yhteyttä: vastaanko sovelluksessa kirjoittaen, vai soittaako '
-      + 'Mieliluotsi minulle sovittuina päivinä, kysyy vointiani ja tekee kanssani lyhyen ajatusharjoituksen puhuen.' },
-    { from: 4, text: 'Puhelimen oikealla puolella on taustanäkymä, jota asiakas ei näe. Vastaukseni ja toimintani '
-      + 'sovelluksessa päivittävät koko ajan terapeutin ja terapiamuodon sopivuutta. Tällä on väliä, koska terapiamuodolla, '
-      + 'työskentelytavalla ja yhteistyösuhteella on suurin vaikutus hoidon tuloksiin. Muutos nykyiseen on suuri, sillä nyt '
-      + 'terapeutti valikoituu saatavuuden, ei sopivuuden perusteella. Samalla keskustelujeni ja muiden tietojeni pohjalta '
-      + 'rakentuu profiili, jonka tuleva terapeutti näkee: tavoitteeni, mikä minua auttaa ja miten vointini kehittyy '
-      + 'odotusaikana.' },
+  { key: 'alku', label: 'Getting started from records', tell: [
+    { from: 2, text: 'There is no new initial assessment. I already described my situation in the referral and at the '
+      + 'assessment visit, so I am not asked the same things again. With my permission, Mieliluotsi uses this information: '
+      + 'my goals, the way I would like to work, my hardest moments and what has helped before. I can check and edit it on '
+      + 'the My data page.' },
+    { from: 3, text: 'I choose how Mieliluotsi keeps in touch with me: either I reply in writing in the app, or Mieliluotsi '
+      + 'calls me on agreed days, asks how I am doing and does a short thinking exercise with me by talking it through.' },
+    { from: 4, text: 'To the right of the phone is a backstage view that the client does not see. My answers and what I do '
+      + 'in the app keep updating how well each therapist and therapy approach fits me. This matters, because the therapy '
+      + 'approach, the way of working and the working relationship have the biggest effect on treatment outcomes. It is a '
+      + 'big change from today, where the therapist is chosen by availability, not by fit. At the same time, my '
+      + 'conversations and my other information build a profile that my future therapist will see: my goals, what helps '
+      + 'me and how my wellbeing develops while I wait.' },
   ] },
-  { key: 'kkt', label: 'Ohjattu KKT-harjoittelu chatissa', group: 'valituki', tell: [
-    { from: 5, text: 'Avaan keskustelun ja kerron, että tiistain esitys tiimille jännittää jo nyt. Mieliluotsi ei ala '
-      + 'neuvoa. Se kysyy, haluanko tutkia ajatusta yhdessä. Vastaan kyllä.' },
-    { from: 6, text: 'Harjoitus on kognitiivista käyttäytymisterapiaa. Se sopii odotusaikaan, koska se keskittyy '
-      + 'haitallisten ajatus- ja toimintamallien muuttamiseen. Se ei siis mene ongelmien alkulähteisiin, kuten lapsuuden '
-      + 'traumoihin. Keskustelu pysyy turvarajojen sisällä eikä haittaa tulevaa hoitoa. Keskeistä on saada yleisten '
-      + 'tekoälypalveluiden kanssa käytävät keskustelut valvotulle alustalle: keskustelut ilman turvarajoja, joissa '
-      + 'vaikeista aiheista avaudutaan liian nopeasti, ovat haitallisia toipumiselle.' },
-    { from: 7, text: 'Harjoituksen lopussa jännitys on laskenut kahdeksasta viiteen. Sitten rakennamme altistusportaat: '
-      + 'lähestyn esitystä pienin askelin, helpoimmasta vaikeimpaan.' },
+  { key: 'kkt', label: 'Guided CBT practice in the chat', group: 'valituki', tell: [
+    { from: 5, text: 'I open the chat and say that Tuesday\'s presentation to the team is already making me nervous. '
+      + 'Mieliluotsi does not start giving advice. It asks whether I would like to explore the thought together. I say yes.' },
+    { from: 6, text: 'The exercise is cognitive behavioural therapy. It suits the waiting time because it focuses on changing '
+      + 'harmful patterns of thinking and behaviour. So it does not go into the root causes of problems, such as childhood '
+      + 'trauma. The conversation stays within safety limits and does not get in the way of future treatment. The key is to '
+      + 'bring the conversations people have with general AI services onto a supervised platform: conversations without '
+      + 'safety limits, where people open up about difficult topics too quickly, are harmful to recovery.' },
+    { from: 7, text: 'By the end of the exercise my nervousness has dropped from eight to five. Then we build an exposure '
+      + 'ladder: I approach the presentation in small steps, from the easiest to the hardest.' },
   ] },
-  { key: 'seuranta', label: 'Mielialan ja ahdistuksen seuranta', group: 'valituki', tell: [
-    { from: 8, heading: 'Vointikysely', text: 'Kotinäkymässä vastaan sovittuun tahtiin lyhyeen vointikyselyyn: mieliala ja '
-      + 'ahdistus asteikolla yhdestä viiteen. Näin vointiani seurataan koko odotusajan. Tämä tuo ammattilaisille koko jonosta '
-      + 'näkyvyyden.' },
-    { from: 9, text: 'Edistyminen-näkymässä näen mielialani ja ahdistukseni kehityksen. Se on itsearvio, ei diagnoosi. '
-      + 'Keskustelut kertyvät ajatuspäiväkirjaksi, joka näkyy vain minulle. Voin jakaa siitä yksittäisen merkinnän '
-      + 'terapeutille. Viikot kuluvat. Kolmessa peräkkäisessä kyselyssä vointini on vähintään pisteen oman lähtötasoni '
-      + 'alapuolella. Mieliluotsi huomaa muutoksen ja kertoo siitä minulle. Se ei muuta hoitoni kiireellisyyttä, vaan '
-      + 'pyytää ammattilaista tarkistamaan tilanteen.' },
-    { from: 11, heading: 'Hoitokoordinaattorin näkymä', text: 'Siirryn hoitokoordinaattorin näkymään. Jonossa on tuhat '
-      + 'synteettistä demoasiakasta. Mieliluotsi nostaa muutokset tarkistettaviksi, ja ammattilainen päättää. Vointia '
-      + 'verrataan aina asiakkaan omaan lähtötasoon, ei muihin.' },
-    { from: 12, heading: 'Hoitokoordinaattorin näkymä', text: 'Minä nousin listalle, koska vointini oli kolmessa '
-      + 'peräkkäisessä kyselyssä lähtötason alapuolella. Koordinaattori näkee säännön, johon pyyntö perustuu, ja vain ne '
-      + 'tiedot, joiden jakamiseen olen antanut luvan.' },
-    { from: 13, heading: 'Hoitokoordinaattorin näkymä', text: 'Merkitsen tilanteen tarkistetuksi ja muutan kiireellisyyden '
-      + 'kiireelliseksi. Tämän päätöksen tekee aina ammattilainen, ei tekoäly.' },
+  { key: 'seuranta', label: 'Tracking mood and anxiety', group: 'valituki', tell: [
+    { from: 8, heading: 'Wellbeing check-in', text: 'On the home screen I answer a short wellbeing check-in at the agreed '
+      + 'pace: mood and anxiety on a scale from one to five. This way my wellbeing is followed throughout the waiting time. '
+      + 'It gives professionals visibility across the whole waiting list.' },
+    { from: 9, text: 'In the Progress view I can see how my mood and anxiety have developed. It is a self-assessment, not a '
+      + 'diagnosis. My conversations build up into a thought diary that only I can see. I can share a single entry from it '
+      + 'with my therapist. The weeks go by. In three check-ins in a row, my wellbeing is at least one point below my own '
+      + 'baseline. Mieliluotsi notices the change and tells me about it. It does not change the urgency of my care; '
+      + 'instead, it asks a professional to review the situation.' },
+    { from: 11, heading: 'Care coordinator\'s view', text: 'I switch to the care coordinator\'s view. There are a thousand '
+      + 'synthetic demo clients on the waiting list. Mieliluotsi raises changes for review, and a professional decides. '
+      + 'Wellbeing is always compared with the client\'s own baseline, never with other people.' },
+    { from: 12, heading: 'Care coordinator\'s view', text: 'I came up on the list because my wellbeing was below my baseline '
+      + 'in three check-ins in a row. The coordinator sees the rule the request is based on, and only the information I '
+      + 'have given permission to share.' },
+    { from: 13, heading: 'Care coordinator\'s view', text: 'I mark the situation as reviewed and change the urgency to '
+      + 'urgent. This decision is always made by a professional, not by AI.' },
   ] },
-  { key: 'tfp', label: 'Havainto tarkentaa terapeuttiprofiilia', group: 'valituki', tell: [
-    { from: 14, text: 'Palaan asiakkaan sovellukseen. Hyväksyn Mieliluotsin havainnon: työpäiviä edeltävinä iltoina '
-      + 'ahdistusta on enemmän. Se tarkentaa profiilia, jonka tuleva terapeutti näkee.' },
+  { key: 'tfp', label: 'An observation refines the therapist profile', group: 'valituki', tell: [
+    { from: 14, text: 'I go back to the client\'s app. I approve Mieliluotsi\'s observation: my anxiety is higher on the '
+      + 'evenings before working days. It refines the profile that my future therapist will see.' },
   ] },
-  { key: 'terapeutti', label: 'Sopivin saatavilla oleva terapeutti', tell: [
-    { from: 15, text: 'Kun minulle sopivimmalta terapeutilta vapautuu paikka, saan kolme ehdotusta perusteluineen. '
-      + 'Lähetetietojen lisäksi valintaan vaikuttavat odotusajan keskusteluista syntyneet tiedot, joiden käytön olen '
-      + 'sallinut. Valinta ei enää ratkea sillä, kenellä on vapaita aikoja. Näen, miksi Annaa suositellaan, ja valitsen hänet.' },
-    { from: 18, heading: 'Yhteenveto ensikäynnille', text: 'Ensimmäistä tapaamista varten Annalle kootaan yhteenveto. Se on '
-      + 'luonnos. Mitään ei jaeta ennen kuin hyväksyn sen, eikä keskusteluhistoriaa jaeta lainkaan. Poistan yhden kohdan ja '
-      + 'hyväksyn loput. Ensimmäinen käynti alkaa valmiista pohjasta.' },
+  { key: 'terapeutti', label: 'The best-fitting available therapist', tell: [
+    { from: 15, text: 'When a place opens up with the therapist who fits me best, I get three suggestions with the reasons. '
+      + 'Besides the referral, the choice draws on what came up in my conversations while I waited, which I have allowed '
+      + 'to be used. The choice is no longer decided by who has free appointments. I can see why Anna is recommended, and I '
+      + 'choose her.' },
+    { from: 18, heading: 'Summary for the first session', text: 'A summary is put together for Anna for our first '
+      + 'meeting. It is a draft. Nothing is shared before I approve it, and the chat history is not shared at all. I remove '
+      + 'one item and approve the rest. The first session starts from a ready base.' },
   ] },
-  { key: 'terapia', label: 'Terapia + välitehtävät Mieliluotsissa', tell: [
-    { from: 20, heading: 'Terapeutin näkymä', text: 'Siirryn terapeutin näkymään. Anna näkee hyväksymäni yhteenvedon ennen '
-      + 'ensimmäistä tapaamista. Jokaisesta tiedosta näkyy, onko se asiakkaan omin sanoin kertoma, mitattu vai tekoälyn '
-      + 'tiivistämä. Nämä eivät mene sekaisin.' },
-    { from: 21, heading: 'Terapeutin näkymä', text: 'Terapian aikana Anna päättää, mitä Mieliluotsi saa tarjota tapaamisten '
-      + 'välillä. Mieliluotsi toimii vain hänen määrittämissään rajoissa.' },
+  { key: 'terapia', label: 'Therapy + between-session tasks in Mieliluotsi', tell: [
+    { from: 20, heading: 'Therapist\'s view', text: 'I switch to the therapist\'s view. Anna sees the summary I approved '
+      + 'before our first meeting. For every piece of information she can see whether the client said it in their own '
+      + 'words, whether it was measured, or whether AI summarised it. These are never mixed up.' },
+    { from: 21, heading: 'Therapist\'s view', text: 'During therapy, Anna decides what Mieliluotsi may offer between '
+      + 'sessions. Mieliluotsi works only within the limits she sets.' },
   ] },
-  { key: 'jalkeen', label: 'Seuranta terapian jälkeen', tell: [
-    { from: 24, text: 'Terapia on päättynyt. Mieliluotsi jää jälkitueksi Annan laatiman ylläpitosuunnitelman mukaan. '
-      + 'Harjoitukset pysyvät käytössäni: ajatusten tutkiminen, käyttäytymiskoe ja altistusportaat, joista viisi kuudesta '
-      + 'askeleesta on jo tehty.' },
+  { key: 'jalkeen', label: 'Follow-up after therapy', tell: [
+    { from: 24, text: 'Therapy has ended. Mieliluotsi stays on as aftercare, following the maintenance plan Anna drew up. '
+      + 'The exercises stay available to me: exploring a thought, the behavioural experiment and the exposure ladder, '
+      + 'where five of the six steps are already done.' },
   ] },
 ];
 
 /** The narration before the first press – the presenter's opening line, shown in the demo control beside the panel. */
-export const DEMO_INTRO = 'Kun ihminen saa lähetteen terapiaan, hoito ei ala. Alkaa kuukausien passiivinen odotus.';
+export const DEMO_INTRO = 'When someone is referred to therapy, treatment does not begin. Months of passive waiting begin.';
 
 type Where = { role: 'pitch' } | { role: 'client'; tab: ClientTab } | { role: 'professional'; client: string | null } | { role: 'therapist' };
 
@@ -169,22 +172,22 @@ async function playGuided(p: PilotCtx): Promise<boolean> {
 
 export const BEATS: Beat[] = [
   // 1 · Avun haku – the demo starts here, from the prepared start state
-  { stage: 'haku', title: 'Sami on hakenut apua ja on terapiajonossa',
-    say: 'Työhön liittyvä ahdistus, lyhytterapia, arvioitu odotus 20–25 viikkoa. Normaalisti tästä alkaisi pelkkä odotus – Mieliluotsilla tuki alkaa heti.',
+  { stage: 'haku', title: 'Sami has sought help and is on the therapy waiting list',
+    say: 'Work-related anxiety, short-term therapy, estimated wait 20–25 weeks. Normally this is where the waiting would begin – with Mieliluotsi, support starts right away.',
     act: async (p) => ok(await p.mutate((s) => api.scene(s, 'start'))),
     show: async (p) => { p.go({ role: 'client', tab: 'koti' }); await p.spot('.wait-card'); } },
 
   // 2 · Käyttöönotto esitiedoilla – no separate intake conversation
-  { stage: 'alku', title: 'Ei uutta kartoitusta – esitiedot käyttöön',
-    say: 'Lähetteessä ja arviointikäynnillä Sami on jo kertonut tilanteestaan. Hänen luvallaan Mieliluotsi käyttää näitä tietoja – samoja asioita ei kysytä uudelleen.',
+  { stage: 'alku', title: 'No new assessment – the existing records are used',
+    say: 'Sami has already described the situation in the referral and at the assessment visit. With Sami\'s permission, Mieliluotsi uses this information – the same things are not asked again.',
     act: async (p) => ok(await p.mutate((s) => api.intakeStart(s, AINO, p.view().client?.intake.consentDefaults ?? {
       proactiveCheckins: true, storeHistory: true, professionalMonitoring: true, sharePractice: true }))),
     show: async (p) => { p.go({ role: 'client', tab: 'koti' }); } },
-  { stage: 'alku', title: 'Sovelluksessa vai puhelulla?',
-    say: 'Sami valitsee, miten Mieliluotsi pitää yhteyttä: kirjoittaen sovelluksessa tai niin, että Mieliluotsi soittaa, kysyy vointia ja tekee lyhyen ajatusharjoituksen.',
+  { stage: 'alku', title: 'In the app or by phone?',
+    say: 'Sami chooses how Mieliluotsi keeps in touch: in writing in the app, or Mieliluotsi calls, asks how Sami is doing and does a short thinking exercise.',
     show: async (p) => { p.go({ role: 'client', tab: 'koti' }); await p.spot('.rhythm-screen .radio-cards'); } },
-  { stage: 'alku', title: 'Esitiedoista Therapy Fit Profile – Sami voi muokata',
-    say: 'Tavoite, työskentelytapa ja se, mikä on auttanut, ovat terapeutin profiilissa ja matchingissa (oikealla). Sami voi muokata niitä Tietoni-sivulla.',
+  { stage: 'alku', title: 'A Therapy Fit Profile from the records – Sami can edit it',
+    say: 'The goal, the way of working and what has helped are in the therapist profile and in matching (on the right). Sami can edit them on the My data page.',
     act: async (p) => {
       // A conversation left open in an older saved state is played to the end first.
       if (p.view().client?.intake.status === 'conversation' && !(await playIntake(p))) return false;
@@ -198,8 +201,8 @@ export const BEATS: Beat[] = [
     show: async (p) => { p.go({ role: 'client', tab: 'koti' }); await p.spot('.bp-doc'); } },
 
   // 3 · Mieliluotsi: ohjattu KKT-harjoittelu chatissa
-  { stage: 'kkt', title: 'Sami kertoo jännittävästä tilanteesta',
-    say: '”Tiistaina pitää esitellä projekti koko tiimille…” Mieliluotsi tunnistaa tilanteen ja ehdottaa, että sitä tutkitaan yhdessä.',
+  { stage: 'kkt', title: 'Sami talks about a nerve-racking situation',
+    say: '“On Tuesday I have to present the project to the whole team…” Mieliluotsi recognises the situation and suggests exploring it together.',
     act: async (p) => {
       const text = p.view().client?.demoMessage ?? FALLBACK_MESSAGE;
       p.go({ role: 'client', tab: 'keskustelu' });
@@ -209,8 +212,8 @@ export const BEATS: Beat[] = [
       return sent;
     },
     show: async (p) => { p.go({ role: 'client', tab: 'keskustelu' }); } },
-  { stage: 'kkt', title: '”Kyllä, tutkitaan” – ohjattu harjoitus alkaa',
-    say: 'Ajatusten tutkiminen kysymys kerrallaan. Jokaisen kysymyksen voi ohittaa, ja harjoituksen voi lopettaa milloin tahansa.',
+  { stage: 'kkt', title: '“Yes, let\'s explore it” – the guided exercise begins',
+    say: 'Exploring a thought, one question at a time. Every question can be skipped, and the exercise can be stopped at any time.',
     act: async (p) => {
       const offer = [...(p.view().client?.chat ?? [])].reverse()
         .find((m) => m.kind === 'offer' && m.actionable && m.widget?.options.some((o) => o.value.startsWith('start:')));
@@ -222,14 +225,14 @@ export const BEATS: Beat[] = [
       return started;
     },
     show: async (p) => { p.go({ role: 'client', tab: 'keskustelu' }); } },
-  { stage: 'kkt', title: 'Tilanne → ajatus → tunne → ajatusloukku → tasapainoisempi ajatus → askel',
-    say: 'Säännöt päättävät vaiheet, kielimalli vain muotoilee. Lopuksi sovitaan konkreettinen askel: altistusportaan ensimmäinen askel huomenna.',
+  { stage: 'kkt', title: 'Situation → thought → feeling → thinking trap → more balanced thought → step',
+    say: 'Rules decide the steps; the language model only phrases them. At the end a concrete step is agreed: the first step of the exposure ladder, tomorrow.',
     act: playGuided,
     show: async (p) => { p.go({ role: 'client', tab: 'keskustelu' }); } },
 
   // 4 · Mieliluotsi: mielialan ja ahdistuksen seuranta – vointikysely ja oma lähtötaso, sitten kun dataa on kertynyt
-  { stage: 'seuranta', title: 'Vointikysely: mieliala ja ahdistus 1–5 – oma lähtötaso',
-    say: 'Mieliala ja ahdistus 1–5 kolmesti viikossa. Vointia verrataan Samin omaan lähtötasoon, ei muihin ihmisiin.',
+  { stage: 'seuranta', title: 'Wellbeing check-in: mood and anxiety 1–5 – own baseline',
+    say: 'Mood and anxiety 1–5, three times a week. Wellbeing is compared with Sami\'s own baseline, not with other people.',
     act: async (p) => {
       if (!p.view().client?.checkIn.needsBaseline) return true;
       // "Miten voit tänään?" on the home screen: the card is on screen for a moment, then Sami answers.
@@ -239,9 +242,9 @@ export const BEATS: Beat[] = [
       return ok(await p.mutate((s) => api.recordBaseline(s, AINO, { mood: p.view().client?.intake.demoMood ?? 3, anxiety: 3 })));
     },
     show: async (p) => { p.go({ role: 'client', tab: 'koti' }); await p.spot('.cx-teaser', 'center'); } },
-  { stage: 'seuranta', title: 'Kaksi viikkoa myöhemmin: mieliala ja ahdistus käyrällä – vointi laskee alle oman lähtötason',
-    say: 'Check-init kolmesti viikossa ja harjoittelu kertyvät, ja jokaista check-iniä verrataan Samin omaan lähtötasoon. Sitten '
-      + 'check-in jää väliin ja uni heikkenee: havaintoagentti tunnistaa muutoksen ja pyytää ammattilaista katsomaan.',
+  { stage: 'seuranta', title: 'Two weeks later: mood and anxiety on the chart – wellbeing drops below own baseline',
+    say: 'Check-ins three times a week and practice build up, and every check-in is compared with Sami\'s own baseline. Then '
+      + 'a check-in is missed and sleep gets worse: the observation agent detects the change and asks a professional to take a look.',
     act: async (p) => {
       const view = p.view();
       if (daysBetween(view.meta.demoStartDate, view.meta.currentDate) < 14) {
@@ -254,29 +257,29 @@ export const BEATS: Beat[] = [
       return ok(await p.mutate((s) => api.deteriorate(s, AINO)));
     },
     show: async (p) => { p.go({ role: 'client', tab: 'edistyminen' }); await p.spot('.ma-chart'); } },
-  { stage: 'seuranta', title: '”Huomasimme jotain” – havainto on vain ehdotus',
-    say: 'Työpäiviä edeltävinä iltoina ahdistusta on ollut enemmän. Sami päättää itse, tallennetaanko havainto.',
+  { stage: 'seuranta', title: '“We noticed something” – the observation is only a suggestion',
+    say: 'Anxiety has been higher on the evenings before working days. Sami decides whether the observation is saved.',
     show: async (p) => { p.go({ role: 'client', tab: 'koti' }); await p.spot(['.cx-insight', '.bp-doc']); } },
-  { stage: 'seuranta', title: 'Hoitotiimin terapiajono: Sami nousee tarkistettavaksi',
-    say: 'Avoimet tarkistuspyynnöt ensin. Mieliluotsi ei priorisoi asiakkaita eikä muuta hoidon kiireellisyyttä.',
+  { stage: 'seuranta', title: 'The care team\'s waiting list: Sami comes up for review',
+    say: 'Open review requests first. Mieliluotsi does not prioritise clients or change the urgency of care.',
     show: async (p) => { p.go({ role: 'professional', client: null }); await p.spot('.queue-table tr.row-primary', 'center'); } },
-  { stage: 'seuranta', title: '”Miksi Sami nousi tarkistettavaksi?”',
-    say: 'Perustelut, sääntö ja itse raportoidut tiedot näkyvät – ei diagnoosia eikä mustaa laatikkoa.',
+  { stage: 'seuranta', title: '“Why did Sami come up for review?”',
+    say: 'The reasons, the rule and the self-reported data are visible – no diagnosis and no black box.',
     show: async (p) => { p.go({ role: 'professional', client: AINO }); await p.spot('.why-card'); } },
-  { stage: 'seuranta', title: 'Ammattilainen merkitsee tarkistetuksi ja muuttaa kiireellisyyden – ihminen päättää',
-    say: 'Tilanne merkitään tarkistetuksi ja kiireellisyydeksi kiireellinen. Päätöksen tekee aina ammattilainen, ei tekoäly.',
+  { stage: 'seuranta', title: 'The professional marks it reviewed and changes the urgency – a human decides',
+    say: 'The situation is marked as reviewed and the urgency is set to urgent. The decision is always made by a professional, not by AI.',
     act: async (p) => {
       const review = p.view().professional.details[AINO]?.openReview;
       if (review && !ok(await p.mutate((s) => api.reviewObservation(s, review.id, 'mark_reviewed')))) return false;
       // The professional's own decision, as in the pitch: the urgency becomes urgent (the select on the review page).
       if (p.view().professional.details[AINO]?.urgency?.value === 'urgent') return true;
-      return ok(await p.mutate((s) => api.setUrgency(s, AINO, 'urgent', 'Vointi kolmesti oman lähtötason alapuolella')));
+      return ok(await p.mutate((s) => api.setUrgency(s, AINO, 'urgent', 'Wellbeing below own baseline three times')));
     },
     show: async (p) => { p.go({ role: 'professional', client: AINO }); await p.spot(['.urgency-box', '.reviewed-card', '.review-main']); } },
 
   // 6 · Mieliluotsi: Therapy Fit Profile
-  { stage: 'tfp', title: 'Sami hyväksyy – Therapy Fit Profile päivittyy',
-    say: 'Profiili terapeutille rakentuu vain hyväksytyistä tiedoista, ja jokaisella tiedolla on oma käyttöoikeus.',
+  { stage: 'tfp', title: 'Sami approves – the Therapy Fit Profile is updated',
+    say: 'The profile for the therapist is built only from approved information, and every item has its own permission.',
     act: async (p) => {
       const pattern = p.view().client?.memory.pending.find((i) => i.kind === 'pattern');
       if (!pattern) return true;
@@ -289,23 +292,23 @@ export const BEATS: Beat[] = [
     show: async (p) => { p.go({ role: 'client', tab: 'koti' }); await p.spot('.bp-doc'); } },
 
   // 7 · Sopivin saatavilla oleva terapeutti
-  { stage: 'terapeutti', title: 'Terapeutilta vapautuu paikka – matching ajetaan heti',
-    say: 'Ensin kovat ehdot, sitten läpinäkyvä pisteytys. Sami näkee kolme tilanteeseensa sopivinta terapeuttia.',
+  { stage: 'terapeutti', title: 'A therapist has a place free – matching runs at once',
+    say: 'Hard requirements first, then transparent scoring. Sami sees the three therapists who best fit the situation.',
     act: async (p) => ok(await p.mutate((s) => api.openSlot(s))),
     show: async (p) => {
       p.go({ role: 'client', tab: 'polku' });
       // Scrolled to, without the golden pulse: the whole section is new on the screen anyway.
       (await p.spot('.matching'))?.classList.remove('pilot-spot');
     } },
-  { stage: 'terapeutti', title: '”Miksi Anna?” – perustelut, vapaa aika ja täyttymättömät toiveet',
-    say: 'Ei todennäköisyyksiä: Sami näkee, mihin suositus perustuu ja mitä toiveita ei voitu täyttää.',
+  { stage: 'terapeutti', title: '“Why Anna?” – the reasons, the free appointment and the wishes not met',
+    say: 'No probabilities: Sami sees what the recommendation is based on and which wishes could not be met.',
     show: async (p) => {
       p.go({ role: 'client', tab: 'polku' });
       const card = await p.spot('.cand');
       card?.querySelector('details.unmet')?.setAttribute('open', '');
     } },
-  { stage: 'terapeutti', title: 'Sami valitsee Annan – ensimmäinen aika varataan',
-    say: 'Etävastaanotto tiistai-iltana, kuten Sami toivoi. Samalla syntyy luonnos yhteenvedosta ensimmäistä tapaamista varten.',
+  { stage: 'terapeutti', title: 'Sami chooses Anna – the first appointment is booked',
+    say: 'A remote session on a Tuesday evening, as Sami wished. At the same time a draft summary is created for the first session.',
     act: async (p) => {
       const candidates = p.view().client?.matching.candidates ?? [];
       const anna = candidates.find((c) => c.therapist.id === ANNA) ?? candidates[0];
@@ -314,11 +317,11 @@ export const BEATS: Beat[] = [
     show: async (p) => { p.go({ role: 'client', tab: 'polku' }); await p.spot('.booking-card'); } },
 
   // (terapeutti jatkuu: asiakkaan hyväksymä yhteenveto ensimmäistä tapaamista varten)
-  { stage: 'terapeutti', title: 'Yhteenveto ensimmäistä tapaamista varten',
-    say: 'Jokainen kohta on merkitty: omin sanoin, mitattu tai tekoälyn tiivistelmä. Sami voi muokata ja poistaa kohtia.',
+  { stage: 'terapeutti', title: 'A summary for the first session',
+    say: 'Every item is labelled: in the client\'s own words, measured, or an AI summary. Sami can edit and remove items.',
     show: async (p) => { p.go({ role: 'client', tab: 'polku' }); await p.spot('.handover-card'); } },
-  { stage: 'terapeutti', title: 'Sami poistaa yhden kohdan ja hyväksyy loput jaettavaksi',
-    say: 'Mitään ei jaeta ennen hyväksyntää, eikä keskusteluhistoriaa jaeta koskaan.',
+  { stage: 'terapeutti', title: 'Sami removes one item and approves the rest for sharing',
+    say: 'Nothing is shared before approval, and the chat history is never shared.',
     act: async (p) => {
       // One item out before approving, as in the pitch – unless the presenter already removed one by hand.
       const sections = p.view().client?.matching.handover?.sections ?? [];
@@ -329,29 +332,29 @@ export const BEATS: Beat[] = [
     show: async (p) => { p.go({ role: 'client', tab: 'polku' }); await p.spot(['.handover-card .banner-ok', '.handover-card']); } },
 
   // 9 · Terapia + välitehtävät Mieliluotsissa
-  { stage: 'terapia', title: 'Terapia alkaa – Anna näkee vain hyväksytyn yhteenvedon',
-    say: 'Ensimmäinen tapaaminen ei ala tyhjästä: tavoitteet, voinnin suunta ja harjoittelu ovat valmiina. Harjoittelu näkyy '
-      + 'Annalle Samin luvalla, ajatuspäiväkirjan merkinnät vain, jos Sami jakaa ne.',
+  { stage: 'terapia', title: 'Therapy starts – Anna sees only the approved summary',
+    say: 'The first session does not start from scratch: the goals, the direction of wellbeing and the practice are ready. Anna sees '
+      + 'the practice with Sami\'s permission, and thought diary entries only if Sami shares them.',
     act: async (p) => ok(await p.mutate((s) => api.firstSession(s, AINO))),
     show: async (p) => { p.go({ role: 'therapist' }); await p.spot('.doc-card'); } },
-  { stage: 'terapia', title: 'Terapeutti määrittää välituen ja välitehtävän',
-    say: 'Päätavoite, sallitut KKT-harjoitukset, viikoittainen välitehtävä ja check-in-tiheys – tekoäly toimii vain näissä rajoissa.',
+  { stage: 'terapia', title: 'The therapist sets the support and the task between sessions',
+    say: 'Main goal, allowed CBT exercises, a weekly between-session task and check-in frequency – the AI works only within these limits.',
     show: async (p) => { p.go({ role: 'therapist' }); await p.spot('.plan-card'); } },
-  { stage: 'terapia', title: 'Tallenna ja ota käyttöön',
-    say: 'Mieliluotsi siirtyy odotusajan protokollasta terapeutin ohjaamaksi välitueksi, ja Sami saa siitä ilmoituksen.',
+  { stage: 'terapia', title: 'Save and activate',
+    say: 'Mieliluotsi moves from the waiting-time protocol to between-session support guided by the therapist, and Sami gets a notification about it.',
     act: async (p) => {
       const row = p.view().therapist.selected?.clients.find((c) => c.clientId === AINO);
       const plan = row?.therapy.suggestedPlan;
       return plan ? ok(await p.mutate((s) => api.savePlan(s, ANNA, AINO, plan))) : false;
     },
     show: async (p) => { p.go({ role: 'therapist' }); await p.spot('.plan-card'); } },
-  { stage: 'terapia', title: 'Sami näkee terapeutin määrittämän välituen',
-    say: 'Välitehtävä ja harjoitukset tapaamisten välillä – terapeutin rajaamina.',
+  { stage: 'terapia', title: 'Sami sees the between-session support the therapist set',
+    say: 'The between-session task and exercises between sessions – within the limits the therapist set.',
     show: async (p) => { p.go({ role: 'client', tab: 'polku' }); await p.spot('.cx-modecard'); } },
 
   // 10 · Seuranta terapian jälkeen
-  { stage: 'jalkeen', title: 'Terapia päättyy – seuranta jatkuu',
-    say: 'Ylläpitosuunnitelma ja merkit, joihin reagoida. Mieliala ja ahdistus kerran viikossa, ja muutos palaa hoitotiimille.',
+  { stage: 'jalkeen', title: 'Therapy ends – follow-up continues',
+    say: 'A maintenance plan and the signs to act on. Mood and anxiety once a week, and a change goes back to the care team.',
     act: async (p) => ok(await p.mutate((s) => api.demoEndTherapy(s, AINO))),
     show: async (p) => { p.go({ role: 'client', tab: 'polku' }); await p.spot('.cx-modecard'); } },
 ];

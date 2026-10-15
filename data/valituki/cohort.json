@@ -1,5 +1,5 @@
 {
-  "note": "Demon synteettisiä esimerkkilukuja. Terapiajonon kokonaisluvut koostuvat kuvitteellisesta taustakohortista ja demon asiakkaista, jotka lisätään lukuihin reaaliajassa.",
+  "note": "Synthetic example figures for the demo. The waiting list totals are made up of a fictional background cohort and the demo's clients, who are added to the figures in real time.",
   "baseBuckets": {
     "stable": 646,
     "changeDetected": 163,
@@ -7,72 +7,72 @@
     "matchingPossible": 116,
     "missedCheckIns": 39
   },
-  "impactLabel": "Demon synteettinen esimerkkiluku – ei todellinen vaikuttavuustulos.",
+  "impactLabel": "A synthetic example figure for the demo – not a real impact result.",
   "impact": [
     {
       "key": "timeToSupport",
-      "label": "Aika ensimmäiseen tukeen",
-      "before": "28 pv",
-      "after": "< 1 pv",
-      "detail": "Ennen: tuki alkoi vasta ensimmäisellä terapiakäynnillä. Mieliluotsilla: tuki alkaa samana päivänä, kun asiakas liitetään jonoon."
+      "label": "Time to first support",
+      "before": "28 days",
+      "after": "< 1 day",
+      "detail": "Before: support only started at the first therapy appointment. With Mieliluotsi: support starts on the same day the client joins the waiting list."
     },
     {
       "key": "activeSupport",
-      "label": "Jonottajat aktiivisen tuen piirissä",
+      "label": "People on the waiting list receiving active support",
       "before": "0 %",
       "after": "86 %",
-      "detail": "Osuus terapiaa odottavista, jotka ovat ottaneet Mieliluotsin käyttöön."
+      "detail": "Share of people waiting for therapy who have started using Mieliluotsi."
     },
     {
       "key": "checkInCompletion",
-      "label": "Check-inien vastausaste",
+      "label": "Check-in response rate",
       "value": "78 %",
-      "detail": "Vastatut check-init / lähetetyt check-init odotusaikana."
+      "detail": "Check-ins answered / check-ins sent during the waiting time."
     },
     {
       "key": "changesSurfaced",
-      "label": "Ammattilaiselle nostetut muutokset",
-      "value": "164 / kk",
-      "detail": "Sääntöpohjaiset muutokset omaan lähtötasoon, jotka ammattilainen tarkisti. Mieliluotsi ei muuttanut kiireellisyyttä yhdessäkään."
+      "label": "Changes raised to a professional",
+      "value": "164 / month",
+      "detail": "Rule-based changes against the client's own baseline, reviewed by a professional. Mieliluotsi did not change the urgency in any of them."
     },
     {
       "key": "humanContacts",
-      "label": "Asiakkaiden pyytämät yhteydenotot",
-      "value": "31 / kk",
-      "detail": "”Haluan keskustella ammattilaisen kanssa” -pyynnöt."
+      "label": "Contact requests from clients",
+      "value": "31 / month",
+      "detail": "“I want to talk to a professional” requests."
     },
     {
       "key": "matchAcceptance",
-      "label": "Terapeuttiehdotuksen hyväksyntä",
+      "label": "Therapist suggestion acceptance",
       "value": "82 %",
-      "detail": "Asiakkaat, jotka valitsivat jonkin kolmesta ensimmäisestä ehdotuksesta."
+      "detail": "Clients who chose one of the first three suggestions."
     },
     {
       "key": "rematch",
-      "label": "Uudelleen-matching-pyynnöt",
+      "label": "Re-matching requests",
       "value": "6 %",
-      "detail": "Ensimmäisten tapaamisten jälkeinen palaute, joka johti ammattilaisen tarkistukseen."
+      "detail": "Feedback after the first sessions that led to a professional review."
     },
     {
       "key": "handovers",
-      "label": "Valmiit, asiakkaan hyväksymät yhteenvedot",
+      "label": "Finished summaries approved by the client",
       "value": "214",
-      "detail": "Terapeutti sai yhteenvedon ennen ensimmäistä tapaamista."
+      "detail": "The therapist received a summary before the first session."
     },
     {
       "key": "prepTime",
-      "label": "Arvioitu säästetty valmisteluaika",
-      "value": "≈ 25 min / asiakas",
-      "detail": "Havainnollistava oletus: rakenteinen yhteenveto korvaa osan alkukartoituksesta."
+      "label": "Estimated preparation time saved",
+      "value": "≈ 25 min / client",
+      "detail": "An illustrative assumption: a structured summary replaces part of the initial assessment."
     },
     {
       "key": "engagement",
-      "label": "Sitoutuminen odotusaikana",
+      "label": "Engagement during the waiting time",
       "value": "71 %",
-      "detail": "Asiakkaat, jotka vastasivat vähintään kerran viikossa neljän viikon jälkeen."
+      "detail": "Clients who answered at least once a week after four weeks."
     }
   ],
-  "samplesNote": "Kuvitteellisia esimerkkiprofiileja taustakohortista – havainnollistavat ryhmää, eivät ole demon asiakkaita.",
+  "samplesNote": "Fictional example profiles from the background cohort – they illustrate the group and are not demo clients.",
   "samples": [
     {
       "bucket": "stable",
@@ -84,8 +84,8 @@
       "latestObservation": null,
       "reviewKey": "none",
       "reviewLabel": "–",
-      "matchingStatus": "Jonossa",
-      "nextAction": "Ei toimenpiteitä"
+      "matchingStatus": "On the waiting list",
+      "nextAction": "No action needed"
     },
     {
       "bucket": "stable",
@@ -94,11 +94,11 @@
       "waitingDays": 22,
       "lastCheckInDaysAgo": 0,
       "trend": "improving",
-      "latestObservation": "Vointi hieman lähtötasoa parempi",
+      "latestObservation": "Wellbeing slightly better than baseline",
       "reviewKey": "none",
       "reviewLabel": "–",
-      "matchingStatus": "Jonossa",
-      "nextAction": "Ei toimenpiteitä"
+      "matchingStatus": "On the waiting list",
+      "nextAction": "No action needed"
     },
     {
       "bucket": "stable",
@@ -109,9 +109,9 @@
       "trend": "stable",
       "latestObservation": null,
       "reviewKey": "reviewed",
-      "reviewLabel": "Tarkistettu",
-      "matchingStatus": "Jonossa",
-      "nextAction": "Ei toimenpiteitä"
+      "reviewLabel": "Reviewed",
+      "matchingStatus": "On the waiting list",
+      "nextAction": "No action needed"
     },
     {
       "bucket": "changeDetected",
@@ -120,11 +120,11 @@
       "waitingDays": 58,
       "lastCheckInDaysAgo": 0,
       "trend": "declining",
-      "latestObservation": "Kolme check-iniä oman lähtötason alapuolella",
+      "latestObservation": "Three check-ins below own baseline",
       "reviewKey": "requested",
-      "reviewLabel": "Tarkistus pyydetty",
-      "matchingStatus": "Jonossa",
-      "nextAction": "Tarkista muutos"
+      "reviewLabel": "Review requested",
+      "matchingStatus": "On the waiting list",
+      "nextAction": "Review the change"
     },
     {
       "bucket": "changeDetected",
@@ -133,11 +133,11 @@
       "waitingDays": 33,
       "lastCheckInDaysAgo": 1,
       "trend": "declining",
-      "latestObservation": "Uni heikentynyt kahden viikon ajan",
+      "latestObservation": "Sleep worse for two weeks",
       "reviewKey": "requested",
-      "reviewLabel": "Tarkistus pyydetty",
-      "matchingStatus": "Jonossa",
-      "nextAction": "Tarkista muutos"
+      "reviewLabel": "Review requested",
+      "matchingStatus": "On the waiting list",
+      "nextAction": "Review the change"
     },
     {
       "bucket": "changeDetected",
@@ -146,11 +146,11 @@
       "waitingDays": 76,
       "lastCheckInDaysAgo": 0,
       "trend": "declining",
-      "latestObservation": "Ahdistus noussut työpäivien alla",
+      "latestObservation": "Anxiety up before working days",
       "reviewKey": "requested",
-      "reviewLabel": "Tarkistus pyydetty",
-      "matchingStatus": "Matching valmis",
-      "nextAction": "Tarkista muutos"
+      "reviewLabel": "Review requested",
+      "matchingStatus": "Matching ready",
+      "nextAction": "Review the change"
     },
     {
       "bucket": "contactRequested",
@@ -159,11 +159,11 @@
       "waitingDays": 49,
       "lastCheckInDaysAgo": 0,
       "trend": "stable",
-      "latestObservation": "Pyysi soittoa jonotilanteesta",
+      "latestObservation": "Asked for a call about the waiting list",
       "reviewKey": "contact",
-      "reviewLabel": "Yhteydenottopyyntö",
-      "matchingStatus": "Jonossa",
-      "nextAction": "Soita asiakkaalle"
+      "reviewLabel": "Contact request",
+      "matchingStatus": "On the waiting list",
+      "nextAction": "Call the client"
     },
     {
       "bucket": "contactRequested",
@@ -172,11 +172,11 @@
       "waitingDays": 15,
       "lastCheckInDaysAgo": 1,
       "trend": "insufficient",
-      "latestObservation": "Haluaa keskustella hoitovaihtoehdoista",
+      "latestObservation": "Wants to discuss treatment options",
       "reviewKey": "contact",
-      "reviewLabel": "Yhteydenottopyyntö",
-      "matchingStatus": "Jonossa",
-      "nextAction": "Soita asiakkaalle"
+      "reviewLabel": "Contact request",
+      "matchingStatus": "On the waiting list",
+      "nextAction": "Call the client"
     },
     {
       "bucket": "contactRequested",
@@ -185,11 +185,11 @@
       "waitingDays": 88,
       "lastCheckInDaysAgo": 3,
       "trend": "declining",
-      "latestObservation": "Pyysi yhteydenottoa voinnin takia",
+      "latestObservation": "Asked to be contacted because of their wellbeing",
       "reviewKey": "contact",
-      "reviewLabel": "Yhteydenottopyyntö",
-      "matchingStatus": "Jonossa",
-      "nextAction": "Soita asiakkaalle"
+      "reviewLabel": "Contact request",
+      "matchingStatus": "On the waiting list",
+      "nextAction": "Call the client"
     },
     {
       "bucket": "matchingPossible",
@@ -201,8 +201,8 @@
       "latestObservation": null,
       "reviewKey": "none",
       "reviewLabel": "–",
-      "matchingStatus": "Matching valmis – odottaa terapeuttia",
-      "nextAction": "Aja matching"
+      "matchingStatus": "Matching ready – waiting for a therapist",
+      "nextAction": "Run matching"
     },
     {
       "bucket": "matchingPossible",
@@ -214,8 +214,8 @@
       "latestObservation": null,
       "reviewKey": "none",
       "reviewLabel": "–",
-      "matchingStatus": "Ehdotukset asiakkaalla",
-      "nextAction": "Odota asiakkaan valintaa"
+      "matchingStatus": "Suggestions with the client",
+      "nextAction": "Wait for the client's choice"
     },
     {
       "bucket": "matchingPossible",
@@ -227,8 +227,8 @@
       "latestObservation": null,
       "reviewKey": "none",
       "reviewLabel": "–",
-      "matchingStatus": "Matching valmis – odottaa terapeuttia",
-      "nextAction": "Aja matching"
+      "matchingStatus": "Matching ready – waiting for a therapist",
+      "nextAction": "Run matching"
     },
     {
       "bucket": "missedCheckIns",
@@ -237,11 +237,11 @@
       "waitingDays": 37,
       "lastCheckInDaysAgo": 9,
       "trend": "insufficient",
-      "latestObservation": "Kolme check-iniä jäänyt väliin",
+      "latestObservation": "Three check-ins missed",
       "reviewKey": "task",
-      "reviewLabel": "Avoin tehtävä",
-      "matchingStatus": "Jonossa",
-      "nextAction": "Tarkista osallistuminen"
+      "reviewLabel": "Open task",
+      "matchingStatus": "On the waiting list",
+      "nextAction": "Check engagement"
     },
     {
       "bucket": "missedCheckIns",
@@ -250,11 +250,11 @@
       "waitingDays": 28,
       "lastCheckInDaysAgo": 12,
       "trend": "insufficient",
-      "latestObservation": "Ei check-inejä 12 päivään",
+      "latestObservation": "No check-ins for 12 days",
       "reviewKey": "task",
-      "reviewLabel": "Avoin tehtävä",
-      "matchingStatus": "Jonossa",
-      "nextAction": "Tarkista osallistuminen"
+      "reviewLabel": "Open task",
+      "matchingStatus": "On the waiting list",
+      "nextAction": "Check engagement"
     },
     {
       "bucket": "missedCheckIns",
@@ -263,11 +263,11 @@
       "waitingDays": 64,
       "lastCheckInDaysAgo": 7,
       "trend": "stable",
-      "latestObservation": "Muistutus lähetetty",
+      "latestObservation": "Reminder sent",
       "reviewKey": "none",
       "reviewLabel": "–",
-      "matchingStatus": "Jonossa",
-      "nextAction": "Seuraa"
+      "matchingStatus": "On the waiting list",
+      "nextAction": "Follow up"
     }
   ]
 }

@@ -16,15 +16,17 @@ def test_handover_excludes_full_chat_history_by_default(scene):
     """Test 13."""
     state, client = _booked(scene)
     client_actions.send_message(state, client, 'Jännittää huomista palaveria.', DemoAIProvider())
+    client_actions.send_message(state, client, "I'm nervous about tomorrow's meeting.", DemoAIProvider())
     record = handover.find(state, client.id)
     sections = handover.build_sections(state, client, record)
     assert 'chat' not in {s.key for s in sections}
     sharing = next(s for s in sections if s.key == 'sharing')
     assert sharing.content['chatHistoryIncluded'] is False
-    assert 'Keskusteluhistoriaa ei jaeta' in sharing.content['statement']
+    assert 'The chat history is not shared' in sharing.content['statement']
     client_actions.approve_handover(state, client)
     snapshot_text = str([s.model_dump() for s in record.approvedSnapshot])
     assert 'Jännittää huomista palaveria' not in snapshot_text
+    assert "nervous about tomorrow's meeting" not in snapshot_text
 
 
 def test_therapist_sees_nothing_before_approval_and_then_exactly_what_the_client_shared(scene):
@@ -48,7 +50,7 @@ def test_therapist_sees_nothing_before_approval_and_then_exactly_what_the_client
     assert row['sections'] == [s.model_dump() for s in handover.find(state, client.id).approvedSnapshot]
 
     # An edit makes it a draft again: shared only once the client approves the new version.
-    client_actions.update_handover(state, client, {'action': 'edit', 'section': 'hopes', 'text': 'Haluan oppia jännityksen kanssa.'})
+    client_actions.update_handover(state, client, {'action': 'edit', 'section': 'hopes', 'text': 'I want to learn to cope with nerves.'})
     row = next(r for r in view.therapist_view(state, 'th-anna')['selected']['clients'] if r['clientId'] == client.id)
     assert row['handoverStatus'] == 'draft' and row['sections'] is None
 

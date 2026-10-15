@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../api';
 import { useValituki } from '../context';
-import { fmtNum } from '../format';
+import { fmtNum, plural } from '../format';
 import {
   ArrowLeftIcon, ArrowRightIcon, CheckIcon, ChevronDownIcon, ForwardIcon, PersonIcon, PresentIcon, StethoscopeIcon, UsersIcon,
 } from '../icons';
@@ -16,13 +16,13 @@ const seconds = (ms: number | null) => (ms === null ? '' : `${fmtNum(ms / 1000)}
 
 /** The toast after switching the AI mode or testing the connection. */
 function describeAI(result: AIStatus & { check: AICheck | null }): string {
-  if (result.configuredMode === 'DEMO_AI_MODE') return 'Tekoäly: demotila – ennalta hyväksytyt tekstit, ei kutsuja Claudeen.';
+  if (result.configuredMode === 'DEMO_AI_MODE') return 'AI: demo mode – pre-approved texts, no calls to Claude.';
   const check = result.check;
-  if (check?.ok) return `Claude vastasi (${seconds(check.ms)}): "${check.reply ?? ''}" Keskustelu käyttää nyt Claudea.`;
+  if (check?.ok) return `Claude replied (${seconds(check.ms)}): "${check.reply ?? ''}" The chat now uses Claude.`;
   if (!result.keyPresent) {
-    return 'API-avain puuttuu: lisää se projektin .env-tiedoston riville ANTHROPIC_API_KEY= ja valitse Claude uudelleen. Siihen asti käytetään demotekstejä.';
+    return 'The API key is missing: add it to the project\'s .env file on the line ANTHROPIC_API_KEY= and choose Claude again. Until then the demo texts are used.';
   }
-  return `Claude ei vastannut (${check?.failure ?? 'tuntematon virhe'}). Käytetään demotekstejä.`;
+  return `Claude did not reply (${check?.failure ?? 'unknown error'}). Using the demo texts.`;
 }
 
 /** Demo ↔ Claude, always in view in the demo control. The model only phrases: rules, safety levels and matching stay
@@ -35,14 +35,14 @@ export function AISwitch() {
   const failed = live && ai.lastCall.ok === false;
   const tone = !wantsLive ? 'is-off' : live && !failed ? 'is-live' : 'is-warn';
   // Whether AI writes the replies right now – said in words beside the switch, not only by its colour.
-  const legend = !wantsLive ? 'Tekoäly pois · valmiit tekstit'
-    : live && !failed ? 'Tekoäly päällä · Claude vastaa'
-      : 'Claude ei vastaa · valmiit tekstit';
+  const legend = !wantsLive ? 'AI off · ready-made texts'
+    : live && !failed ? 'AI on · Claude replies'
+      : 'Claude not replying · ready-made texts';
   // On a phone, where the switch shares its row with the view switch.
-  const short = !wantsLive ? 'AI pois' : live && !failed ? 'AI päällä' : 'AI ei vastaa';
+  const short = !wantsLive ? 'AI off' : live && !failed ? 'AI on' : 'AI not replying';
   // The details on hover: the model and its reply time, or why Claude is not answering.
-  const status = !wantsLive ? ai.note : !ai.keyPresent ? 'API-avain puuttuu'
-    : failed ? (ai.lastCall.failure ?? 'virhe')
+  const status = !wantsLive ? ai.note : !ai.keyPresent ? 'API key missing'
+    : failed ? (ai.lastCall.failure ?? 'error')
       : [ai.lastCall.model ?? ai.model, ai.lastCall.ok ? seconds(ai.lastCall.ms) : ''].filter(Boolean).join(' · ');
 
   function setMode(mode: AIStatus['configuredMode']) {
@@ -77,12 +77,12 @@ export function AISwitch() {
       </span>
       {showNote && (
         <div className="dock-ai-note" role="note">
-          <p><strong>Claude API on päällä.</strong> Vastaukset tulevat oikealta tekoälyltä ja voivat viedä muutaman sekunnin.
-            Jos haluat demota käyttöliittymää nopeasti, vaihda Demoon.</p>
+          <p><strong>The Claude API is on.</strong> The replies come from a real AI and can take a few seconds.
+            To demo the interface quickly, switch to Demo.</p>
           <div className="dock-ai-note-actions">
             <button type="button" className="dock-ai-note-demo" disabled={busy}
-              onClick={() => { closeNote(); setMode('DEMO_AI_MODE'); }}>Vaihda Demoon</button>
-            <button type="button" className="dock-ai-note-close" onClick={closeNote}>Selvä</button>
+              onClick={() => { closeNote(); setMode('DEMO_AI_MODE'); }}>Switch to Demo</button>
+            <button type="button" className="dock-ai-note-close" onClick={closeNote}>Got it</button>
           </div>
         </div>
       )}
@@ -96,12 +96,12 @@ function ViewSwitch() {
   const clientName = view.demo.clients.find((c) => c.id === scope.clientId)?.firstName;
   const therapistName = view.demo.therapists.find((t) => t.id === scope.therapistId)?.name.split(' ')[0];
   const views = [
-    { key: 'client' as const, icon: <PersonIcon size={14} />, label: 'Asiakas', who: clientName },
-    { key: 'professional' as const, icon: <StethoscopeIcon size={14} />, label: 'Ammattilainen', who: undefined },
-    { key: 'therapist' as const, icon: <UsersIcon size={14} />, label: 'Terapeutti', who: therapistName },
+    { key: 'client' as const, icon: <PersonIcon size={14} />, label: 'Client', who: clientName },
+    { key: 'professional' as const, icon: <StethoscopeIcon size={14} />, label: 'Professional', who: undefined },
+    { key: 'therapist' as const, icon: <UsersIcon size={14} />, label: 'Therapist', who: therapistName },
   ];
   return (
-    <nav className="dock-views" aria-label="Demo: näkymä">
+    <nav className="dock-views" aria-label="Demo: view">
       {views.map((v) => (
         <button key={v.key} type="button" aria-pressed={role === v.key} title={v.who ? `${v.label} – ${v.who}` : v.label}
           aria-label={v.label} onClick={() => setRole(v.key)}>
@@ -161,7 +161,7 @@ export default function DemoDock() {
     return (
       <li key={stage.key} className={isCurrent ? 'current' : done ? 'done' : ''}>
         <button type="button" disabled={pilot.running} aria-current={isCurrent ? 'step' : undefined} aria-label={`${n}. ${stage.label}`}
-          title={`${n}. ${stage.label}${isCurrent ? '' : ' – siirry tähän vaiheeseen'}`}
+          title={`${n}. ${stage.label}${isCurrent ? '' : ' – go to this stage'}`}
           onClick={() => (isCurrent ? undefined : pilot.enter(stageStart(stage.key)))}>
           <span className="dock-step-n">{done ? <CheckIcon size={12} /> : n}</span>
           {isCurrent && <span className="dock-step-t">{stage.label}</span>}
@@ -171,38 +171,38 @@ export default function DemoDock() {
   };
 
   const dock = (
-    <section className={`dock ${place ? 'is-side' : ''} ${more ? 'is-open' : ''}`} aria-label="Demo-ohjaus (ei osa palvelua)">
+    <section className={`dock ${place ? 'is-side' : ''} ${more ? 'is-open' : ''}`} aria-label="Demo control (not part of the service)">
       <div className="dock-row">
         {/* On a phone the bar is one row: "Demo" and where the demo is – a press opens the stages and the other controls –
             then back and Seuraava. Elsewhere hidden (styles/app.css). */}
         <button type="button" className="dock-now" aria-expanded={more} onClick={() => setMore(!more)}
-          aria-label={`Demo: ${tellStage ? `vaihe ${currentStage + 1}/${STAGES.length}, ${tellStage.label}` : 'ei vielä aloitettu'}. Avaa vaiheet ja muut ohjaimet.`}>
+          aria-label={`Demo: ${tellStage ? `stage ${currentStage + 1}/${STAGES.length}, ${tellStage.label}` : 'not started yet'}. Open the stages and other controls.`}>
           <span className="dock-now-text">
             <span className={`dock-now-kicker ${pilot.failed ? 'is-warn' : ''}`}>
-              {pilot.failed ? 'Ei onnistunut – paina uudelleen' : `Demo${tellStage ? ` · vaihe ${currentStage + 1}/${STAGES.length}` : ''}`}
+              {pilot.failed ? 'Did not work – press again' : `Demo${tellStage ? ` · stage ${currentStage + 1}/${STAGES.length}` : ''}`}
             </span>
-            <span className="dock-now-stage">{tellStage?.label ?? 'Alkutilassa'}</span>
+            <span className="dock-now-stage">{tellStage?.label ?? 'At the start'}</span>
           </span>
           <ChevronDownIcon size={16} />
         </button>
         {/* Demo-ohjaus: back, Seuraava and "Vaihe loppuun" in one control at the start of the bar. */}
-        <div className="dock-pilot" role="group" aria-label="Demo-ohjaus – ei osa palvelua">
-          <span className="dock-pilot-label" title="Demon ohjaus – ei osa palvelua. Seuraava tai → vie demon eteenpäin.">
-            <PresentIcon size={16} /> <span className="dock-pilot-text">Demo-ohjaus</span>
+        <div className="dock-pilot" role="group" aria-label="Demo control – not part of the service">
+          <span className="dock-pilot-label" title="Demo control – not part of the service. Next or → moves the demo forward.">
+            <PresentIcon size={16} /> <span className="dock-pilot-text">Demo control</span>
           </span>
           <button type="button" className="dock-btn pilot-prev" disabled={pilot.running || pilot.pointer <= 1} onClick={() => void pilot.prev()}
-            aria-label="Edellinen (←)" title="Edellinen (←)"><ArrowLeftIcon size={17} /></button>
+            aria-label="Previous (←)" title="Previous (←)"><ArrowLeftIcon size={17} /></button>
           {/* While a step plays (a conversation), the same button – or → – finishes it at once. */}
           <button type="button" className="dock-btn dock-next pilot-next" disabled={!pilot.running && !upcoming} onClick={() => void pilot.next()}
-            title={pilot.running ? 'Kelaa käynnissä oleva vaihe loppuun (→)' : upcoming ? `Seuraavaksi: ${upcoming.title} (→)` : 'Demo on valmis'}>
-            {pilot.running ? 'Kelaa' : pilot.pointer === 0 ? 'Aloita demo' : 'Seuraava'} <ArrowRightIcon size={17} />
+            title={pilot.running ? 'Skip to the end of the running step (→)' : upcoming ? `Next: ${upcoming.title} (→)` : 'The demo is finished'}>
+            {pilot.running ? 'Skip' : pilot.pointer === 0 ? 'Start demo' : 'Next'} <ArrowRightIcon size={17} />
           </button>
           {/* The stage the next press belongs to, simulated to its end at once – no presses or pauses in between. */}
           {upcomingStage >= 0 && (
             <button type="button" className="dock-btn pilot-stage" disabled={pilot.running} onClick={() => void pilot.finishStage()}
-              aria-label={`Vaihe ${upcomingStage + 1} loppuun`}
-              title={`Simuloi vaihe ${upcomingStage + 1} (${STAGES[upcomingStage].label}) loppuun ilman välipainalluksia (Shift+→)`}>
-              <ForwardIcon size={15} /> <span className="pilot-stage-text">Vaihe {upcomingStage + 1} loppuun</span>
+              aria-label={`Finish stage ${upcomingStage + 1}`}
+              title={`Simulate stage ${upcomingStage + 1} (${STAGES[upcomingStage].label}) to the end without pressing in between (Shift+→)`}>
+              <ForwardIcon size={15} /> <span className="pilot-stage-text">Finish stage {upcomingStage + 1}</span>
             </button>
           )}
         </div>
@@ -210,10 +210,10 @@ export default function DemoDock() {
             and the audience sees it in the video. */}
         <div className="pilot-tell" aria-live="polite">
           <p className="pilot-tell-stage">
-            <span>{tellStage ? `Vaihe ${currentStage + 1}/${STAGES.length}` : 'Ennen demoa'}</span>
+            <span>{tellStage ? `Stage ${currentStage + 1}/${STAGES.length}` : 'Before the demo'}</span>
             {tellStage && (
               <span className="pilot-tell-steps" role="img"
-                aria-label={`${stagePresses.filter((i) => i < pilot.pointer).length}/${stagePresses.length} painallusta tehty`}>
+                aria-label={`${stagePresses.filter((i) => i < pilot.pointer).length}/${stagePresses.length} presses done`}>
                 {stagePresses.map((i) => <i key={i} className={i < pilot.pointer ? 'on' : ''} />)}
               </span>
             )}
@@ -221,9 +221,9 @@ export default function DemoDock() {
           <p className="pilot-tell-title">{tellStage?.label ?? 'Mieliluotsi'}</p>
           {tellPart?.heading && <p className="pilot-tell-part">{tellPart.heading}</p>}
           <p className="pilot-tell-say">{tellPart?.text ?? DEMO_INTRO}</p>
-          {nextStage && <p className="pilot-tell-next">Seuraavaksi: {currentStage + 2}. {nextStage.label}</p>}
+          {nextStage && <p className="pilot-tell-next">Next: {currentStage + 2}. {nextStage.label}</p>}
         </div>
-        <ol className="dock-steps pilot-rail" ref={railRef} aria-label="Demon runko – siirry vaiheeseen">
+        <ol className="dock-steps pilot-rail" ref={railRef} aria-label="Demo outline – go to a stage">
           {rail.map((item) => (Array.isArray(item) ? (
             <li key="valituki" className="pilot-group" title="Mieliluotsi">
               <span className="pilot-group-label">Mieliluotsi</span>
@@ -232,14 +232,14 @@ export default function DemoDock() {
           ) : pill(item)))}
         </ol>
         <div className="pilot-buttons">
-          {pilot.failed && <span className="pilot-warn" role="alert">Ei onnistunut – paina uudelleen</span>}
+          {pilot.failed && <span className="pilot-warn" role="alert">Did not work – press again</span>}
           {/* The step count, its pill filled as far as the demo has come. */}
           <span className="pilot-count" aria-live="polite" style={{ '--p': `${(pilot.pointer / BEATS.length) * 100}%` } as CSSProperties}
-            title={current ? `Nyt: ${current.title} – ${current.say}` : 'Paina Aloita demo tai →'}>
-            <span className="pilot-count-k">Askel</span> {pilot.pointer}/{BEATS.length}
+            title={current ? `Now: ${current.title} – ${current.say}` : 'Press Start demo or →'}>
+            <span className="pilot-count-k">Step</span> {pilot.pointer}/{BEATS.length}
           </span>
         </div>
-        <button type="button" className="dock-toggle" aria-expanded={more} aria-label="Lisää demo-ohjaimia" title="Lisää demo-ohjaimia"
+        <button type="button" className="dock-toggle" aria-expanded={more} aria-label="More demo controls" title="More demo controls"
           onClick={() => setMore(!more)}>
           <ChevronDownIcon size={16} />
         </button>
@@ -247,7 +247,7 @@ export default function DemoDock() {
       {/* The settings that stay as they are while the demo runs – whose view is on the screen and whether AI writes the
           replies – always in view: a row of their own under the flow, at the bottom of the column beside the panel. */}
       <div className="dock-context">
-        <div className="dock-views-row"><span className="dock-ctx-label">Näkymä</span><ViewSwitch /></div>
+        <div className="dock-views-row"><span className="dock-ctx-label">View</span><ViewSwitch /></div>
         <div className="dock-ai-row"><AISwitch /></div>
       </div>
       {more && (
@@ -255,18 +255,18 @@ export default function DemoDock() {
           {/* On a phone "Vaihe loppuun" is here: the bar keeps room for back and Seuraava. */}
           {upcomingStage >= 0 && (
             <button type="button" className="dock-btn dock-phone-only" disabled={pilot.running} onClick={() => void pilot.finishStage()}>
-              <ForwardIcon size={14} /> Vaihe {upcomingStage + 1} loppuun
+              <ForwardIcon size={14} /> Finish stage {upcomingStage + 1}
             </button>
           )}
-          <div className="dock-group" role="group" aria-label="Aika">
-            <button type="button" className="dock-btn" disabled={busy} onClick={() => run((s) => api.advance(s, 1), (r) => `+1 päivä – ${r.agentActions} agenttitoimintoa.`)}>+1 pv</button>
-            <button type="button" className="dock-btn" disabled={busy} onClick={() => run((s) => api.advance(s, 7), (r) => `+7 päivää – ${r.agentActions} agenttitoimintoa.`)}>+7 pv</button>
-            <button type="button" className="dock-btn" disabled={busy} onClick={weeks}>+14 pv</button>
+          <div className="dock-group" role="group" aria-label="Time">
+            <button type="button" className="dock-btn" disabled={busy} onClick={() => run((s) => api.advance(s, 1), (r) => `+1 day – ${plural(r.agentActions, 'agent action')}.`)}>+1 day</button>
+            <button type="button" className="dock-btn" disabled={busy} onClick={() => run((s) => api.advance(s, 7), (r) => `+7 days – ${plural(r.agentActions, 'agent action')}.`)}>+7 days</button>
+            <button type="button" className="dock-btn" disabled={busy} onClick={weeks}>+14 days</button>
           </div>
-          <div className="dock-group" role="group" aria-label="Keskustelu">
+          <div className="dock-group" role="group" aria-label="Chat">
             <button type="button" className="dock-btn" disabled={pilot.running || !(view.client?.intake.status === 'conversation' || view.client?.guided)}
-              title="Toistaa auki olevan harjoituksen loppuun demovastauksilla" onClick={() => void pilot.replay()}>
-              <ForwardIcon size={14} /> Toista demokeskustelu
+              title="Plays the open exercise to the end with demo answers" onClick={() => void pilot.replay()}>
+              <ForwardIcon size={14} /> Replay demo conversation
             </button>
           </div>
         </div>

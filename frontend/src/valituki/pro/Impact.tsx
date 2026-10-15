@@ -14,9 +14,9 @@ export default function Impact() {
           <div key={m.key} className="impact-compare">
             <p className="kpi-label">{m.label}</p>
             <div className="compare-row">
-              <div className="compare-before"><span className="compare-tag">Ennen</span><span className="compare-value">{m.before}</span></div>
+              <div className="compare-before"><span className="compare-tag">Before</span><span className="compare-value">{m.before}</span></div>
               <ArrowRightIcon size={22} />
-              <div className="compare-after"><span className="compare-tag">Mieliluotsilla</span><span className="compare-value">{m.after}</span></div>
+              <div className="compare-after"><span className="compare-tag">With Mieliluotsi</span><span className="compare-value">{m.after}</span></div>
             </div>
             <p className="muted small">{m.detail}</p>
             <p className="synthetic-tag">{impact.label}</p>
@@ -29,12 +29,12 @@ export default function Impact() {
             <p className="kpi-label">{m.label}</p>
             <p className="impact-value">{m.value}</p>
             <p className="muted small">{m.detail}</p>
-            {m.demoValue && <p className="impact-demo">Tässä demossa: {m.demoValue}</p>}
-            <p className="synthetic-tag">Synteettinen esimerkkiluku</p>
+            {m.demoValue && <p className="impact-demo">In this demo: {m.demoValue}</p>}
+            <p className="synthetic-tag">Synthetic example figure</p>
           </div>
         ))}
       </section>
-      <p className="muted small">{impact.liveNote} Prototyyppi ei ole kliinisesti validoitu, eikä luvut kuvaa todellisia terveysvaikutuksia.</p>
+      <p className="muted small">{impact.liveNote} The prototype is not clinically validated, and the figures do not describe real health effects.</p>
     </div>
   );
 }

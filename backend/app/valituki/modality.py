@@ -22,8 +22,9 @@ from app.valituki import adapters, content, insights
 from app.valituki.labels import join_fi, topic
 from app.valituki.matching import STYLE_TARGETS
 from app.valituki.models import ClientProfile, ValitukiState
+from app.valituki.safety import normalize
 
-COMPONENTS = (('goals', 'Tavoitteet'), ('workingStyle', 'Työtapa'))
+COMPONENTS = (('goals', 'Goals'), ('workingStyle', 'Working style'))
 
 
 def config() -> dict[str, Any]:
@@ -40,9 +41,9 @@ def _topics(state: ValitukiState, client: ClientProfile) -> tuple[dict[str, floa
             for key in insight.structured.get('topics', []):
                 topics[key] = max(topics.get(key, 0.0), weight)
     if topics:
-        return topics, 'tavoitteet'
+        return topics, 'goals'
     referral = adapters.waiting_list.referral_for(state, client.id)
-    return {key: 1.0 for key in (referral.requiredCompetencies if referral else [])}, 'lähete'
+    return {key: 1.0 for key in (referral.requiredCompetencies if referral else [])}, 'referral'
 
 
 def _style(state: ValitukiState, client: ClientProfile) -> dict[str, str]:
@@ -67,12 +68,14 @@ def rank(state: ValitukiState, client: ClientProfile) -> dict[str, Any]:
         scores = {'goals': goal, 'workingStyle': working}
         known = {'goals': bool(topics), 'workingStyle': bool(style)}
         details = {
-            'goals': (f'{"Tavoitteet" if topic_source == "tavoitteet" else "Lähete"}: '
-                      + join_fi([topic(key).lower() for key in topics])) if topics else 'Ei vielä tavoitteita',
-            'workingStyle': 'Hyväksytyt työskentelytapatoiveet' if style else 'Ei vielä työskentelytapatoiveita',
+            'goals': (f'{"Goals" if topic_source == "goals" else "Referral"}: '
+                      + join_fi([topic(key).lower() for key in topics])) if topics else 'No goals yet',
+            'workingStyle': 'Approved working-style wishes' if style else 'No working-style wishes yet',
         }
         total = round(sum(float(weights[key]) * scores[key] for key, _ in COMPONENTS), 1)
-        offered = [t.name for t in pool if set(t.therapeuticApproaches) & set(modality['approaches'])]
+        # The approach names are compared without case or diacritics, so the Finnish and the English names both match.
+        names = {normalize(name) for name in modality['approaches']}
+        offered = [t.name for t in pool if any(normalize(name) in names for name in t.therapeuticApproaches)]
         rows.append({'id': modality['id'], 'label': modality['label'], 'total': total,
                      'therapists': len(offered),
                      'components': [{'key': key, 'label': label, 'score': round(scores[key], 3), 'known': known[key],

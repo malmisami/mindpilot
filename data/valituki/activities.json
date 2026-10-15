@@ -1,179 +1,179 @@
 {
   "version": "demo-2.0",
-  "approvalNote": "Hyväksytty omahoitokirjasto (demo). Sisältö on placeholder-tekstiä: ennen todellista käyttöä kliinisen asiantuntijan on tarkistettava ja hyväksyttävä jokainen harjoitus, sen varoitukset ja soveltuvuus. Tekoäly saa valita harjoituksen vain tästä kirjastosta ja muotoilla lyhyen johdannon – se ei keksi uusia harjoituksia eikä muuta ohjeita.",
+  "approvalNote": "Approved self-care library (demo). The content is placeholder text: before real use, a clinical expert must review and approve every exercise, its cautions and its suitability. AI may only choose an exercise from this library and phrase a short introduction – it does not invent new exercises or change the instructions.",
   "activities": [
     {
       "id": "act-grounding",
-      "title": "Maadoittuminen 5–4–3–2–1",
-      "description": "Lyhyt aistiharjoitus, jossa huomio ohjataan siihen, mitä juuri nyt näet, tunnet ja kuulet.",
-      "purpose": "Auttaa palauttamaan huomion tähän hetkeen, kun jännitys tai ahdistus vie mukanaan.",
+      "title": "Grounding 5–4–3–2–1",
+      "description": "A short exercise for the senses that brings your attention to what you can see, feel and hear right now.",
+      "purpose": "Helps bring your attention back to the present moment when nervousness or anxiety carries you away.",
       "estimatedDuration": 5,
       "steps": [
-        "Istu tai seiso tukevasti ja hengitä rauhallisesti.",
-        "Nimeä mielessäsi viisi asiaa, jotka näet.",
-        "Nimeä neljä asiaa, jotka tunnet kosketuksena – esimerkiksi tuolin selkänoja tai lattia jalkojen alla.",
-        "Nimeä kolme ääntä, jotka kuulet.",
-        "Nimeä kaksi tuoksua ja yksi maku – tai kaksi asiaa, joista pidät.",
-        "Huomaa lopuksi, miltä olo tuntuu nyt. Muutosta ei tarvitse tulla."
+        "Sit or stand steadily and breathe calmly.",
+        "In your mind, name five things you can see.",
+        "Name four things you can feel by touch – for example the back of the chair or the floor under your feet.",
+        "Name three sounds you can hear.",
+        "Name two smells and one taste – or two things you like.",
+        "Finally, notice how you feel now. Nothing needs to change."
       ],
-      "caution": "Jos harjoitus tuo mieleen voimakkaita muistoja tai lisää ahdistusta, lopeta ja palaa tavalliseen tekemiseen. Harjoitus ei korvaa apua kriisissä.",
+      "caution": "If the exercise brings up strong memories or increases your anxiety, stop and go back to what you were doing. The exercise does not replace help in a crisis.",
       "suitableFor": ["anxiety", "work_stress", "elevated_distress", "waiting_list", "between_sessions"],
       "avoidWhen": ["acute_crisis"],
       "topics": ["anxiety", "work_stress", "panic"],
-      "sourcePlaceholder": "Lähde: [placeholder] – ammattilaisen hyväksymä omahoito-ohjelma, esim. julkisen mielenterveyspalvelun omahoitosisältö.",
+      "sourcePlaceholder": "Source: [placeholder] – a self-care programme approved by a professional, e.g. self-care content from a public mental health service.",
       "version": "1.2",
       "approvedAt": "2026-09-01",
-      "approvedBy": "Demo: sisällön kliininen hyväksyjä (placeholder)"
+      "approvedBy": "Demo: clinical content approver (placeholder)"
     },
     {
       "id": "act-paced-breathing",
-      "title": "Rauhallinen hengitys 4–6",
-      "description": "Hengitysharjoitus, jossa uloshengitys on hieman sisäänhengitystä pidempi.",
-      "purpose": "Hidas uloshengitys voi rauhoittaa kehoa jännittyneessä tilanteessa, esimerkiksi ennen palaveria tai nukkumaan mennessä.",
+      "title": "Calm breathing 4–6",
+      "description": "A breathing exercise in which the out-breath is a little longer than the in-breath.",
+      "purpose": "A slow out-breath can calm the body in a tense situation, for example before a meeting or when going to bed.",
       "estimatedDuration": 3,
       "steps": [
-        "Asetu mukavaan asentoon ja laske hartiat alas.",
-        "Hengitä nenän kautta rauhallisesti sisään noin neljään laskien.",
-        "Hengitä hitaasti ulos noin kuuteen laskien.",
-        "Toista noin kolmen minuutin ajan omaan tahtiisi.",
-        "Palaa lopuksi tavalliseen hengitykseen ja huomaa, miltä keho tuntuu."
+        "Settle into a comfortable position and let your shoulders drop.",
+        "Breathe in calmly through your nose, counting to about four.",
+        "Breathe out slowly, counting to about six.",
+        "Repeat for about three minutes at your own pace.",
+        "Finally, go back to normal breathing and notice how your body feels."
       ],
-      "caution": "Jos sinua alkaa huimata tai hengittäminen tuntuu epämukavalta, palaa tavalliseen hengitykseen. Jos sinulla on hengityssairaus, tee harjoitus kevyesti tai jätä se väliin.",
+      "caution": "If you start to feel dizzy or breathing feels uncomfortable, go back to normal breathing. If you have a respiratory condition, do the exercise gently or skip it.",
       "suitableFor": ["anxiety", "sleep", "elevated_distress", "work_stress", "waiting_list", "between_sessions"],
       "avoidWhen": ["acute_crisis"],
       "topics": ["anxiety", "sleep", "panic", "work_stress"],
-      "sourcePlaceholder": "Lähde: [placeholder] – ammattilaisen hyväksymä omahoito-ohjelma.",
+      "sourcePlaceholder": "Source: [placeholder] – a self-care programme approved by a professional.",
       "version": "1.1",
       "approvedAt": "2026-09-01",
-      "approvedBy": "Demo: sisällön kliininen hyväksyjä (placeholder)"
+      "approvedBy": "Demo: clinical content approver (placeholder)"
     },
     {
       "id": "act-worry-time",
-      "title": "Huolihetki",
-      "description": "Huolet kirjataan ylös ja niille varataan oma, rajattu aika päivästä.",
-      "purpose": "Kun huolet pyörivät mielessä koko päivän tai illalla, niiden siirtäminen sovittuun hetkeen voi keventää oloa.",
+      "title": "Worry time",
+      "description": "You write your worries down and set aside a separate, limited time for them during the day.",
+      "purpose": "When worries go round in your mind all day or in the evening, moving them to an agreed time can make you feel lighter.",
       "estimatedDuration": 15,
       "steps": [
-        "Varaa päivälle 15 minuutin huolihetki, esimerkiksi alkuillasta – ei juuri ennen nukkumaanmenoa.",
-        "Kun huoli tulee mieleen muulloin, kirjoita se lyhyesti ylös.",
-        "Palaa tekemiseesi ja muistuta itseäsi, että huolelle on oma aikansa.",
-        "Käy huolihetkellä lista läpi: mihin voit vaikuttaa ja mihin et.",
-        "Kun aika loppuu, lopeta – voit jatkaa huomenna."
+        "Set aside 15 minutes of worry time in your day, for example in the early evening – not just before bed.",
+        "When a worry comes to mind at other times, write it down briefly.",
+        "Go back to what you were doing and remind yourself that the worry has its own time.",
+        "During worry time, go through the list: what can you influence, and what can you not?",
+        "When the time is up, stop – you can continue tomorrow."
       ],
-      "caution": "Jos huolesi koskevat omaa tai toisen turvallisuutta, älä siirrä niitä myöhemmäksi – hae apua heti.",
+      "caution": "If your worries are about your own or someone else's safety, don't postpone them – get help straight away.",
       "suitableFor": ["anxiety", "sleep", "work_stress", "waiting_list", "between_sessions"],
       "avoidWhen": ["acute_crisis", "elevated_distress"],
       "topics": ["anxiety", "sleep", "work_stress"],
-      "sourcePlaceholder": "Lähde: [placeholder] – ammattilaisen hyväksymä omahoito-ohjelma.",
+      "sourcePlaceholder": "Source: [placeholder] – a self-care programme approved by a professional.",
       "version": "1.0",
       "approvedAt": "2026-09-01",
-      "approvedBy": "Demo: sisällön kliininen hyväksyjä (placeholder)"
+      "approvedBy": "Demo: clinical content approver (placeholder)"
     },
     {
       "id": "act-small-next-step",
-      "title": "Pieni seuraava askel",
-      "description": "Mielessä pyörivistä asioista valitaan yksi pieni, tehtävissä oleva askel.",
-      "purpose": "Kun asiat tuntuvat kasautuvan, yhden pienen askeleen valitseminen voi tehdä tilanteesta hallittavamman.",
+      "title": "One small next step",
+      "description": "From the things going round in your mind, you choose one small step you can actually take.",
+      "purpose": "When things seem to pile up, choosing one small step can make the situation more manageable.",
       "estimatedDuration": 10,
       "steps": [
-        "Kirjoita ylös asiat, jotka pyörivät mielessä.",
-        "Valitse niistä yksi, joka on pieni ja tehtävissä tänään tai huomenna.",
-        "Pilko se ensimmäiseen konkreettiseen askeleeseen, esimerkiksi ”avaan viestin ja luen sen”.",
-        "Päätä, milloin teet askeleen.",
-        "Kun askel on tehty, huomaa se – vaikka se tuntuisi pieneltä."
+        "Write down the things that are going round in your mind.",
+        "Choose one of them that is small and doable today or tomorrow.",
+        "Break it down into the first concrete step, for example “I’ll open the message and read it”.",
+        "Decide when you will take the step.",
+        "Once you have taken the step, notice it – even if it feels small."
       ],
-      "caution": "Valitse jotain todella pientä. Tarkoitus ei ole suorittaa enemmän vaan keventää oloa.",
+      "caution": "Choose something really small. The aim is not to get more done but to make things feel lighter.",
       "suitableFor": ["work_stress", "stress", "low_mood", "waiting_list", "between_sessions"],
       "avoidWhen": ["acute_crisis"],
       "topics": ["work_stress", "stress", "burnout", "mood"],
-      "sourcePlaceholder": "Lähde: [placeholder] – ammattilaisen hyväksymä omahoito-ohjelma.",
+      "sourcePlaceholder": "Source: [placeholder] – a self-care programme approved by a professional.",
       "version": "1.0",
       "approvedAt": "2026-09-01",
-      "approvedBy": "Demo: sisällön kliininen hyväksyjä (placeholder)"
+      "approvedBy": "Demo: clinical content approver (placeholder)"
     },
     {
       "id": "act-sleep-reflection",
-      "title": "Iltarutiinin tarkastelu",
-      "description": "Viime iltojen rutiinien lyhyt tarkastelu ja yksi pieni kokeilu.",
-      "purpose": "Illan rutiinien tarkastelu voi auttaa huomaamaan pieniä asioita, jotka tukevat lepoa.",
+      "title": "Looking at your evening routine",
+      "description": "A short look at your routines on recent evenings, and one small experiment.",
+      "purpose": "Looking at your evening routines can help you notice small things that support rest.",
       "estimatedDuration": 10,
       "steps": [
-        "Muistele viime iltoja: mitä teit tuntia ennen nukkumaanmenoa?",
-        "Huomaa, mikä tuntui rauhoittavan ja mikä virkistävän.",
-        "Valitse yksi pieni asia, jota kokeilet muutamana iltana – esimerkiksi näyttö pois puoli tuntia aiemmin.",
-        "Kirjaa aamulla lyhyesti, miltä yö tuntui."
+        "Think back to recent evenings: what did you do in the hour before going to bed?",
+        "Notice what seemed to calm you down and what seemed to wake you up.",
+        "Choose one small thing to try on a few evenings – for example screens off half an hour earlier.",
+        "In the morning, write down briefly how the night felt."
       ],
-      "caution": "Harjoitus ei korvaa univaikeuksien hoitoa. Jos univaikeudet ovat pitkäaikaisia tai vaikeita, kerro niistä ammattilaiselle.",
+      "caution": "This exercise does not replace treatment for sleep problems. If your sleep problems are long-lasting or severe, tell a professional about them.",
       "suitableFor": ["sleep", "waiting_list", "between_sessions"],
       "avoidWhen": ["acute_crisis"],
       "topics": ["sleep"],
-      "sourcePlaceholder": "Lähde: [placeholder] – ammattilaisen hyväksymä omahoito-ohjelma.",
+      "sourcePlaceholder": "Source: [placeholder] – a self-care programme approved by a professional.",
       "version": "1.0",
       "approvedAt": "2026-09-01",
-      "approvedBy": "Demo: sisällön kliininen hyväksyjä (placeholder)"
+      "approvedBy": "Demo: clinical content approver (placeholder)"
     },
     {
       "id": "act-support-network",
-      "title": "Oma tukiverkosto",
-      "description": "Tunnistetaan ihmiset ja palvelut, joihin voi olla yhteydessä.",
-      "purpose": "Kun tietää, kenen puoleen voi kääntyä, yksin jäämisen tunne voi helpottaa.",
+      "title": "Your support network",
+      "description": "You identify the people and services you can contact.",
+      "purpose": "Knowing who you can turn to can ease the feeling of being alone.",
       "estimatedDuration": 5,
       "steps": [
-        "Mieti ihmisiä, joiden seurassa olo on edes vähän turvallinen.",
-        "Valitse yksi heistä ja mieti pieni tapa olla yhteydessä: viesti, puhelu tai tapaaminen.",
-        "Voit halutessasi lähettää lyhyen viestin jo tänään.",
-        "Kirjaa ylös myös yksi palvelu, johon voit olla yhteydessä, jos tarvitset apua."
+        "Think of the people you feel at least a little safe with.",
+        "Choose one of them and think of a small way to be in touch: a message, a call or a meeting.",
+        "If you like, you can send a short message today.",
+        "Also write down one service you can contact if you need help."
       ],
-      "caution": "Jos juuri nyt ei tule mieleen ketään, se on ymmärrettävää. Voit kirjata myös ammattilaisen tai palvelun.",
+      "caution": "If nobody comes to mind right now, that is understandable. You can also write down a professional or a service.",
       "suitableFor": ["loneliness", "elevated_distress", "low_mood", "waiting_list", "between_sessions"],
       "avoidWhen": ["acute_crisis"],
       "topics": ["loneliness", "relationships", "mood"],
-      "sourcePlaceholder": "Lähde: [placeholder] – ammattilaisen hyväksymä omahoito-ohjelma.",
+      "sourcePlaceholder": "Source: [placeholder] – a self-care programme approved by a professional.",
       "version": "1.0",
       "approvedAt": "2026-09-01",
-      "approvedBy": "Demo: sisällön kliininen hyväksyjä (placeholder)"
+      "approvedBy": "Demo: clinical content approver (placeholder)"
     },
     {
       "id": "act-values",
-      "title": "Arvot ja yksi arvojen suuntainen teko",
-      "description": "Omien arvojen tunnistaminen ja yksi pieni niiden suuntainen teko.",
-      "purpose": "Omien arvojen tunnistaminen voi tuoda suuntaa, vaikka olo olisi raskas.",
+      "title": "Values and one value-based action",
+      "description": "Identifying your own values and taking one small action in line with them.",
+      "purpose": "Identifying your own values can give you a sense of direction, even when things feel heavy.",
       "estimatedDuration": 10,
       "steps": [
-        "Mieti, mikä elämässäsi on sinulle tärkeää – esimerkiksi läheiset, terveys, oppiminen tai luonto.",
-        "Valitse yksi arvo, joka tuntuu juuri nyt merkitykselliseltä.",
-        "Keksi yksi pieni teko, joka on tämän arvon suuntainen.",
-        "Tee se tällä viikolla ja huomaa, miltä se tuntui – ilman arviointia."
+        "Think about what matters to you in life – for example the people close to you, health, learning or nature.",
+        "Choose one value that feels meaningful right now.",
+        "Think of one small action in line with this value.",
+        "Do it this week and notice how it felt – without judging."
       ],
-      "caution": "Tavoitteena ei ole olla täydellinen. Pienikin teko riittää.",
+      "caution": "The aim is not to be perfect. Even a small action is enough.",
       "suitableFor": ["low_mood", "stress", "work_stress", "waiting_list", "between_sessions"],
       "avoidWhen": ["acute_crisis"],
       "topics": ["mood", "stress", "work_stress", "life_transitions"],
-      "sourcePlaceholder": "Lähde: [placeholder] – ammattilaisen hyväksymä omahoito-ohjelma.",
+      "sourcePlaceholder": "Source: [placeholder] – a self-care programme approved by a professional.",
       "version": "1.0",
       "approvedAt": "2026-09-01",
-      "approvedBy": "Demo: sisällön kliininen hyväksyjä (placeholder)"
+      "approvedBy": "Demo: clinical content approver (placeholder)"
     },
     {
       "id": "act-activity-planning",
-      "title": "Mukavan tekemisen suunnittelu",
-      "description": "Suunnitellaan etukäteen yksi pieni mukava tai merkityksellinen asia tälle viikolle.",
-      "purpose": "Kun voimia on vähän, pienen mukavan asian suunnittelu etukäteen voi helpottaa sen toteutumista.",
+      "title": "Planning something pleasant",
+      "description": "You plan ahead one small pleasant or meaningful thing for this week.",
+      "purpose": "When your energy is low, planning a small pleasant thing in advance can make it easier to actually do it.",
       "estimatedDuration": 10,
       "steps": [
-        "Mieti, mikä on aiemmin tuonut edes vähän iloa, rauhaa tai merkitystä.",
-        "Valitse siitä pieni versio tälle viikolle, esimerkiksi 10 minuutin kävely.",
-        "Päätä päivä ja kellonaika ja kirjoita se kalenteriin.",
-        "Huomaa jälkikäteen, miltä se tuntui – ilman arviointia."
+        "Think about what has brought you even a little joy, calm or meaning before.",
+        "Choose a small version of it for this week, for example a 10-minute walk.",
+        "Decide on a day and a time and write it in your calendar.",
+        "Afterwards, notice how it felt – without judging."
       ],
-      "caution": "Valitse asia, joka on realistinen nykyisillä voimavaroilla. Jos se ei onnistu, se ei ole epäonnistuminen – voit kokeilla pienempää.",
+      "caution": "Choose something realistic for the energy you have now. If it doesn't work out, it is not a failure – you can try something smaller.",
       "suitableFor": ["low_mood", "stress", "work_stress", "waiting_list", "between_sessions"],
       "avoidWhen": ["acute_crisis"],
       "topics": ["mood", "stress", "work_stress", "burnout"],
-      "sourcePlaceholder": "Lähde: [placeholder] – ammattilaisen hyväksymä omahoito-ohjelma.",
+      "sourcePlaceholder": "Source: [placeholder] – a self-care programme approved by a professional.",
       "version": "1.0",
       "approvedAt": "2026-09-01",
-      "approvedBy": "Demo: sisällön kliininen hyväksyjä (placeholder)"
+      "approvedBy": "Demo: clinical content approver (placeholder)"
     }
   ]
 }

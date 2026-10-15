@@ -55,10 +55,10 @@ def allowed_library(state: ValitukiState, client: ClientProfile, *, elevated: bo
 def select(state: ValitukiState, client: ClientProfile, *, elevated: bool = False) -> tuple[Optional[ApprovedActivity], str]:
     tags = situation(state, client, elevated=elevated)
     if 'acute_crisis' in tags:
-        return None, 'Harjoituksia ei ehdoteta, kun turvallisuusohjeet ovat näkyvissä.'
+        return None, 'Exercises are not suggested while the safety instructions are showing.'
     candidates = allowed_library(state, client, elevated=elevated)
     if client.mode == 'therapy_support' and not therapy.active_config(state, client.id):
-        return None, 'Terapeutti ei ole vielä määrittänyt sallittuja harjoituksia.'
+        return None, 'The therapist has not yet chosen the allowed exercises.'
     completions = [c for c in state.activityCompletions if c.clientId == client.id]
     recent = {c.activityId for c in completions if days_between(c.createdAt, state.currentDate) < 2}
     skipped = Counter(c.activityId for c in completions if c.status == 'skipped' and days_between(c.createdAt, state.currentDate) <= 14)
@@ -67,7 +67,7 @@ def select(state: ValitukiState, client: ClientProfile, *, elevated: bool = Fals
     topics = set(client_topics(state, client))
     fresh = [a for a in candidates if a.id not in recent and skipped[a.id] < 2] or candidates
     if not fresh:
-        return None, 'Sallituissa harjoituksissa ei ole juuri nyt tilanteeseen sopivaa.'
+        return None, 'None of the allowed exercises suits the situation right now.'
 
     def score(activity: ApprovedActivity) -> float:
         topic_hits = len(set(activity.topics) & topics)
@@ -80,11 +80,11 @@ def select(state: ValitukiState, client: ClientProfile, *, elevated: bool = Fals
     best = sorted(fresh, key=lambda a: (-score(a), a.id))[0]
     matched = sorted(set(best.topics) & topics)
     if client.mode == 'therapy_support':
-        reason = 'Valittu terapeuttisi sallimista harjoituksista.'
+        reason = 'Chosen from the exercises your therapist has allowed.'
     elif matched:
-        reason = f'Valittu hyväksytystä kirjastosta, koska se liittyy tavoitteisiisi: {join_fi([topic(t) for t in matched])}.'
+        reason = f'Chosen from the approved library because it relates to your goals: {join_fi([topic(t) for t in matched])}.'
     else:
-        reason = 'Valittu hyväksytystä kirjastosta kevyeksi harjoitukseksi odotusajalle.'
+        reason = 'Chosen from the approved library as a light exercise for the waiting time.'
     return best, reason
 
 
@@ -102,5 +102,5 @@ def template_intro(activity: ApprovedActivity, goal_text: Optional[str]) -> str:
     if goal_text:
         short = goal_text.strip().rstrip('.')
         short = short if len(short) <= 90 else short[:87].rstrip() + '…'
-        text += f' Tavoitteesi: "{short}". Tämä voi olla yksi pieni askel siihen suuntaan.'
-    return text + ' Voit myös ohittaa harjoituksen.'
+        text += f' Your goal: "{short}". This could be one small step in that direction.'
+    return text + ' You can also skip the exercise.'

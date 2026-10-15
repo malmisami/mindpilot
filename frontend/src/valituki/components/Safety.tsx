@@ -48,16 +48,16 @@ export function HelpSheet({ safety, busy, onHelpNow, onContact, onClose }: {
   safety: Meta['safety']; busy: boolean; onHelpNow: () => void; onContact: () => void; onClose: () => void;
 }) {
   return (
-    <Sheet title={<><LifebuoyIcon size={20} /> Apua nyt</>} onClose={onClose}>
-      <p className="muted">Mieliluotsi ei ole päivystyspalvelu, eikä tätä keskustelua seurata jatkuvasti. Jos tarvitset apua heti:</p>
+    <Sheet title={<><LifebuoyIcon size={20} /> Help now</>} onClose={onClose}>
+      <p className="muted">Mieliluotsi is not an emergency service, and this conversation is not monitored all the time. If you need help right away:</p>
       <ContactList contacts={safety.contacts} />
       <div className="stack-sm">
-        <button type="button" className="btn btn-rose btn-block" disabled={busy} onClick={onHelpNow}>Tarvitsen apua nyt</button>
+        <button type="button" className="btn btn-rose btn-block" disabled={busy} onClick={onHelpNow}>I need help now</button>
         <button type="button" className="btn btn-secondary btn-block" disabled={busy} onClick={onContact}>
-          <ChatIcon size={18} /> Haluan keskustella ammattilaisen kanssa
+          <ChatIcon size={18} /> I want to talk to a professional
         </button>
-        <p className="muted small">”Tarvitsen apua nyt” näyttää turvallisuusohjeet ja tekee hoitotiimin työjonoon hälytyksen. Mieliluotsi ei soita
-          hätänumeroon puolestasi.</p>
+        <p className="muted small">“I need help now” shows the safety instructions and sends an alert to the care team's work queue. Mieliluotsi does not
+          call the emergency number for you.</p>
       </div>
     </Sheet>
   );

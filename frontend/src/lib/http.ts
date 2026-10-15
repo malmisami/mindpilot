@@ -22,11 +22,11 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     res = await fetch(`${API_BASE}${path}`, { ...init, headers });
   } catch {
-    throw new Error('Yhteys palvelimeen epäonnistui.');
+    throw new Error('Could not connect to the server.');
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(typeof data.detail === 'string' ? data.detail : 'Pyyntö epäonnistui.');
+    throw new Error(typeof data.detail === 'string' ? data.detail : 'The request failed.');
   }
   return data as T;
 }

@@ -15,8 +15,8 @@ from app.valituki.models import ClientProfile, ValitukiState
 from app.valituki.store import add_days, days_between, get_client, get_therapist, now, weekday
 
 STABLE_OFFSETS = [0, 1, 0, 0, -1, 0, 1]
-PROFILE_LABELS = {'scripted': 'Käsikirjoitettu demopolku', 'stable': 'Vakaa', 'deteriorating': 'Heikkenevä',
-                  'missing': 'Check-init jäävät väliin', 'none': 'Ei simuloitua käyttöä'}
+PROFILE_LABELS = {'scripted': 'Scripted demo path', 'stable': 'Stable', 'deteriorating': 'Declining',
+                  'missing': 'Check-ins missed', 'none': 'No simulated use'}
 
 
 class SimulationError(ValueError):
@@ -140,7 +140,7 @@ def _day_actions(state: ValitukiState, client: ClientProfile) -> list[tuple[str,
                 client_actions.submit_checkin(state, client, int(entry['mood']), entry.get('changes', {}), entry.get('note', ''),
                                               anxiety=simulated_anxiety(entry),
                                               track_score=max(1, min(5, 6 - int(entry['mood']))) if track else None,
-                                              provider=DemoAIProvider(), who=f'{records.client_actor(client.id)}:simuloitu',
+                                              provider=DemoAIProvider(), who=f'{records.client_actor(client.id)}:simulated',
                                               at=entry.get('time'))
             actions.append((entry.get('time', default_time), answer))
     spec = _spec(client)
@@ -171,7 +171,7 @@ def _day_actions(state: ValitukiState, client: ClientProfile) -> list[tuple[str,
 
 def _practice_step(state: ValitukiState, client: ClientProfile, item: dict[str, Any]) -> None:
     """A scripted piece of the demo client's own practice, run through the same guided engine as the chat."""
-    who = f'{records.client_actor(client.id)}:simuloitu'
+    who = f'{records.client_actor(client.id)}:simulated'
     at = item.get('time')
     if practice.active_session(state, client.id) is not None and practice.active_session(state, client.id).tool == 'checkin':
         practice.expire_checkin(state, client)
@@ -210,7 +210,7 @@ def simulate_day(state: ValitukiState) -> None:
     state.currentDate = add_days(state.currentDate, 1)
     # Messages the client did not allow to be stored are kept for the day's conversation only.
     state.chat = [m for m in state.chat if m.retained or m.createdAt[:10] >= state.currentDate]
-    records.audit(state, actor=records.DEMO, action='demo_day', detail=f'Demon päivä: {state.currentDate}', at='08:00')
+    records.audit(state, actor=records.DEMO, action='demo_day', detail=f'Demo day: {state.currentDate}', at='08:00')
     adapters.therapist_directory.sync_calendars(state)
     orchestrator.tick(state, DemoAIProvider())
     run_client_day(state)
@@ -226,7 +226,7 @@ def run_client_day(state: ValitukiState) -> None:
 
 def advance(state: ValitukiState, days: int) -> dict[str, Any]:
     if days < 1 or days > 31:
-        raise SimulationError('Päiviä tulee olla 1–31.')
+        raise SimulationError('The number of days must be 1–31.')
     actions_before = len(state.actions)
     for _ in range(days):
         simulate_day(state)
@@ -239,12 +239,12 @@ def _events_since(state: ValitukiState, seq: int, client_id: str, event_type: st
 
 def _require_active(client: ClientProfile) -> None:
     if client.journeyState not in journey.ACTIVE_STATES:
-        raise SimulationError(f'{client.firstName} ei vielä käytä Mieliluotsia – ota se ensin käyttöön.')
+        raise SimulationError(f'{client.firstName} is not using Mieliluotsi yet – set it up first.')
     if not client.consent.proactiveCheckins or client.automationPaused:
-        raise SimulationError('Check-init eivät ole käytössä tällä asiakkaalla (suostumus tai tauko).')
+        raise SimulationError('Check-ins are not in use for this client (consent or pause).')
 
 
-# The decline comes after this many ordinary days with Mieliluotsi – as in the demo's story ("Kaksi viikkoa myöhemmin").
+# The decline comes after this many ordinary days with Mieliluotsi – as in the demo's story ("Two weeks later").
 ORDINARY_DAYS_BEFORE_DECLINE = 14
 
 
@@ -252,7 +252,7 @@ def simulate_deterioration(state: ValitukiState, client: ClientProfile, max_days
     _require_active(client)
     from app.valituki import intake
 
-    # The ordinary weeks first, when they have not been simulated yet: the check-ins the "Huomasimme jotain" pattern is
+    # The ordinary weeks first, when they have not been simulated yet: the check-ins the "We noticed something" pattern is
     # drawn from come before the decline, so the observation is on the home screen once wellbeing has declined.
     session = intake.session_for(state, client)
     started = (session.completedAt if session and session.completedAt else state.currentDate)[:10]
@@ -264,7 +264,7 @@ def simulate_deterioration(state: ValitukiState, client: ClientProfile, max_days
     client.simulationProfile = 'deteriorating'
     client.simulationCursor['deterioration'] = 0
     records.audit(state, actor=records.DEMO, action='demo_profile', client_id=client.id,
-                  detail='Demo: simuloidut check-in-vastaukset muutettiin heikkeneviksi.')
+                  detail='Demo: the simulated check-in answers were changed to declining.')
     days = 0
     while days < max_days and not _events_since(state, start_seq, client.id, 'WELLBEING_TREND_CHANGED'):
         simulate_day(state)
@@ -280,7 +280,7 @@ def simulate_stable(state: ValitukiState, client: ClientProfile, max_days: int =
     start_seq = state.events[-1].seq if state.events else 0
     client.simulationProfile = 'stable'
     records.audit(state, actor=records.DEMO, action='demo_profile', client_id=client.id,
-                  detail='Demo: simuloidut check-in-vastaukset muutettiin vakaiksi.')
+                  detail='Demo: the simulated check-in answers were changed to stable.')
     days = 0
     while days < max_days and len(_events_since(state, start_seq, client.id, 'CHECKIN_COMPLETED')) < 2:
         simulate_day(state)
@@ -298,7 +298,7 @@ def open_slot(state: ValitukiState, spec: dict[str, Any], *, actor: str = record
                                  payload={'reason': spec.get('reason', ''),
                                           'capacity': f'{therapist.currentCapacity}/{therapist.maxCapacity}'})
     records.audit(state, actor='therapist_directory_adapter', action='capacity_changed', event_id=event.id,
-                  detail=f'{therapist.name}: {spec.get("reason", "")} Kapasiteetti {therapist.currentCapacity}/{therapist.maxCapacity}.')
+                  detail=f'{therapist.name}: {spec.get("reason", "")} Capacity {therapist.currentCapacity}/{therapist.maxCapacity}.')
     orchestrator.dispatch(state, event, DemoAIProvider())
     return event
 
@@ -306,7 +306,7 @@ def open_slot(state: ValitukiState, spec: dict[str, Any], *, actor: str = record
 def open_next_pending(state: ValitukiState) -> dict[str, Any]:
     pending = next((p for p in state.pendingSlotOpenings if p.status == 'pending'), None)
     if pending is None:
-        raise SimulationError('Demossa ei ole enempää vapautuvia aikoja. Palauta demo alkutilaan tai jatka ilman.')
+        raise SimulationError('There are no more slots to open in the demo. Reset the demo or carry on without.')
     pending.status = 'opened'
     event = open_slot(state, pending.model_dump())
     run = state.matchRuns[-1] if state.matchRuns else None
@@ -320,7 +320,7 @@ def hold_first_session(state: ValitukiState, client: ClientProfile) -> dict[str,
 
     booking = handover.active_booking(state, client.id)
     if booking is None or journey.effective_state(client) != 'MATCH_ACCEPTED':
-        raise SimulationError('Ensimmäistä tapaamista ei ole varattu.')
+        raise SimulationError('No first session has been booked.')
     days = 0
     while state.currentDate < booking.start[:10] and days < 31:
         simulate_day(state)
@@ -335,7 +335,7 @@ def end_therapy(state: ValitukiState, client: ClientProfile, weeks: int = 4) -> 
     suggested maintenance plan → AFTERCARE."""
     episode = therapy.episode(state, client.id)
     if episode is None or episode.status != 'active':
-        raise SimulationError('Terapia ei ole käynnissä – pidä ensin ensimmäinen tapaaminen.')
+        raise SimulationError('Therapy is not in progress – hold the first session first.')
     if therapy.active_config(state, client.id) is None:
         therapy.configure(state, client, episode.therapistId, therapy.suggested_plan(state, client),
                           records.therapist_actor(episode.therapistId))
@@ -359,6 +359,7 @@ def _after(start: str, minutes: int) -> str:
 
 def crisis(state: ValitukiState, client_id: str = 'cl-crisis') -> dict[str, Any]:
     client = get_client(state, client_id)
-    message = content.client_spec(client.id).get('safetyDemoMessage') or 'En jaksa enää. Olen alkanut ajatella, että haluaisin kuolla.'
+    message = (content.client_spec(client.id).get('safetyDemoMessage')
+               or "I can't cope any more. I've started to think that I'd like to die.")
     now(state, '21:30')
     return {'clientId': client.id, **client_actions.send_message(state, client, message, DemoAIProvider())}

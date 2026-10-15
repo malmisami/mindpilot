@@ -3,7 +3,7 @@
 Instead of hand-written records, the seed enrolls the synthetic clients on their dates, runs their intakes through the
 conversational intake engine, runs the agents' daily rules, scripted client and therapist actions and the simulated
 check-in answers day by day. Every event, observation, task and timeline entry in the demo is therefore produced by the
-same deterministic rules the live demo uses. Kaikki demon henkilöt ja terveystiedot ovat täysin kuvitteellisia.
+same deterministic rules the live demo uses. All people and health information in the demo are entirely fictional.
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from app.valituki.models import (
 )
 from app.valituki.store import add_days, get_client, now
 
-PROFESSIONAL_ASSESSOR = 'Terveysaseman ammattilainen (synteettinen)'
+PROFESSIONAL_ASSESSOR = 'Health centre professional (synthetic)'
 
 
 def _therapists(state: ValitukiState) -> None:
@@ -56,10 +56,10 @@ def _enroll(state: ValitukiState, spec: dict[str, Any], today: str) -> ClientPro
         allocatableFrom=add_days(today, spec['allocatableOffset']), estimatedWait=ref.get('estimatedWait', ''),
         clinicalUrgency=urgency, urgencySetBy=ref.get('assessedBy') or PROFESSIONAL_ASSESSOR, urgencySetAt=referral.referredAt,
         urgencyHistory=[{'at': referral.referredAt, 'from': None, 'to': urgency, 'by': ref.get('assessedBy') or PROFESSIONAL_ASSESSOR,
-                         'reason': 'Alkuarvio'}],
+                         'reason': 'Initial assessment'}],
         createdAt=stamp, updatedAt=stamp, createdBy='waiting_list_adapter', source='adapter'))
     records.audit(state, actor='waiting_list_adapter', action='waiting_list', client_id=client.id,
-                  detail=f'Lähete ({referral.referrer}) – hoidon kiireellisyys: {URGENCY[urgency]} (ammattilaisen arvio).')
+                  detail=f"Referral ({referral.referrer}) – urgency of care: {URGENCY[urgency]} (a professional's assessment).")
     event = journey.enroll(state, client, actor='waiting_list_adapter', source='adapter')
     orchestrator.dispatch(state, event, DemoAIProvider())
     return client
@@ -95,7 +95,7 @@ def build_seed_state() -> ValitukiState:
     today = data['demoToday']
     start = int(data['seedStartOffset'])
     state = ValitukiState(currentDate=add_days(today, start), demoStartDate=today)
-    state.users.append(User(id='u-coordinator', role='coordinator', displayName='Hoitokoordinaattori Riikka (demo)'))
+    state.users.append(User(id='u-coordinator', role='coordinator', displayName='Care coordinator Riikka (demo)'))
     _therapists(state)
     for opening in data['pendingSlotOpenings']:
         state.pendingSlotOpenings.append(PendingSlotOpening(**opening))
@@ -119,5 +119,5 @@ def build_seed_state() -> ValitukiState:
     for notification in state.notifications:  # the synthetic history has been "read"; only the last two days stay new
         notification.read = notification.createdAt[:10] < add_days(today, -1)
     records.audit(state, actor=records.SYSTEM, action='seed_ready',
-                  detail=f'Synteettinen demo muodostettu: {len(state.clients)} asiakasta, {len(state.therapists)} terapeuttia.')
+                  detail=f'Synthetic demo built: {len(state.clients)} clients, {len(state.therapists)} therapists.')
     return state
